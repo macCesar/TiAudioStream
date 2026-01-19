@@ -46,9 +46,27 @@
     
     // Setup Remote Commands
     MPRemoteCommandCenter *cc = [MPRemoteCommandCenter sharedCommandCenter];
+    
+    [cc.playCommand setEnabled:YES];
     [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self play:nil]; return MPRemoteCommandHandlerStatusSuccess; }];
+    
+    [cc.pauseCommand setEnabled:YES];
     [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self pause:nil]; return MPRemoteCommandHandlerStatusSuccess; }];
+    
+    [cc.stopCommand setEnabled:YES];
     [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self stop:nil]; return MPRemoteCommandHandlerStatusSuccess; }];
+    
+    [cc.nextTrackCommand setEnabled:YES];
+    [cc.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
+        [self fireRemoteControl:MPRemoteControlEventSubtypeRemoteControlNextTrack]; 
+        return MPRemoteCommandHandlerStatusSuccess; 
+    }];
+    
+    [cc.previousTrackCommand setEnabled:YES];
+    [cc.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
+        [self fireRemoteControl:MPRemoteControlEventSubtypeRemoteControlPreviousTrack]; 
+        return MPRemoteCommandHandlerStatusSuccess; 
+    }];
     
     // Notifications
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
@@ -62,6 +80,10 @@
     ENSURE_SINGLE_ARG(args, NSDictionary);
     _currentURL = [TiUtils stringValue:@"url" properties:args];
     _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
+    
+    // Reset retry logic on new stream
+    _retryCount = 0;
+    _isReconnecting = NO;
     
     if (_currentItem) {
         @try {
@@ -88,7 +110,8 @@
 - (void)start:(id)unused { [self play:nil]; }
 - (void)pause:(id)unused { if (_player) { [_player pause]; [self fireState:@"paused"]; [self updateNowPlaying]; } }
 - (void)stop:(id)unused { 
-    if (_player) { [_player pause]; _player = nil; _currentItem = nil; }
+    _isReconnecting = NO; // Stop any pending reconnect
+    if (_player) { [_player pause]; [_player replaceCurrentItemWithPlayerItem:nil]; }
     [self fireState:@"stopped"];
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
 }
@@ -99,7 +122,6 @@
     _currentTitle = [TiUtils stringValue:@"title" properties:args def:@""];
     _currentArtist = [TiUtils stringValue:@"artist" properties:args def:@""];
     NSString *artworkURL = [TiUtils stringValue:@"artwork" properties:args];
-    [self updateNowPlaying];
     
     if (artworkURL) {
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -107,6 +129,9 @@
             UIImage *img = [UIImage imageWithData:data];
             if (img) { dispatch_async(dispatch_get_main_queue(), ^{ self->_currentArtwork = img; [self updateNowPlaying]; }); }
         });
+    } else {
+        _currentArtwork = nil;
+        [self updateNowPlaying];
     }
 }
 
@@ -129,8 +154,33 @@
 {
     if (object == _currentItem) {
         if ([keyPath isEqualToString:@"status"]) {
-            if (_currentItem.status == AVPlayerItemStatusReadyToPlay) { _retryCount = 0; if (_player.rate > 0) [self fireState:@"playing"]; }
-            else if (_currentItem.status == AVPlayerItemStatusFailed) { [self fireState:@"error"]; [self attemptReconnect]; }
+            if (_currentItem.status == AVPlayerItemStatusReadyToPlay) { 
+                _retryCount = 0; 
+                _isReconnecting = NO;
+                if (_player.rate > 0) [self fireState:@"playing"]; 
+            }
+            else if (_currentItem.status == AVPlayerItemStatusFailed) { 
+                NSError *error = _currentItem.error;
+                NSLog(@"[Audiostream] Player error: %@", error.localizedDescription);
+                
+                [self fireState:@"error"];
+                [self fireError:error.localizedDescription];
+                
+                // Detect terminal errors (Source Errors / 404 / 302 / Unreachable)
+                BOOL isTerminal = NO;
+                if ([error.domain isEqualToString:NSURLErrorDomain]) {
+                    if (error.code == NSURLErrorFileDoesNotExist || error.code == NSURLErrorNoPermissionsToReadFile) isTerminal = YES;
+                }
+                
+                if (isTerminal) {
+                    NSLog(@"[Audiostream] Terminal error detected. Stopping.");
+                    _isReconnecting = NO;
+                    [_player pause];
+                    [self updateNowPlaying]; // Keep notification but in paused/stopped state
+                } else {
+                    [self attemptReconnect];
+                }
+            }
         }
         if ([keyPath isEqualToString:@"playbackBufferEmpty"] && _currentItem.playbackBufferEmpty) [self fireState:@"buffering"];
         if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"] && _currentItem.playbackLikelyToKeepUp && _player.rate > 0) [self fireState:@"playing"];
@@ -142,12 +192,39 @@
 
 - (void)attemptReconnect {
     if (_isReconnecting || _retryCount >= 5) return;
-    _retryCount++; _isReconnecting = YES;
+    
+    _retryCount++;
+    _isReconnecting = YES;
+    NSString *urlToRetry = [_currentURL copy];
+    
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        self->_isReconnecting = NO; if (self->_currentURL) { [self setStream:@{@"url":self->_currentURL}]; [self play:nil]; }
+        // Interruptible: Only proceed if we are still supposed to be reconnecting AND to the same URL
+        if (self->_isReconnecting && [self->_currentURL isEqualToString:urlToRetry]) {
+            self->_isReconnecting = NO;
+            [self setStream:@{@"url":self->_currentURL, @"isLive":@(self->_isLive)}];
+            [self play:nil];
+        } else {
+            NSLog(@"[Audiostream] Reconnection aborted: URL changed or manually stopped.");
+        }
     });
 }
 
 - (void)fireState:(NSString *)state { if ([self _hasListeners:@"state"]) [self fireEvent:@"state" withObject:@{@"state":state}]; }
+- (void)fireError:(NSString *)msg { if ([self _hasListeners:@"error"]) [self fireEvent:@"error" withObject:@{@"message":msg}]; }
+
+- (void)fireRemoteControl:(NSInteger)subtype {
+    if ([self _hasListeners:@"remotecontrol"]) {
+        [self fireEvent:@"remotecontrol" withObject:@{@"subtype": @(subtype)}];
+    }
+}
+
+#pragma mark - Constants Proxy
+
+- (NSNumber *)REMOTE_CONTROL_PLAY { return @(MPRemoteControlEventSubtypeRemoteControlPlay); }
+- (NSNumber *)REMOTE_CONTROL_PAUSE { return @(MPRemoteControlEventSubtypeRemoteControlPause); }
+- (NSNumber *)REMOTE_CONTROL_STOP { return @(MPRemoteControlEventSubtypeRemoteControlStop); }
+- (NSNumber *)REMOTE_CONTROL_PLAY_PAUSE { return @(MPRemoteControlEventSubtypeRemoteControlTogglePlayPause); }
+- (NSNumber *)REMOTE_CONTROL_NEXT { return @(MPRemoteControlEventSubtypeRemoteControlNextTrack); }
+- (NSNumber *)REMOTE_CONTROL_PREV { return @(MPRemoteControlEventSubtypeRemoteControlPreviousTrack); }
 
 @end
