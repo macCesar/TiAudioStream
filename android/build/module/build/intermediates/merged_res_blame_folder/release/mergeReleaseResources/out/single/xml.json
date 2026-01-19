@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "ti.audiostream.module-release-48:/xml/titanium_ui_vertical_nested_scrollview.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/xml/titanium_ui_vertical_nested_scrollview.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/xml/titanium_ui_horizontal_nested_scrollview.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/xml/titanium_ui_horizontal_nested_scrollview.xml"
+    }
+]

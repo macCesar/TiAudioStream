@@ -1,0 +1,67 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    xmlns:tools="http://schemas.android.com/tools"
+4    package="ti.audiostream" >
+5
+6    <uses-sdk android:minSdkVersion="24" />
+7
+8    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+8-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:3:4-75
+8-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:3:21-73
+9    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+9-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:4:4-90
+9-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:4:21-88
+10    <uses-permission android:name="android.permission.INTERNET" />
+10-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:5:4-65
+10-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:5:21-63
+11    <uses-permission android:name="android.permission.WAKE_LOCK" />
+11-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:6:4-66
+11-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:6:21-64
+12
+13    <application>
+13-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:7:4-20:18
+14        <receiver
+14-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:8:5-18:16
+15            android:name="ti.audiostream.MediaActionReceiver"
+15-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:8:15-64
+16            android:exported="true" >
+16-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:8:65-88
+17            <intent-filter>
+17-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:9:6-17:22
+18                <action android:name="android.intent.action.MEDIA_BUTTON" />
+18-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:10:7-66
+18-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:10:15-64
+19                <action android:name="ti.audiostream.PLAY" />
+19-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:11:7-51
+19-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:11:15-49
+20                <action android:name="ti.audiostream.PAUSE" />
+20-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:12:7-52
+20-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:12:15-50
+21                <action android:name="ti.audiostream.PLAY_PAUSE" />
+21-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:13:7-57
+21-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:13:15-55
+22                <action android:name="ti.audiostream.STOP" />
+22-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:14:7-51
+22-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:14:15-49
+23                <action android:name="ti.audiostream.NEXT" />
+23-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:15:7-51
+23-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:15:15-49
+24                <action android:name="ti.audiostream.PREV" />
+24-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:16:7-51
+24-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:16:15-49
+25            </intent-filter>
+26        </receiver>
+27
+28        <service
+28-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:5-166
+29            android:name="ti.audiostream.MediaPlaybackService"
+29-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:14-64
+30            android:exported="false"
+30-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:140-164
+31            android:foregroundServiceType="mediaPlayback"
+31-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:65-110
+32            android:stopWithTask="false" />
+32-->/Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:111-139
+33    </application>
+34
+35</manifest>

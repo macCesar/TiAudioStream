@@ -1,0 +1,5 @@
+//
+// ti.audiostream xcconfig
+//
+
+OTHER_LDFLAGS=$(inherited) -framework AVFoundation -framework MediaPlayer -framework AudioToolbox

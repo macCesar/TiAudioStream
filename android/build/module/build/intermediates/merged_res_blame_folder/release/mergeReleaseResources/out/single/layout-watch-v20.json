@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "ti.audiostream.module-release-48:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/layout-watch-v20/abc_alert_dialog_title_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/layout-watch-v20/abc_alert_dialog_title_material.xml"
+    }
+]

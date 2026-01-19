@@ -1,0 +1,566 @@
+[
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_checkmark.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_checkmark.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_mtrl_chip_checked_black.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_mtrl_chip_checked_black.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_pressed_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_pressed_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon_checked_indeterminate.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon_checked_indeterminate.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_checkbox_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_checkbox_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_cancel.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_cancel.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon_indeterminate_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon_indeterminate_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_clear_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_clear_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_fastscroll_line_drawable.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_fastscroll_line_drawable.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_btn_borderless_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_btn_borderless_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_drag.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_drag.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_seekbar_tick_mark_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_seekbar_tick_mark_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_tab_indicator_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_tab_indicator_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/tooltip_frame_dark.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/tooltip_frame_dark.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_keyboard_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_keyboard_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/notification_tile_bg.xml",
+        "source": "ti.audiostream.module-core-1.13.1-22:/drawable/notification_tile_bg.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/media3_icon_circular_play.png",
+        "source": "ti.audiostream.module-media3-session-1.5.1-28:/drawable/media3_icon_circular_play.png"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_seekbar_track_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_seekbar_track_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_list_selector_holo_dark.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_list_selector_holo_dark.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/indeterminate_static.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/indeterminate_static.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_arrow_drop_up.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_arrow_drop_up.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_splash_empty.png",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_splash_empty.png"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_seekbar_thumb_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_seekbar_thumb_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_textfield_search_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_textfield_search_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_unchecked_pressed.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_unchecked_pressed.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_check_mark.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_check_mark.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_arrow_back_black_24.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_arrow_back_black_24.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon_indeterminate_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon_indeterminate_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_tabs_default_indicator.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_tabs_default_indicator.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_dropdown_arrow.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_dropdown_arrow.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_spinner_textfield_background_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_spinner_textfield_background_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_more.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_more.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_dialog_background.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_dialog_background.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_checkbox_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_checkbox_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_search_api_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_search_api_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/notification_bg.xml",
+        "source": "ti.audiostream.module-core-1.13.1-22:/drawable/notification_bg.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_edit_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_edit_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ratingbar_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ratingbar_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_clock_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_clock_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/test_level_drawable.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/test_level_drawable.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_fastscroll_line.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_fastscroll_line.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_menu_cut_mtrl_alpha.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_menu_cut_mtrl_alpha.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_calendar_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_calendar_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon_unchecked_indeterminate.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon_unchecked_indeterminate.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_menu_arrow_up_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_menu_arrow_up_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/notification_icon_background.xml",
+        "source": "ti.audiostream.module-core-1.13.1-22:/drawable/notification_icon_background.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_avd_show_password.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_avd_show_password.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_btn_check_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_btn_check_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_btn_radio_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_btn_radio_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/design_fab_background.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/design_fab_background.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_password_eye.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_password_eye.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/tooltip_frame_light.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/tooltip_frame_light.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_voice_search_api_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_voice_search_api_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/selection_band_overlay.xml",
+        "source": "ti.audiostream.module-recyclerview-selection-1.1.0-29:/drawable/selection_band_overlay.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_keyboard_arrow_right_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_keyboard_arrow_right_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_search_black_24.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_search_black_24.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_track.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_track.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_checkbox_unchecked_to_checked_mtrl_animation.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_checkbox_unchecked_to_checked_mtrl_animation.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_tabs_rounded_line_indicator.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_tabs_rounded_line_indicator.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_radio_off_mtrl.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_radio_off_mtrl.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_delete.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_delete.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_menu_overflow_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_menu_overflow_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_item_background_holo_dark.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_item_background_holo_dark.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_mtrl_checked_circle.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_mtrl_checked_circle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_checkbox_checked_to_unchecked_mtrl_animation.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_checkbox_checked_to_unchecked_mtrl_animation.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/design_ic_visibility_off.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/design_ic_visibility_off.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_btn_default_mtrl_shape.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_btn_default_mtrl_shape.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_circle.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_circle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/media_session_service_notification_ic_music_note.xml",
+        "source": "ti.audiostream.module-media3-session-1.5.1-28:/drawable/media_session_service_notification_ic_music_note.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_btn_radio_material_anim.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_btn_radio_material_anim.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_action_back.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/ic_action_back.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_menu_arrow_down_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_menu_arrow_down_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_clear_black_24.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_clear_black_24.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_checkbox_checked_mtrl.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_checkbox_checked_mtrl.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_checked_pressed.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_checked_pressed.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_radio_on_to_off_mtrl_animation.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_radio_on_to_off_mtrl_animation.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_radio_off_to_on_mtrl_animation.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_radio_off_to_on_mtrl_animation.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_clear_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_clear_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_fastscroll_thumb.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_fastscroll_thumb.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_bottom_sheet_drag_handle.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_bottom_sheet_drag_handle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_list_selector_background_transition_holo_dark.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_list_selector_background_transition_holo_dark.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_list_selector_background_transition_holo_light.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_list_selector_background_transition_holo_light.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_track_decoration.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_track_decoration.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_switch_thumb_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_switch_thumb_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/notification_bg_low.xml",
+        "source": "ti.audiostream.module-core-1.13.1-22:/drawable/notification_bg_low.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon_unchecked_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon_unchecked_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_pressed.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_pressed.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_star_half_black_48dp.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_star_half_black_48dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon_checked_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon_checked_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_arrow_drop_down.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_arrow_drop_down.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_unchecked_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_unchecked_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_vector_test.xml",
+        "source": "ti.audiostream.module-appcompat-resources-1.7.0-23:/drawable/abc_vector_test.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_cab_background_internal_bg.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_cab_background_internal_bg.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/navigation_empty_icon.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/navigation_empty_icon.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_avd_hide_password.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_avd_hide_password.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_checked_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_checked_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_menu_paste_mtrl_am_alpha.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_menu_paste_mtrl_am_alpha.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_cab_background_top_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_cab_background_top_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_m3_chip_check.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_m3_chip_check.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_mtrl_chip_checked_circle.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_mtrl_chip_checked_circle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_list_selector_holo_light.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_list_selector_holo_light.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_ab_back_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_ab_back_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/material_ic_keyboard_arrow_left_black_24dp.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/material_ic_keyboard_arrow_left_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_menu_copy_mtrl_am_alpha.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_menu_copy_mtrl_am_alpha.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_m3_chip_close.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_m3_chip_close.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_popupmenu_background_overlay.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_popupmenu_background_overlay.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/avd_hide_password.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/avd_hide_password.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_fastscroll_thumb_drawable.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_fastscroll_thumb_drawable.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ratingbar_indicator_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ratingbar_indicator_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_checkcircle.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_checkcircle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_checkbox_button_icon.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_checkbox_button_icon.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_unchecked_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_unchecked_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_indeterminate.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_indeterminate.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/titanium_icon_disclosure.xml",
+        "source": "ti.audiostream.module-titanium-13.1.0-8:/drawable/titanium_icon_disclosure.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_text_cursor_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_text_cursor_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_arrow_drop_right_black_24dp.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_arrow_drop_right_black_24dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_checked_unchecked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_checked_unchecked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_pressed_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_pressed_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_mtrl_chip_close_circle.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_mtrl_chip_close_circle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_btn_check_material_anim.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_btn_check_material_anim.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_menu_share_mtrl_alpha.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_menu_share_mtrl_alpha.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_ic_error.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_ic_error.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_star_black_48dp.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_star_black_48dp.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_radio_on_mtrl.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_radio_on_mtrl.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/design_snackbar_background.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/design_snackbar_background.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/avd_show_password.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/avd_show_password.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/ic_m3_chip_checked_circle.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/ic_m3_chip_checked_circle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_bottomsheet_drag_handle.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_bottomsheet_drag_handle.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/design_ic_visibility.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/design_ic_visibility.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_popupmenu_background.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_popupmenu_background.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ratingbar_small_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ratingbar_small_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/design_password_eye.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/design_password_eye.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_go_search_api_material.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_go_search_api_material.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_ic_menu_selectall_mtrl_alpha.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_ic_menu_selectall_mtrl_alpha.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/mtrl_switch_thumb_checked.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/mtrl_switch_thumb_checked.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/abc_item_background_holo_light.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/abc_item_background_holo_light.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/btn_checkbox_unchecked_mtrl.xml",
+        "source": "ti.audiostream.module-appcompat-1.7.0-19:/drawable/btn_checkbox_unchecked_mtrl.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/drawable/m3_tabs_line_indicator.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/drawable/m3_tabs_line_indicator.xml"
+    }
+]
