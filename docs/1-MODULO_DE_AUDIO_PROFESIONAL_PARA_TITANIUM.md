@@ -54,7 +54,7 @@ ti.audiostream/
 **Repositorio**
 
 ```
-ti.audiostream
+TiAudioStream
 ```
 
 **Módulo**

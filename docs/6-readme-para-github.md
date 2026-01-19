@@ -6,14 +6,14 @@ Esto es lo que hace que **otros desarrolladores lo entiendan, lo usen y confíen
 
 ---
 
-# 📘 `ti.audiostream` – README.md (propuesta oficial)
+# 📘 TiAudioStream – README.md (propuesta oficial)
 
 A continuación te entrego un **README listo para copiar/pegar** en GitHub.
 Luego viene el **ejemplo de uso**.
 
 ---
 
-## 🎧 ti.audiostream
+## 🎧 TiAudioStream
 
 **Módulo Titanium multiplataforma (Android + iOS) para audio streaming profesional**
 
@@ -56,7 +56,7 @@ Luego viene el **ejemplo de uso**.
 ### 1. Descargar o clonar el módulo
 
 ```bash
-git clone https://github.com/tuusuario/ti.audiostream.git
+git clone https://github.com/macCesar/TiAudioStream.git
 ```
 
 ### 2. Compilar el módulo

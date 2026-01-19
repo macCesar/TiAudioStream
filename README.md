@@ -1,4 +1,4 @@
-# ti.audiostream
+# TiAudioStream
 
 Professional audio streaming module for Titanium SDK with proper audio focus handling, lock screen controls, and background playback.
 
