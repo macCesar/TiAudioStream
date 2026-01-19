@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "ti.audiostream.module-mergeReleaseResources-46:/values-port/values-port.xml",
+            "map": [
+                {
+                    "source": "/Users/cesar/.gradle/caches/8.14.3/transforms/5d06720156a6cd22ad2502128a88ba29/transformed/appcompat-1.7.0/res/values-port/values-port.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "55",
+                        "endOffsets": "106"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "ti.audiostream.module-release-48:/values-port/values-port.xml",
+            "map": [
+                {
+                    "source": "/Users/cesar/.gradle/caches/8.14.3/transforms/5d06720156a6cd22ad2502128a88ba29/transformed/appcompat-1.7.0/res/values-port/values-port.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "55",
+                        "endOffsets": "106"
+                    }
+                }
+            ]
+        }
+    ]
+}

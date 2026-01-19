@@ -1,0 +1,82 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:2:1-21:14
+INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:2:1-21:14
+	package
+		INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml
+	xmlns:tools
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:2:70-116
+	xmlns:android
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.FOREGROUND_SERVICE
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:3:4-75
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:3:21-73
+uses-permission#android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:4:4-90
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:4:21-88
+uses-permission#android.permission.INTERNET
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:5:4-65
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:5:21-63
+uses-permission#android.permission.WAKE_LOCK
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:6:4-66
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:6:21-64
+application
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:7:4-20:18
+receiver#ti.audiostream.MediaActionReceiver
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:8:5-18:16
+	android:exported
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:8:65-88
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:8:15-64
+intent-filter#action:name:android.intent.action.MEDIA_BUTTON+action:name:ti.audiostream.NEXT+action:name:ti.audiostream.PAUSE+action:name:ti.audiostream.PLAY+action:name:ti.audiostream.PLAY_PAUSE+action:name:ti.audiostream.PREV+action:name:ti.audiostream.STOP
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:9:6-17:22
+action#android.intent.action.MEDIA_BUTTON
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:10:7-66
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:10:15-64
+action#ti.audiostream.PLAY
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:11:7-51
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:11:15-49
+action#ti.audiostream.PAUSE
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:12:7-52
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:12:15-50
+action#ti.audiostream.PLAY_PAUSE
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:13:7-57
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:13:15-55
+action#ti.audiostream.STOP
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:14:7-51
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:14:15-49
+action#ti.audiostream.NEXT
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:15:7-51
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:15:15-49
+action#ti.audiostream.PREV
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:16:7-51
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:16:15-49
+service#ti.audiostream.MediaPlaybackService
+ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:5-166
+	android:exported
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:140-164
+	android:stopWithTask
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:111-139
+	android:foregroundServiceType
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:65-110
+	android:name
+		ADDED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml:19:14-64
+uses-sdk
+INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml
+INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /Users/cesar/Developer/openSource/audiostream/android/build/module/src/main/AndroidManifest.xml

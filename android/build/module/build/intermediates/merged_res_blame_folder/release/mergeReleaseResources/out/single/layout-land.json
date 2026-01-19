@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "ti.audiostream.module-release-48:/layout-land/material_timepicker.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/layout-land/material_timepicker.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/layout-land/mtrl_picker_header_dialog.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/layout-land/mtrl_picker_header_dialog.xml"
+    },
+    {
+        "merged": "ti.audiostream.module-release-48:/layout-land/material_clock_period_toggle_land.xml",
+        "source": "ti.audiostream.module-material-1.12.0-13:/layout-land/material_clock_period_toggle_land.xml"
+    }
+]

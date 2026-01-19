@@ -1,0 +1,2 @@
+rootProject.name = 'ti.audiostream'
+include ':module'
