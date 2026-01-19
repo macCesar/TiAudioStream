@@ -33,8 +33,6 @@ ti.audiostream/
 ├── ios/
 │   ├── Classes/
 │   └── ti.audiostream.xcodeproj
-├── commonjs/
-│   └── index.js   (API JS común)
 ├── manifest
 ├── timodule.xml
 └── README.md
@@ -87,7 +85,7 @@ const radio = require('ti.audiostream');
 ```js
 const radio = require('ti.audiostream');
 
-radio.init();
+// radio.init(); // No necesario
 
 radio.setStream({
   url: 'https://stream.url',
@@ -96,16 +94,17 @@ radio.setStream({
 
 radio.setMetadata({
   title: 'NotiGAPE',
-  subtitle: '104.9 FM',
+  artist: '104.9 FM',
   artwork: 'https://.../logo.png'
 });
 
-radio.play();
+radio.start();
 radio.pause();
 radio.stop();
 
-radio.addEventListener('statechange', e => {
+radio.addEventListener('state', e => {
   // playing | paused | buffering | stopped | error
+  console.log(e.state);
 });
 
 radio.addEventListener('error', e => {
@@ -248,10 +247,10 @@ Cada cambio de estado:
 
 | Player    | Evento JS                |
 | --------- | ------------------------ |
-| play      | `statechange: playing`   |
-| pause     | `statechange: paused`    |
-| buffering | `statechange: buffering` |
-| stop      | `statechange: stopped`   |
+| play      | `state: playing`   |
+| pause     | `state: paused`    |
+| buffering | `state: buffering` |
+| stop      | `state: stopped`   |
 
 ---
 
@@ -317,7 +316,6 @@ Este módulo **tiene muchísimo valor** para Titanium.
 
 ## Próximo paso (te recomiendo)
 
-👉 Definimos **el archivo `commonjs/index.js`**
 👉 Luego el **esqueleto Android (Service + ExoPlayer)**
 👉 Luego iOS
 

@@ -1,13 +1,3 @@
-Perfecto 👍
-Entonces **seguimos con el paso 2**, que es **el más importante a nivel Android**:
-
-> **Definir claramente la interfaz nativa Android**
-> (no implementación todavía, solo **contrato + esqueleto**)
-
-Esto es lo que conecta **tu `commonjs/index.js`** con **ExoPlayer + Service**.
-
----
-
 # 🟦 Paso 2: Interfaz nativa ANDROID del módulo
 
 ## 🎯 Objetivo de este paso
@@ -29,7 +19,7 @@ El módulo Android **NO inventa métodos nuevos**.
 
 # 📜 Métodos que DEBE exponer Android
 
-Basado en `commonjs/index.js`, el proxy nativo debe implementar:
+El proxy nativo debe implementar:
 
 ```js
 native.init()
@@ -166,8 +156,6 @@ Solo:
 ```
 JS
  └─ radio.play()
-      ↓
-commonjs/index.js
       ↓
 AudioStreamModule.play()
       ↓

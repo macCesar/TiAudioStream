@@ -1,10 +1,3 @@
-Perfecto. Entonces **cerramos el círculo** con la otra mitad del módulo 👌
-Ahora vamos con **Paso 4: iOS**, manteniendo **exactamente la misma API JS** que ya definimos.
-
-Esto es importante: **iOS es más simple que Android**, pero hay 2–3 trampas que hay que evitar para que funcione “nivel Spotify”.
-
----
-
 # 🍏 Paso 4: Implementación iOS
 
 **(AVPlayer + AVAudioSession + Lock Screen + Control Center)**
@@ -277,8 +270,6 @@ Llamar esto en `setup`.
 }
 ```
 
-👉 `commonjs/index.js` ya sabe qué hacer con esto.
-
 ---
 
 # 🎯 Resultado final (iOS)
@@ -307,7 +298,6 @@ Llamar esto en `setup`.
 # 🏁 Estado del proyecto AHORA
 
 ✔ API JS definida
-✔ commonjs/index.js creado
 ✔ Android: arquitectura completa
 ✔ iOS: arquitectura completa
 ✔ Problema original resuelto

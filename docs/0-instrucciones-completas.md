@@ -31,7 +31,6 @@ La solución:
 | #   | Archivo                                          | Contenido                                        |
 | --- | ------------------------------------------------ | ------------------------------------------------ |
 | 1   | `1-MODULO_DE_AUDIO_PROFESIONAL_PARA_TITANIUM.md` | Visión general, arquitectura, API JS definitiva  |
-| 2   | `2-ARCHIVO-INDEXJS.md`                           | Capa CommonJS (`commonjs/index.js`)              |
 | 3   | `3-interfaze-nativa-android.md`                  | Esqueleto `AudioStreamModule.java`               |
 | 4   | `4-MediaPlaybackService.md`                      | Service + ExoPlayer + Audio Focus + MediaSession |
 | 5   | `5-ios.md`                                       | AVPlayer + AVAudioSession + MPNowPlaying         |
@@ -65,8 +64,6 @@ ti.audiostream/
 │       ├── TiAudiostreamModule.m       ← Proxy JS
 │       ├── AudioPlayerManager.h
 │       └── AudioPlayerManager.m        ← AVPlayer + sesión
-├── commonjs/
-│   └── index.js                        ← API JS unificada
 ├── example/
 │   └── app/...                         ← App de ejemplo
 ├── manifest
@@ -83,11 +80,10 @@ ti.audiostream/
 **Objetivo**: Que el módulo compile y se pueda importar
 
 1. Crear módulo con `ti create -t module -n audiostream -id ti.audiostream`
-2. Crear `commonjs/index.js` (documento #2)
-3. Crear esqueleto `AudiostreamModule.java` (documento #3)
-4. Crear esqueleto iOS `TiAudiostreamModule.m` (documento #5)
-5. Compilar ambas plataformas
-6. Verificar que `require('ti.audiostream')` no crashea
+2. Crear esqueleto `AudiostreamModule.java` (documento #3)
+3. Crear esqueleto iOS `TiAudiostreamModule.m` (documento #5)
+4. Compilar ambas plataformas
+5. Verificar que `require('ti.audiostream')` no crashea
 
 ### FASE 2: Android Core
 
@@ -184,7 +180,7 @@ ti.audiostream/
 const radio = require('ti.audiostream');
 
 // Inicializar
-radio.init();
+// radio.init(); // No necesario
 
 // Configurar stream
 radio.setStream({
@@ -195,17 +191,17 @@ radio.setStream({
 // Metadata para lock screen / notificación
 radio.setMetadata({
     title: 'Nombre del Programa',
-    subtitle: 'Nombre de la Estación',
+    artist: 'Nombre de la Estación', // artist instead of subtitle for consistency
     artwork: 'https://example.com/logo.png'
 });
 
 // Controles
-radio.play();
+radio.start(); // start instead of play to match native method
 radio.pause();
 radio.stop();
 
 // Eventos
-radio.addEventListener('statechange', function(e) {
+radio.addEventListener('state', function(e) {
     // e.state = 'playing' | 'paused' | 'buffering' | 'stopped' | 'error'
     Ti.API.info('Estado: ' + e.state);
 });
@@ -215,8 +211,8 @@ radio.addEventListener('error', function(e) {
 });
 
 radio.addEventListener('remotecontrol', function(e) {
-    // e.command = 'play' | 'pause' | 'stop' | 'next' | 'prev'
-    Ti.API.info('Comando remoto: ' + e.command);
+    // e.subtype = constant
+    Ti.API.info('Comando remoto: ' + e.subtype);
 });
 ```
 
@@ -393,7 +389,6 @@ private Notification buildNotification() {
 Para implementar desde cero:
 
 1. **Visión general**: `1-MODULO_DE_AUDIO_PROFESIONAL_PARA_TITANIUM.md`
-2. **API JS**: `2-ARCHIVO-INDEXJS.md`
 3. **Android básico**: `3-interfaze-nativa-android.md` → `4-MediaPlaybackService.md`
 4. **Android checklist**: `7-checklist-android.md`
 5. **Android refinamientos**: `9`, `10`, `11`
@@ -430,10 +425,10 @@ Si ya usas TiMediaSession en tu app:
 
    // DESPUÉS
    const radio = require('ti.audiostream');
-   radio.init();
+   // radio.init(); // No es necesario
    radio.setStream({ url: '...' });
    radio.setMetadata({...});
-   radio.play();
+   radio.start();
    ```
 
 3. El evento `remotecontrol` cambia ligeramente:
@@ -445,7 +440,7 @@ Si ya usas TiMediaSession en tu app:
 
    // DESPUÉS
    radio.addEventListener('remotecontrol', e => {
-       if (e.command === 'play') {...}
+       if (e.subtype === radio.REMOTE_CONTROL_PLAY) {...}
    });
    ```
 
