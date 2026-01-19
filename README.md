@@ -4,112 +4,63 @@ Professional audio streaming module for Titanium SDK with proper audio focus han
 
 ## Why This Module?
 
-The standard `Ti.Media.AudioPlayer` combined with media session modules creates an **audio focus conflict**:
-
-```
-Ti.Media.AudioPlayer → requests audio focus (internally)
-TiMediaSession       → requests audio focus (separately)
-                     = TWO systems competing = callbacks never arrive correctly
-```
-
-**Result**: YouTube and your app play audio simultaneously instead of one pausing the other.
-
-**Solution**: This module uses **Media3 ExoPlayer** (Android) and **AVPlayer** (iOS) as the ONLY audio source, with audio focus handling integrated in the same component that plays audio.
-
-```
-ti.audiostream → ExoPlayer/AVPlayer → audio focus (single system) ✓
-```
+The standard `Ti.Media.AudioPlayer` combined with separate media session modules often creates **audio focus conflicts**. This module uses **Media3 ExoPlayer** (Android) and **AVPlayer** (iOS) as the unified source for both audio and system controls.
 
 ## Features
 
-### Audio Playback
-- Stream audio from URLs (HTTP/HTTPS)
-- HLS streaming support
-- Background playback
-- Automatic reconnection on network errors (up to 5 retries)
-
-### Audio Focus (Android & iOS)
-- Proper audio focus request before playback.
-- Responds to interruptions (pause when other apps play or during calls).
-- Abandons focus on stop.
-
-### Media Controls
-- Lock screen controls (MPNowPlayingInfoCenter / MediaSession).
-- Notification with play/pause/next/prev buttons.
-- Bluetooth/headphone controls.
-
-### Metadata
-- Title and artist display.
-- Album artwork (local or remote URLs).
-- Asynchronous artwork loading (no UI freeze).
+- **Background Playback**: High-performance streaming with foreground service (Android).
+- **Audio Focus**: Built-in handling for interruptions (calls, other media).
+- **Smart Reconnection**: Interruptible retry logic that doesn't conflict with new streams.
+- **Terminal Error Detection**: Surgical detection of HTTP 404/302/500 errors to stop retrying immediately.
+- **Media Controls**: Seamless integration with Lock Screen and Notification Center.
+- **Persistent Controls**: Controls remain visible even after a stream error, allowing station skipping.
 
 ## Requirements
 
-- Titanium SDK 12.0.0+
-- Android: API 24+ (Android 7.0+)
+- Titanium SDK 12.0.0+ (Tested on 13.1.0.GA)
+- Android: API 24+
 - iOS: 13.0+
-
-## Installation
-
-### Register in tiapp.xml
-
-```xml
-<modules>
-  <module platform="android">ti.audiostream</module>
-  <module platform="iphone">ti.audiostream</module>
-</modules>
-```
 
 ## API Reference
 
 ### Methods
 
-#### `play()`
-Starts or resumes playback. Requests audio focus automatically. (Alias: `start()`).
+#### `start()` / `play()`
+Starts or resumes playback. Requests audio focus automatically.
 
 #### `pause()`
 Pauses playback.
 
 #### `stop()`
-Stops playback and releases all resources.
+Stops playback and clears notification controls.
 
-#### `setStream(options)`
-Configure the audio stream URL.
-```javascript
-radio.setStream({
-  url: 'https://stream.example.com/radio.mp3',
-  isLive: true
-});
-```
+#### `setStream({ url, isLive })`
+Configures the source. Resetting retry logic automatically.
 
-#### `setMetadata(options)`
-Set metadata for lock screen and notification display.
-```javascript
-radio.setMetadata({
-  title: 'Morning Show',
-  artist: 'Radio Station',
-  artwork: 'https://example.com/artwork.jpg'
-});
-```
+#### `setMetadata({ title, artist, artwork })`
+Sets metadata for system controls. `artwork` can be a remote URL or local path.
 
 ### Events
 
-#### `statechange`
+#### `state`
 Fired when playback state changes.
-- States: `buffering`, `playing`, `paused`, `stopped`, `error`.
+- Payload: `state` (String: `playing`, `buffering`, `paused`, `stopped`, `error`).
+
+#### `error`
+Fired when a playback or network error occurs.
+- Payload: `message` (String).
 
 #### `remotecontrol`
-Fired when user interacts with lock screen/notification controls.
-- Payload includes `command` (string) and `subtype` (number).
+Fired on system control interaction (Lock screen / Headsets / Bluetooth).
+- Payload: `subtype` (Number). Matches module constants.
 
-## iOS Configuration
-Add to `tiapp.xml`:
-```xml
-<key>UIBackgroundModes</key>
-<array>
-  <string>audio</string>
-</array>
-```
+## Constants (Remote Control)
+- `REMOTE_CONTROL_PLAY`
+- `REMOTE_CONTROL_PAUSE`
+- `REMOTE_CONTROL_STOP`
+- `REMOTE_CONTROL_PLAY_PAUSE`
+- `REMOTE_CONTROL_NEXT`
+- `REMOTE_CONTROL_PREV`
 
 ## License
 MIT License - Copyright (c) 2026 César Estrada (macCesar)
