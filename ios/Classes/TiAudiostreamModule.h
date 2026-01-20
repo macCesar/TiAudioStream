@@ -6,45 +6,25 @@
  */
 
 #import "TiModule.h"
-#import <Foundation/Foundation.h>
 
-@class UIImage;
+@interface TiAudiostreamModule : TiModule
 
-NS_ASSUME_NONNULL_BEGIN
+// Public API
+- (void)setStream:(id)args;
+- (void)start:(id)unused;
+- (void)pause:(id)unused;
+- (void)stop:(id)unused;
+- (void)setMetadata:(id)args;
 
-// Definición de estados
-typedef NS_ENUM(NSInteger, AudioPlayerState) {
-    AudioPlayerStateIdle,
-    AudioPlayerStateBuffering,
-    AudioPlayerStatePlaying,
-    AudioPlayerStatePaused,
-    AudioPlayerStateStopped,
-    AudioPlayerStateError
-};
+// Properties
+@property (nonatomic, readonly) NSNumber *playing;
 
-// Protocolo del Delegate
-@protocol AudioPlayerManagerDelegate <NSObject>
-- (void)audioPlayerStateChanged:(NSString *)state;
-- (void)audioPlayerError:(NSString *)message;
-- (void)audioPlayerRemoteControl:(NSInteger)command;
+// Constants
+@property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_PLAY;
+@property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_PAUSE;
+@property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_STOP;
+@property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_PLAY_PAUSE;
+@property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_NEXT;
+@property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_PREV;
+
 @end
-
-// Interfaz del Manager
-@interface AudioPlayerManager : NSObject
-@property (nonatomic, weak, nullable) id<AudioPlayerManagerDelegate> delegate;
-@property (nonatomic, readonly) BOOL isPlaying;
-@property (nonatomic, readonly) AudioPlayerState currentState;
-+ (instancetype)sharedInstance;
-- (void)setStreamWithURL:(NSString *)url isLive:(BOOL)isLive;
-- (void)play;
-- (void)pause;
-- (void)stop;
-- (void)setMetadataWithTitle:(NSString *)title artist:(NSString *)artist artwork:(nullable NSString *)artworkURL;
-- (void)cleanup;
-@end
-
-// Interfaz del Módulo
-@interface TiAudiostreamModule : TiModule <AudioPlayerManagerDelegate>
-@end
-
-NS_ASSUME_NONNULL_END

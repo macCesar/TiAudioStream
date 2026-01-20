@@ -1,0 +1,20 @@
+# Titanium
+build/
+dist/
+bin/
+*.zip
+*.a
+*.xcframework/
+*.xcarchive/
+.gradle/
+.DS_Store
+
+# Android
+android/build/
+android/dist/
+android/local.properties
+
+# iOS
+ios/build/
+ios/dist/
+ios/DerivedData/
