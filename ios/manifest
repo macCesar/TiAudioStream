@@ -5,12 +5,11 @@
 version: 1.0.0
 apiversion: 2
 architectures: arm64 x86_64
- x86_64
 mac: false
-description: audiostream
+description: Audio streaming module for Titanium
 author: César Estrada
-license: Specify your license
-copyright: Copyright (c) 2026 by Your Company
+license: MIT
+copyright: Copyright (c) 2026 César Estrada
 
 # these should not be edited
 name: audiostream
