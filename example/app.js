@@ -25,44 +25,54 @@ const audioStream = require('ti.audiostream')
 // CONFIGURATION
 // =============================================================================
 
-// Sample radio streams for testing (replace with your own)
 const STREAMS = {
-  // Live radio streams
   radioParadise: {
     url: 'https://stream.radioparadise.com/aac-320',
     title: 'Radio Paradise',
-    artist: 'Commercial-Free Radio',
+    artist: 'Eclectic Rock',
     artwork: 'https://radioparadise.com/graphics/fb_logo.png',
     isLive: true
   },
-  jazzFM: {
-    url: 'https://jazz-wr15.ice.infomaniak.ch/jazz-wr15-128.mp3',
-    title: 'Jazz FM',
-    artist: 'Smooth Jazz Radio',
-    artwork: 'https://www.jazzradio.com/images/jazzradio-logo.png',
+  grooveSalad: {
+    url: 'http://ice1.somafm.com/groovesalad-128-mp3',
+    title: 'Groove Salad (Metadata Test)',
+    artist: 'Waiting for stream data...',
+    artwork: 'https://somafm.com/img/groovesalad120.png',
     isLive: true
   },
-  classicFM: {
-    url: 'https://media-ice.musicradio.com/ClassicFMMP3',
-    title: 'Classic FM',
-    artist: 'Classical Music',
-    artwork: 'https://www.classicfm.com/images/og-image.jpg',
+  kcrw: {
+    url: 'https://kcrw.streamguys1.com/kcrw_128k_mp3_e24',
+    title: 'All Things Considered',
+    artist: 'NPR wraps up the day with all the context and original reporting you need.',
+    artwork: 'https://images.ctfassets.net/2658fe8gbo8o/0c84b6ea052973af8bbd15b91b69acdb-photo-asset/9ac95678981cb62b73c760010e8aae97/All-Things-Considered_Tile_NPR-Network-01_Full.jpg?w=750&h=750&fm=webp&q=80&fit=fill&f=center',
     isLive: true
   },
-
-  // On-demand audio (for testing non-live playback)
-  podcast: {
-    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    title: 'Sample Track',
-    artist: 'SoundHelix Demo',
-    artwork: null,
-    isLive: false
+  jazz24: {
+    url: 'https://live.jazz24.org/jazz24-mp3',
+    title: 'Jazz24',
+    artist: 'Seattle Public Radio',
+    artwork: 'https://www.jazz24.org/wp-content/uploads/2014/10/jazz24_logo_300.png',
+    isLive: true
+  },
+  sample: {
+    isLive: true,
+    title: 'Reference Audio Streams',
+    artist: 'Sample live audio streams',
+    url: 'https://streams.radiomast.io/ref-128k-mp3-stereo/hls.m3u8',
+    artwork: ''
   }
 }
 
-// Current stream selection
 let currentStreamKey = 'radioParadise'
 let currentStream = STREAMS[currentStreamKey]
+
+const LABELS = {
+  PREV: 'BACK',
+  PLAY: 'PLAY',
+  PAUSE: 'PAUSE',
+  STOP: 'STOP',
+  NEXT: 'NEXT'
+};
 
 // =============================================================================
 // UI CREATION
@@ -70,22 +80,20 @@ let currentStream = STREAMS[currentStreamKey]
 
 const win = Ti.UI.createWindow({
   backgroundColor: '#1a1a2e',
-  title: 'ti.audiostream Demo'
+  title: 'ti.audiostream Demo',
+  width: Ti.UI.FILL,
+  height: Ti.UI.FILL
 })
 
-// Main container with vertical layout
 const mainContainer = Ti.UI.createScrollView({
   layout: 'vertical',
   top: 50,
   left: 20,
   right: 20,
   bottom: 20,
+  width: Ti.UI.FILL,
   contentHeight: Ti.UI.SIZE
 })
-
-// -----------------------------------------------------------------------------
-// Header Section
-// -----------------------------------------------------------------------------
 
 const headerLabel = Ti.UI.createLabel({
   text: 'ti.audiostream',
@@ -101,10 +109,6 @@ const subtitleLabel = Ti.UI.createLabel({
   top: 5
 })
 
-// -----------------------------------------------------------------------------
-// Artwork Section
-// -----------------------------------------------------------------------------
-
 const artworkContainer = Ti.UI.createView({
   width: 200,
   height: 200,
@@ -116,19 +120,18 @@ const artworkContainer = Ti.UI.createView({
 const artworkImage = Ti.UI.createImageView({
   width: Ti.UI.FILL,
   height: Ti.UI.FILL,
-  defaultImage: '/images/default_artwork.png' // Add a default image to your assets
+  defaultImage: '/images/default_artwork.png'
 })
 artworkContainer.add(artworkImage)
-
-// -----------------------------------------------------------------------------
-// Track Info Section
-// -----------------------------------------------------------------------------
 
 const trackTitleLabel = Ti.UI.createLabel({
   text: currentStream.title,
   font: { fontSize: 20, fontWeight: 'bold' },
   color: '#ffffff',
   top: 20,
+  left: 10,
+  right: 10,
+  height: Ti.UI.SIZE,
   textAlign: 'center'
 })
 
@@ -137,12 +140,11 @@ const trackArtistLabel = Ti.UI.createLabel({
   font: { fontSize: 16 },
   color: '#888888',
   top: 5,
+  left: 10,
+  right: 10,
+  height: Ti.UI.SIZE,
   textAlign: 'center'
 })
-
-// -----------------------------------------------------------------------------
-// Status Section
-// -----------------------------------------------------------------------------
 
 const statusContainer = Ti.UI.createView({
   layout: 'horizontal',
@@ -155,7 +157,7 @@ const stateIndicator = Ti.UI.createView({
   width: 12,
   height: 12,
   borderRadius: 6,
-  backgroundColor: '#888888' // Gray = stopped
+  backgroundColor: '#888888'
 })
 
 const stateLabel = Ti.UI.createLabel({
@@ -168,10 +170,6 @@ const stateLabel = Ti.UI.createLabel({
 statusContainer.add(stateIndicator)
 statusContainer.add(stateLabel)
 
-// -----------------------------------------------------------------------------
-// Control Buttons Section
-// -----------------------------------------------------------------------------
-
 const controlsContainer = Ti.UI.createView({
   layout: 'horizontal',
   top: 30,
@@ -180,8 +178,8 @@ const controlsContainer = Ti.UI.createView({
 })
 
 const btnPrev = Ti.UI.createButton({
-  title: '⏮',
-  font: { fontSize: 24 },
+  title: LABELS.PREV,
+  font: { fontSize: 11, fontWeight: 'bold' },
   width: 60,
   height: 60,
   borderRadius: 30,
@@ -190,8 +188,8 @@ const btnPrev = Ti.UI.createButton({
 })
 
 const btnPlayPause = Ti.UI.createButton({
-  title: '▶',
-  font: { fontSize: 32 },
+  title: LABELS.PLAY,
+  font: { fontSize: 15, fontWeight: 'bold' },
   width: 80,
   height: 80,
   borderRadius: 40,
@@ -201,8 +199,8 @@ const btnPlayPause = Ti.UI.createButton({
 })
 
 const btnStop = Ti.UI.createButton({
-  title: '⏹',
-  font: { fontSize: 24 },
+  title: LABELS.STOP,
+  font: { fontSize: 11, fontWeight: 'bold' },
   width: 60,
   height: 60,
   borderRadius: 30,
@@ -212,8 +210,8 @@ const btnStop = Ti.UI.createButton({
 })
 
 const btnNext = Ti.UI.createButton({
-  title: '⏭',
-  font: { fontSize: 24 },
+  title: LABELS.NEXT,
+  font: { fontSize: 11, fontWeight: 'bold' },
   width: 60,
   height: 60,
   borderRadius: 30,
@@ -227,10 +225,6 @@ controlsContainer.add(btnPlayPause)
 controlsContainer.add(btnStop)
 controlsContainer.add(btnNext)
 
-// -----------------------------------------------------------------------------
-// Stream Selection Section
-// -----------------------------------------------------------------------------
-
 const streamSectionLabel = Ti.UI.createLabel({
   text: 'Select Stream:',
   font: { fontSize: 14, fontWeight: 'bold' },
@@ -238,44 +232,38 @@ const streamSectionLabel = Ti.UI.createLabel({
   top: 30
 })
 
-// Stream selection buttons
 const streamButtonsContainer = Ti.UI.createView({
-  layout: 'vertical',
   top: 10,
-  width: Ti.UI.FILL,
-  height: Ti.UI.SIZE
+  width: Ti.UI.SIZE,
+  height: Ti.UI.SIZE,
+  layout: 'horizontal'
 })
 
 Object.keys(STREAMS).forEach(function (key) {
   const stream = STREAMS[key]
   const btn = Ti.UI.createButton({
-    title: stream.title,
-    streamKey: key,
-    font: { fontSize: 14 },
-    height: 40,
     top: 5,
-    backgroundColor: key === currentStreamKey ? '#e94560' : '#16213e',
+    left: 2,
+    right: 2,
+    height: 40,
+    streamKey: key,
+    borderRadius: 5,
+    width: Ti.UI.SIZE,
     color: '#ffffff',
-    borderRadius: 5
+    font: { fontSize: 14 },
+    title: `   ${stream.title}   `,
+    backgroundColor: key === currentStreamKey ? '#e94560' : '#16213e'
   })
 
   btn.addEventListener('click', function () {
-    // Update button styles
-    streamButtonsContainer.children.forEach(function (child) {
-      child.backgroundColor = '#16213e'
-    })
+    streamButtonsContainer.children.forEach(function (child) { child.backgroundColor = '#16213e' })
     btn.backgroundColor = '#e94560'
-
-    // Load the stream
     loadStream(key)
+    audioStream.start()
   })
 
   streamButtonsContainer.add(btn)
 })
-
-// -----------------------------------------------------------------------------
-// Debug Log Section
-// -----------------------------------------------------------------------------
 
 const logSectionLabel = Ti.UI.createLabel({
   text: 'Event Log:',
@@ -303,57 +291,6 @@ const logLabel = Ti.UI.createLabel({
 })
 logContainer.add(logLabel)
 
-// -----------------------------------------------------------------------------
-// Audio Focus Section (Android only)
-// -----------------------------------------------------------------------------
-
-let focusLabel = null
-if (Ti.Platform.osname === 'android') {
-  const focusSectionLabel = Ti.UI.createLabel({
-    text: 'Audio Focus (Android):',
-    font: { fontSize: 14, fontWeight: 'bold' },
-    color: '#e94560',
-    top: 15
-  })
-  mainContainer.add(focusSectionLabel)
-
-  focusLabel = Ti.UI.createLabel({
-    text: 'No focus events yet',
-    font: { fontSize: 12 },
-    color: '#888888',
-    top: 5
-  })
-  mainContainer.add(focusLabel)
-}
-
-// -----------------------------------------------------------------------------
-// Property Check Section
-// -----------------------------------------------------------------------------
-
-const propSectionLabel = Ti.UI.createLabel({
-  text: 'Module Properties:',
-  font: { fontSize: 14, fontWeight: 'bold' },
-  color: '#e94560',
-  top: 20
-})
-
-const playingLabel = Ti.UI.createLabel({
-  text: 'playing: false',
-  font: { fontSize: 12 },
-  color: '#888888',
-  top: 5
-})
-
-// Refresh playing status periodically
-setInterval(function () {
-  playingLabel.text = 'playing: ' + (audioStream.playing ? 'true' : 'false')
-  playingLabel.color = audioStream.playing ? '#00ff00' : '#888888'
-}, 500)
-
-// -----------------------------------------------------------------------------
-// Assemble UI
-// -----------------------------------------------------------------------------
-
 mainContainer.add(headerLabel)
 mainContainer.add(subtitleLabel)
 mainContainer.add(artworkContainer)
@@ -363,8 +300,6 @@ mainContainer.add(statusContainer)
 mainContainer.add(controlsContainer)
 mainContainer.add(streamSectionLabel)
 mainContainer.add(streamButtonsContainer)
-mainContainer.add(propSectionLabel)
-mainContainer.add(playingLabel)
 mainContainer.add(logSectionLabel)
 mainContainer.add(logContainer)
 
@@ -374,368 +309,87 @@ win.add(mainContainer)
 // HELPER FUNCTIONS
 // =============================================================================
 
-/**
- * Add message to the event log
- */
 let logMessages = []
 function log(message) {
-  const timestamp = new Date().toLocaleTimeString()
-  const entry = '[' + timestamp + '] ' + message
-
+  const entry = '[' + new Date().toLocaleTimeString() + '] ' + message
   Ti.API.info('[ti.audiostream] ' + message)
-
-  logMessages.unshift(entry) // Add to beginning
-  if (logMessages.length > 50) {
-    logMessages = logMessages.slice(0, 50) // Keep last 50 entries
-  }
-
+  logMessages.unshift(entry)
+  if (logMessages.length > 50) logMessages = logMessages.slice(0, 50)
   logLabel.text = logMessages.join('\n')
 }
 
-/**
- * Update UI state indicator
- */
-function updateStateUI(state) {
-  const stateColors = {
-    buffering: '#ffcc00', // Yellow
-    playing: '#00ff00', // Green
-    paused: '#ff9900', // Orange
-    stopped: '#888888', // Gray
-    error: '#ff0000' // Red
-  }
+function clearLog() {
+  logMessages = []
+  logLabel.text = ''
+}
 
+function updateStateUI(state) {
+  const stateColors = { buffering: '#ffcc00', playing: '#00ff00', paused: '#ff9900', stopped: '#888888', error: '#ff0000' }
   stateIndicator.backgroundColor = stateColors[state] || '#888888'
   stateLabel.text = state.charAt(0).toUpperCase() + state.slice(1)
   stateLabel.color = stateColors[state] || '#888888'
-
-  // Update play/pause button
-  if (state === 'playing') {
-    btnPlayPause.title = '⏸'
-  } else {
-    btnPlayPause.title = '▶'
-  }
+  btnPlayPause.title = (state === 'playing') ? LABELS.PAUSE : LABELS.PLAY;
 }
 
-/**
- * Update track info UI
- */
 function updateTrackInfo(stream) {
   trackTitleLabel.text = stream.title
   trackArtistLabel.text = stream.artist
-
-  if (stream.artwork) {
-    artworkImage.image = stream.artwork
-  } else {
-    artworkImage.image = null
-  }
+  artworkImage.image = stream.artwork || null
 }
 
-/**
- * Load and configure a stream (does NOT auto-start)
- */
 function loadStream(streamKey) {
+  clearLog()
   currentStreamKey = streamKey
   currentStream = STREAMS[streamKey]
-
   log('Loading stream: ' + currentStream.title)
-
-  // Configure the stream
-  audioStream.setStream({
-    url: currentStream.url,
-    isLive: currentStream.isLive
-  })
-
-  // Set metadata for lock screen / notification
-  audioStream.setMetadata({
-    title: currentStream.title,
-    artist: currentStream.artist,
-    artwork: currentStream.artwork,
-  })
-
-  // Update UI
+  audioStream.setStream({ url: currentStream.url, isLive: currentStream.isLive })
+  audioStream.setMetadata({ title: currentStream.title, artist: currentStream.artist, artwork: currentStream.artwork })
   updateTrackInfo(currentStream)
 }
 
-/**
- * Get next stream key
- */
 function getNextStreamKey() {
-  const keys = Object.keys(STREAMS)
-  const currentIndex = keys.indexOf(currentStreamKey)
-  return keys[(currentIndex + 1) % keys.length]
+  const keys = Object.keys(STREAMS);
+  return keys[(keys.indexOf(currentStreamKey) + 1) % keys.length];
 }
-
-/**
- * Get previous stream key
- */
 function getPrevStreamKey() {
-  const keys = Object.keys(STREAMS)
-  const currentIndex = keys.indexOf(currentStreamKey)
-  return keys[(currentIndex - 1 + keys.length) % keys.length]
+  const keys = Object.keys(STREAMS);
+  const idx = keys.indexOf(currentStreamKey);
+  return keys[(idx - 1 + keys.length) % keys.length];
 }
 
 // =============================================================================
-// EVENT LISTENERS - MODULE EVENTS
+// EVENT LISTENERS
 // =============================================================================
 
-/**
- * State change event
- * Fired when playback state changes: buffering, playing, paused, stopped, error
- */
-audioStream.addEventListener('state', function (e) {
-  log('State: ' + e.state)
-  updateStateUI(e.state)
+audioStream.addEventListener('state', (e) => { log('State: ' + e.state); updateStateUI(e.state); })
+audioStream.addEventListener('error', (e) => { log('ERROR: ' + e.message); updateStateUI('error'); })
+audioStream.addEventListener('metadata', (e) => {
+  log('RAW METADATA: ' + JSON.stringify(e))
+  if (e.title) trackTitleLabel.text = e.title
+  if (e.artist) trackArtistLabel.text = e.artist
 })
 
-/**
- * Error event
- * Fired when an error occurs during playback
- */
-audioStream.addEventListener('error', function (e) {
-  log('ERROR: ' + (e.message || 'Unknown error'))
-  updateStateUI('error')
-
-  // Show alert for errors
-  Ti.UI.createAlertDialog({
-    title: 'Playback Error',
-    message: e.message || 'An error occurred during playback',
-    buttonNames: ['OK']
-  }).show()
-})
-
-/**
- * Audio focus change event (Android only)
- * Fired when audio focus is gained or lost
- */
-audioStream.addEventListener('audiofocuschange', function (e) {
-  let focusType = 'Unknown'
-
-  // Decode the focus change constant
-  if (e.focusChange === audioStream.AUDIOFOCUS_GAIN) {
-    focusType = 'GAIN (restored)'
-  } else if (e.focusChange === audioStream.AUDIOFOCUS_LOSS) {
-    focusType = 'LOSS (permanent)'
-  } else if (e.focusChange === audioStream.AUDIOFOCUS_LOSS_TRANSIENT) {
-    focusType = 'LOSS_TRANSIENT (temporary)'
-  } else if (e.focusChange === audioStream.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
-    focusType = 'LOSS_TRANSIENT_CAN_DUCK (lowered volume)'
-  }
-
-  log('Audio Focus: ' + focusType)
-
-  if (focusLabel) {
-    focusLabel.text = 'Focus: ' + focusType + ' | Has Focus: ' + e.focused
-    focusLabel.color = e.focused ? '#00ff00' : '#ff9900'
-  }
-})
-
-/**
- * Remote control event
- * Fired when user interacts with lock screen, notification, or headphone controls
- */
-audioStream.addEventListener('remotecontrol', function (e) {
-  let action = 'Unknown (' + e.subtype + ')'
-
-  // Decode the remote control command
+audioStream.addEventListener('remotecontrol', (e) => {
+  log('Remote control event: ' + e.action)
   switch (e.subtype) {
-    case audioStream.REMOTE_CONTROL_PLAY:
-      action = 'PLAY'
-      // Auto-start playback when play is pressed from lock screen
-      audioStream.start()
-      break
-
-    case audioStream.REMOTE_CONTROL_PAUSE:
-      action = 'PAUSE'
-      audioStream.pause()
-      break
-
-    case audioStream.REMOTE_CONTROL_STOP:
-      action = 'STOP'
-      audioStream.stop()
-      break
-
-    case audioStream.REMOTE_CONTROL_PLAY_PAUSE:
-      action = 'PLAY/PAUSE (toggle)'
-      // Toggle based on current state
-      if (audioStream.playing) {
-        audioStream.pause()
-      } else {
-        audioStream.start()
-      }
-      break
-
-    case audioStream.REMOTE_CONTROL_NEXT:
-      action = 'NEXT'
-      // Load and play next stream
-      loadStream(getNextStreamKey())
-      audioStream.start()
-      break
-
-    case audioStream.REMOTE_CONTROL_PREV:
-      action = 'PREV'
-      // Load and play previous stream
-      loadStream(getPrevStreamKey())
-      audioStream.start()
-      break
-
-    // iOS-specific seek controls
-    case audioStream.REMOTE_CONTROL_START_SEEK_FORWARD:
-      action = 'START_SEEK_FORWARD'
-      break
-
-    case audioStream.REMOTE_CONTROL_END_SEEK_FORWARD:
-      action = 'END_SEEK_FORWARD'
-      break
-
-    case audioStream.REMOTE_CONTROL_START_SEEK_BACK:
-      action = 'START_SEEK_BACK'
-      break
-
-    case audioStream.REMOTE_CONTROL_END_SEEK_BACK:
-      action = 'END_SEEK_BACK'
-      break
+    case audioStream.REMOTE_CONTROL_NEXT: loadStream(getNextStreamKey()); audioStream.start(); break;
+    case audioStream.REMOTE_CONTROL_PREV: loadStream(getPrevStreamKey()); audioStream.start(); break;
   }
-
-  log('Remote Control: ' + action)
 })
 
-// =============================================================================
-// EVENT LISTENERS - UI BUTTONS
-// =============================================================================
-
-/**
- * Play/Pause button
- */
-btnPlayPause.addEventListener('click', function () {
-  if (audioStream.playing) {
-    log('User pressed: PAUSE')
-    audioStream.pause()
-  } else {
-    log('User pressed: PLAY')
+btnPlayPause.addEventListener('click', () => {
+  if (audioStream.playing) audioStream.pause()
+  else {
+    if (stateLabel.text === 'Stopped' || stateLabel.text === 'Error') loadStream(currentStreamKey);
     audioStream.start()
   }
 })
 
-/**
- * Stop button
- */
-btnStop.addEventListener('click', function () {
-  log('User pressed: STOP')
-  audioStream.stop()
-})
+btnStop.addEventListener('click', () => audioStream.stop())
+btnPrev.addEventListener('click', () => { loadStream(getPrevStreamKey()); audioStream.start(); })
+btnNext.addEventListener('click', () => { loadStream(getNextStreamKey()); audioStream.start(); })
 
-/**
- * Previous button
- */
-btnPrev.addEventListener('click', function () {
-  log('User pressed: PREV')
-  loadStream(getPrevStreamKey())
-  audioStream.start()
-})
+win.addEventListener('close', () => audioStream.stop())
 
-/**
- * Next button
- */
-btnNext.addEventListener('click', function () {
-  log('User pressed: NEXT')
-  loadStream(getNextStreamKey())
-  audioStream.start()
-})
-
-// =============================================================================
-// WINDOW EVENTS
-// =============================================================================
-
-/**
- * Window close - cleanup
- */
-win.addEventListener('close', function () {
-  log('Window closing - stopping playback')
-  audioStream.stop()
-})
-
-// =============================================================================
-// INITIALIZATION
-// =============================================================================
-
-// Load the default stream on startup
 loadStream(currentStreamKey)
-
-// Log module constants (for debugging)
-log('--- Module Loaded ---')
-log('Platform: ' + Ti.Platform.osname)
-log('REMOTE_CONTROL_PLAY: ' + audioStream.REMOTE_CONTROL_PLAY)
-log('REMOTE_CONTROL_PAUSE: ' + audioStream.REMOTE_CONTROL_PAUSE)
-log('REMOTE_CONTROL_STOP: ' + audioStream.REMOTE_CONTROL_STOP)
-
-if (Ti.Platform.osname === 'android') {
-  log('AUDIOFOCUS_GAIN: ' + audioStream.AUDIOFOCUS_GAIN)
-  log('AUDIOFOCUS_LOSS: ' + audioStream.AUDIOFOCUS_LOSS)
-}
-
-log('Ready to play!')
-
-// Open the window
 win.open()
-
-// =============================================================================
-// USAGE NOTES
-// =============================================================================
-/*
-
-## Testing Audio Focus (Android)
-
-1. Start playback in this app
-2. Open YouTube and play a video
-   - This app should PAUSE automatically
-   - YouTube should have exclusive audio
-3. Pause YouTube
-   - This app can resume (if you press play)
-4. Play a short notification sound
-   - This app should temporarily lower volume or pause
-   - Resume automatically after notification
-
-## Testing Lock Screen Controls
-
-1. Start playback
-2. Lock the phone
-3. Use the lock screen media controls
-4. Check the notification controls (Android)
-
-## Testing Headphone Controls
-
-1. Connect Bluetooth headphones
-2. Start playback
-3. Use the headphone play/pause button
-4. Disconnect headphones - app should pause (iOS)
-
-## Testing Automatic Reconnection
-
-1. Start playback
-2. Toggle airplane mode briefly
-3. The module will attempt to reconnect (up to 5 times)
-4. Check the log for reconnection attempts
-
-## Constants Reference
-
-### Remote Control (both platforms)
-- REMOTE_CONTROL_PLAY: 100
-- REMOTE_CONTROL_PAUSE: 101
-- REMOTE_CONTROL_STOP: 102
-- REMOTE_CONTROL_PLAY_PAUSE: 103
-- REMOTE_CONTROL_NEXT: 104
-- REMOTE_CONTROL_PREV: 105
-
-### iOS Only
-- REMOTE_CONTROL_START_SEEK_BACK: 106
-- REMOTE_CONTROL_END_SEEK_BACK: 107
-- REMOTE_CONTROL_START_SEEK_FORWARD: 108
-- REMOTE_CONTROL_END_SEEK_FORWARD: 109
-
-### Android Only - Audio Focus
-- AUDIOFOCUS_GAIN: 1
-- AUDIOFOCUS_LOSS: -1
-- AUDIOFOCUS_LOSS_TRANSIENT: -2
-- AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: -3
-
-*/
