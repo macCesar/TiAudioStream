@@ -62,7 +62,7 @@ Fired on terminal or recoverable network failures.
 #### `metadata`
 Fired when the engine extracts new information from the stream.
 - `title`, `artist`: Standardized strings.
-- `source`: A raw Map/Dictionary containing every tag found in the stream for deep inspection.
+- `raw`: A raw Map/Dictionary containing every tag found in the stream for deep inspection.
 
 #### `remotecontrol`
 Fired on system-level interactions. Note: Transport actions (Play/Pause) are handled autonomously to ensure OS-level stability.
