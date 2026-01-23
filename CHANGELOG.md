@@ -8,11 +8,12 @@ All notable changes to this project will be documented in this file.
 ### Features
 - **Unified Audio Engine**: Unified playback logic for Android (Media3) and iOS (AVPlayer).
 - **Deep Metadata Inspection**: Automatically extracts song titles from standard sources (ICY, HLS) AND hidden formats (JSON inside ID3 tags), ensuring support for networks like **Global Player** (Heart, Capital).
-- **Automatic Stream Artwork**: Automatically extracts and displays album art embedded in audio streams directly on the system lock screen and notification drawer.
+- **Automatic Stream Artwork**: Automatically extracts and displays album art embedded in audio streams directly on the system lock screen and notification drawer. Supports embedded artwork (ID3 APIC) AND remote URLs (ICY_URL/StreamUrl for streams like Radio Paradise).
 - **Smart Audio Focus**: Handles system interruptions (calls, Siri, other apps) with resume logic that respects user intent. Automatically resumes after calls if the app was playing, but stays paused if the user manually paused.
 - **Background Persistence**: Reliable background playback using a Foreground Service (Android) and proper Audio Session management (iOS).
 - **Media Controls**: Seamless integration with Lock Screen and Notification Center.
 - **Remote Commands**: Support for Play, Pause, Stop, Next, and Previous from external devices (Bluetooth/Headsets).
+- **Metadata Auto-Update Control**: `autoUpdateMetadata` flag allows apps to control whether stream metadata automatically updates Lock Screen/Notification controls. Perfect for radio stations that want to display station branding vs. song information on demand.
 
 ### Improved
 - **Robust Metadata Parsing**: Scans `commonMetadata`, raw ID3 frames, and timed metadata ensuring compatibility with a wide range of streaming providers (including Global Player, Heart, Capital).
