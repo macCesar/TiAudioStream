@@ -235,7 +235,7 @@ public class MediaPlaybackService extends Service
 			}
 		}
 
-		        @Override
+				@Override
 				public void onMediaMetadataChanged(androidx.media3.common.MediaMetadata mediaMetadata)
 				{
 					Log.d(LCAT, "onMediaMetadataChanged triggered");
@@ -245,6 +245,17 @@ public class MediaPlaybackService extends Service
 					if (mediaMetadata.artist != null) currentArtist = mediaMetadata.artist.toString();
 					else if (mediaMetadata.albumArtist != null) currentArtist = mediaMetadata.albumArtist.toString();
 		
+					// Intelligence: Extract artwork from stream if available
+					if (mediaMetadata.artworkData != null) {
+						try {
+							Log.i(LCAT, "Artwork data found in stream! Updating notification icon.");
+							byte[] data = mediaMetadata.artworkData;
+							currentArtwork = BitmapFactory.decodeByteArray(data, 0, data.length);
+						} catch (Exception e) {
+							Log.e(LCAT, "Failed to decode artwork from stream: " + e.getMessage());
+						}
+					}
+
 					updateMediaSessionMetadata();
 					updateNotification();
 					
@@ -253,13 +264,8 @@ public class MediaPlaybackService extends Service
 					if (mediaMetadata.title != null) rawData.put("title", mediaMetadata.title.toString());
 					if (mediaMetadata.artist != null) rawData.put("artist", mediaMetadata.artist.toString());
 					if (mediaMetadata.albumTitle != null) rawData.put("album", mediaMetadata.albumTitle.toString());
-					if (mediaMetadata.albumArtist != null) rawData.put("albumArtist", mediaMetadata.albumArtist.toString());
+					if (mediaMetadata.artworkData != null) rawData.put("has_artwork", true);
 					if (mediaMetadata.displayTitle != null) rawData.put("displayTitle", mediaMetadata.displayTitle.toString());
-					if (mediaMetadata.subtitle != null) rawData.put("subtitle", mediaMetadata.subtitle.toString());
-					if (mediaMetadata.description != null) rawData.put("description", mediaMetadata.description.toString());
-					if (mediaMetadata.genre != null) rawData.put("genre", mediaMetadata.genre.toString());
-					if (mediaMetadata.composer != null) rawData.put("composer", mediaMetadata.composer.toString());
-					if (mediaMetadata.station != null) rawData.put("station", mediaMetadata.station.toString());
 					
 					Log.d(LCAT, "Firing metadata event with " + rawData.size() + " raw fields");
 					AudiostreamModule.fireMetadata(currentTitle, currentArtist, null, rawData);
