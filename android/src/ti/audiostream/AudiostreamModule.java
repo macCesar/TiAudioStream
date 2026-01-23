@@ -326,7 +326,7 @@ public class AudiostreamModule extends KrollModule
 		event.put("artist", artist);
 		event.put("artwork", artwork);
 		if (raw != null) {
-			event.put("source", new KrollDict(raw));
+			event.put("raw", new KrollDict(raw));
 		}
 		activeModule.fireEvent("metadata", event);
 

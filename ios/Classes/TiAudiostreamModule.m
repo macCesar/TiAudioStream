@@ -12,9 +12,10 @@
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 
-@interface TiAudiostreamModule () {
+@interface TiAudiostreamModule () <AVPlayerItemMetadataOutputPushDelegate> {
     AVPlayer *_player;
     AVPlayerItem *_currentItem;
+    AVPlayerItemMetadataOutput *_metadataOutput;
     BOOL _isLive;
     NSString *_currentURL;
     NSString *_currentTitle;
@@ -35,9 +36,11 @@
 {
     [super startup];
     
+#if TARGET_OS_IOS
     AVAudioSession *session = [AVAudioSession sharedInstance];
     [session setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault options:0 error:nil];
     [session setActive:YES error:nil];
+#endif
     
     MPRemoteCommandCenter *cc = [MPRemoteCommandCenter sharedCommandCenter];
     [cc.playCommand setEnabled:YES];
@@ -67,7 +70,9 @@
     [cc.previousTrackCommand setEnabled:YES];
     [cc.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self fireRemoteControl:105]; return MPRemoteCommandHandlerStatusSuccess; }];
     
+#if TARGET_OS_IOS
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
+#endif
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleErrorLogEntry:) name:AVPlayerItemNewErrorLogEntryNotification object:nil];
 }
 
@@ -84,29 +89,37 @@
         [_player pause];
         @try { [_player removeObserver:self forKeyPath:@"timeControlStatus"]; } @catch (id e) {}
     }
-    
+
     if (_currentItem) {
         @try { [_currentItem removeObserver:self forKeyPath:@"status"]; } @catch (id e) {}
-        @try { [_currentItem removeObserver:self forKeyPath:@"timedMetadata"]; } @catch (id e) {}
+        if (_metadataOutput) {
+            [_currentItem removeOutput:_metadataOutput];
+            _metadataOutput = nil;
+        }
         _currentItem = nil;
     }
-    
+
     // 2. Notificar buffering de inmediato al JS
     [self fireState:@"buffering"];
-    
+
     // 3. Configurar nuevo item
     _currentItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:_currentURL]];
     [_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
-    [_currentItem addObserver:self forKeyPath:@"timedMetadata" options:NSKeyValueObservingOptionNew context:nil];
-    
+
+    // 4. Configurar AVPlayerItemMetadataOutput (reemplazo moderno de timedMetadata)
+    // Pasamos nil para recibir TODOS los metadata disponibles
+    _metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
+    [_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
+    [_currentItem addOutput:_metadataOutput];
+
     if (_player) {
         [_player replaceCurrentItemWithPlayerItem:_currentItem];
     } else {
         _player = [AVPlayer playerWithPlayerItem:_currentItem];
     }
-    
+
     _player.automaticallyWaitsToMinimizeStalling = YES;
-    
+
     [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
 }
 
@@ -118,7 +131,9 @@
         return;
     }
 
+#if TARGET_OS_IOS
     [[AVAudioSession sharedInstance] setActive:YES error:nil];
+#endif
     
     // Intelligence: If it's a live stream, we ALWAYS re-prepare on Play to ensure we jump to the live edge
     if (_isLive && _currentURL) {
@@ -287,12 +302,29 @@
                     @"title": _currentTitle ?: @"",
                     @"artist": _currentArtist ?: @"",
                     @"artwork": @"",
-                    @"source": rawSource
+                    @"raw": rawSource
                 }];
             }
         }
     }
 }
+
+#pragma mark - AVPlayerItemMetadataOutputPushDelegate
+
+- (void)metadataOutput:(AVPlayerItemMetadataOutput *)output didOutputTimedMetadataGroups:(NSArray<AVTimedMetadataGroup *> *)groups fromPlayerItemTrack:(AVPlayerItemTrack *)track
+{
+    NSLog(@"[ti.audiostream] Metadata output received %lu groups", (unsigned long)groups.count);
+
+    for (AVTimedMetadataGroup *group in groups) {
+        NSArray<AVMetadataItem *> *items = group.items;
+        if (items.count > 0) {
+            NSLog(@"[ti.audiostream] Processing metadata group with %lu items", (unsigned long)items.count);
+            [self parseMetadataItems:items];
+        }
+    }
+}
+
+#pragma mark - KVO
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
@@ -308,22 +340,15 @@
         if (item.status == AVPlayerItemStatusReadyToPlay) {
             NSLog(@"[ti.audiostream] PlayerItem ReadyToPlay. Checking commonMetadata...");
             [self parseMetadataItems:item.asset.commonMetadata];
-        } else if (item.status == AVPlayerItemStatusFailed) { 
+        } else if (item.status == AVPlayerItemStatusFailed) {
             NSError *error = item.error;
             NSLog(@"[ti.audiostream] Playback Failed: %@", error.localizedDescription);
-            
-            [self fireState:@"error"]; 
+
+            [self fireState:@"error"];
             [self fireError:error.localizedDescription];
-            
+
             [self stop:nil];
         }
-    }
-    if (object == _currentItem && [keyPath isEqualToString:@"timedMetadata"]) {
-        AVPlayerItem *item = (AVPlayerItem *)object;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[ti.audiostream] timedMetadata received (%lu items)", (unsigned long)item.timedMetadata.count);
-            [self parseMetadataItems:item.timedMetadata];
-        });
     }
 }
 
@@ -343,6 +368,7 @@
     }
 }
 
+#if TARGET_OS_IOS
 - (void)handleInterruption:(NSNotification *)n {
     int type = [n.userInfo[AVAudioSessionInterruptionTypeKey] intValue];
     if (type == AVAudioSessionInterruptionTypeBegan) {
@@ -358,6 +384,7 @@
         _resumeOnInterruption = NO;
     }
 }
+#endif
 
 - (void)fireState:(NSString *)state { if ([self _hasListeners:@"state"]) [self fireEvent:@"state" withObject:@{@"state":state}]; }
 - (void)fireError:(NSString *)msg { if ([self _hasListeners:@"error"]) [self fireEvent:@"error" withObject:@{@"message":msg}]; }
