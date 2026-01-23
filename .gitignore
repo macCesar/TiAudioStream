@@ -18,3 +18,7 @@ android/local.properties
 ios/build/
 ios/dist/
 ios/DerivedData/
+
+# Documentation (internal / planning only)
+docs/
+lanzamiento-del-modulo.md
