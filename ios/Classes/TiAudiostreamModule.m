@@ -22,6 +22,7 @@
     NSString *_currentArtist;
     UIImage *_currentArtwork;
     BOOL _resumeOnInterruption;
+    BOOL _autoUpdateMetadata;
 }
 @end
 
@@ -35,44 +36,46 @@
 - (void)startup
 {
     [super startup];
-    
+
+    // Default: auto-update metadata from stream
+    _autoUpdateMetadata = YES;
+
 #if TARGET_OS_IOS
     AVAudioSession *session = [AVAudioSession sharedInstance];
     [session setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault options:0 error:nil];
     [session setActive:YES error:nil];
-#endif
-    
+
     MPRemoteCommandCenter *cc = [MPRemoteCommandCenter sharedCommandCenter];
     [cc.playCommand setEnabled:YES];
-    [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
-        [self start:nil]; 
+    [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+        [self start:nil];
         [self fireRemoteControl:100];
-        return MPRemoteCommandHandlerStatusSuccess; 
+        return MPRemoteCommandHandlerStatusSuccess;
     }];
-    
+
     [cc.pauseCommand setEnabled:YES];
-    [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
-        [self pause:nil]; 
+    [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+        [self pause:nil];
         [self fireRemoteControl:101];
-        return MPRemoteCommandHandlerStatusSuccess; 
+        return MPRemoteCommandHandlerStatusSuccess;
     }];
-    
+
     [cc.stopCommand setEnabled:YES];
-    [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
-        [self stop:nil]; 
+    [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+        [self stop:nil];
         [self fireRemoteControl:102];
-        return MPRemoteCommandHandlerStatusSuccess; 
+        return MPRemoteCommandHandlerStatusSuccess;
     }];
-    
+
     [cc.nextTrackCommand setEnabled:YES];
     [cc.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self fireRemoteControl:104]; return MPRemoteCommandHandlerStatusSuccess; }];
-    
+
     [cc.previousTrackCommand setEnabled:YES];
     [cc.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self fireRemoteControl:105]; return MPRemoteCommandHandlerStatusSuccess; }];
-    
-#if TARGET_OS_IOS
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
 #endif
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleErrorLogEntry:) name:AVPlayerItemNewErrorLogEntryNotification object:nil];
 }
 
@@ -83,6 +86,7 @@
     ENSURE_SINGLE_ARG(args, NSDictionary);
     _currentURL = [TiUtils stringValue:@"url" properties:args];
     _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
+    _autoUpdateMetadata = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
 
     // 1. Parar y limpiar TODO inmediatamente
     if (_player) {
@@ -153,13 +157,15 @@
     } 
 }
 
-- (void)stop:(id)unused { 
-    if (_player) { 
-        [_player pause]; 
+- (void)stop:(id)unused {
+    if (_player) {
+        [_player pause];
         @try { [_player replaceCurrentItemWithPlayerItem:nil]; } @catch (id e) {}
     }
     [self fireState:@"stopped"];
+#if TARGET_OS_IOS
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+#endif
 }
 
 - (void)setMetadata:(id)args
@@ -168,22 +174,29 @@
     _currentTitle = [TiUtils stringValue:@"title" properties:args def:@""];
     _currentArtist = [TiUtils stringValue:@"artist" properties:args def:@""];
     NSString *artworkURL = [TiUtils stringValue:@"artwork" properties:args];
-    
+
     if (artworkURL) {
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
             UIImage *img = [UIImage imageWithData:data];
-            if (img) { 
-                dispatch_async(dispatch_get_main_queue(), ^{ 
-                    self->_currentArtwork = img; 
-                    [self updateNowPlaying]; 
-                }); 
+            if (img) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    self->_currentArtwork = img;
+                    [self updateNowPlaying];
+                });
             }
         });
     } else {
         _currentArtwork = nil;
         [self updateNowPlaying];
     }
+}
+
+- (void)setAutoUpdateMetadata:(id)args
+{
+    ENSURE_SINGLE_ARG(args, NSNumber);
+    _autoUpdateMetadata = [TiUtils boolValue:args def:YES];
+    NSLog(@"[ti.audiostream] Auto-update metadata: %@", _autoUpdateMetadata ? @"YES" : @"NO");
 }
 
 #pragma mark - Properties
@@ -204,6 +217,8 @@
 - (void)updateNowPlaying
 {
     if (!_player) return;
+
+#if TARGET_OS_IOS
     NSMutableDictionary *info = [NSMutableDictionary dictionary];
     info[MPMediaItemPropertyTitle] = _currentTitle ?: @"";
     info[MPMediaItemPropertyArtist] = _currentArtist ?: @"";
@@ -213,6 +228,10 @@
         info[MPMediaItemPropertyArtwork] = [[MPMediaItemArtwork alloc] initWithBoundsSize:_currentArtwork.size requestHandler:^UIImage *(CGSize size) { return self->_currentArtwork; }];
     }
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
+#endif
+
+    // Note: Mac Catalyst does not support MPNowPlayingInfoCenter
+    // The metadata is still available via the 'metadata' event and module properties
 }
 
 - (void)parseMetadataItems:(NSArray<AVMetadataItem *> *)items {
@@ -221,6 +240,7 @@
     __block NSString *title = nil;
     __block NSString *artist = nil;
     __block UIImage *artwork = nil;
+    __block NSString *artworkURL = nil;
 
     for (AVMetadataItem *item in items) {
         id key = item.key;
@@ -249,7 +269,17 @@
         } else if ([keyString isEqualToString:@"artist"]) {
             artist = (NSString *)value;
         }
-        
+        // Artwork URL from StreamUrl (Radio Paradise, etc.)
+        else if ([keyString isEqualToString:@"StreamUrl"] && stringValue) {
+            // Check if it's an image URL
+            if ([stringValue hasSuffix:@".jpg"] || [stringValue hasSuffix:@".jpeg"] ||
+                [stringValue hasSuffix:@".png"] || [stringValue hasSuffix:@".gif"] ||
+                [stringValue containsString:@".jpg?"] || [stringValue containsString:@".png?"]) {
+                artworkURL = stringValue;
+                NSLog(@"[ti.audiostream] Found artwork URL: %@", artworkURL);
+            }
+        }
+
         // Deep Inspection for Embedded Metadata (Global Player / ID3 COMM frames)
         if (stringValue && !title) {
             if ([stringValue containsString:@"StreamTitle='"]) {
@@ -268,7 +298,7 @@
         }
     }
 
-    if (title || artist || artwork) {
+    if (title || artist || artwork || artworkURL) {
         NSMutableDictionary *rawSource = [NSMutableDictionary dictionary];
         for (AVMetadataItem *item in items) {
             id key = item.key;
@@ -284,20 +314,53 @@
             title = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         }
 
-        NSLog(@"[ti.audiostream] Parsed Metadata: Title='%@', Artist='%@', Artwork=%@", title, artist, artwork ? @"YES" : @"NO");
-        
+        NSLog(@"[ti.audiostream] Parsed Metadata: Title='%@', Artist='%@', Artwork=%@, ArtworkURL=%@", title, artist, artwork ? @"YES" : @"NO", artworkURL ?: @"none");
+
         BOOL changed = NO;
         if (title && ![title isEqualToString:_currentTitle]) { _currentTitle = title; changed = YES; }
         if (artist && ![artist isEqualToString:_currentArtist]) { _currentArtist = artist; changed = YES; }
         if (artwork) { _currentArtwork = artwork; changed = YES; }
 
+        // Fetch artwork from URL if found
+        if (artworkURL) {
+            __block NSString *capturedArtworkURL = [artworkURL copy]; // Capture for block
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:capturedArtworkURL]];
+                UIImage *img = [UIImage imageWithData:data];
+                if (img) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        self->_currentArtwork = img;
+                        // Only update remote controls if auto-update is enabled
+                        if (self->_autoUpdateMetadata) {
+                            [self updateNowPlaying];
+                        }
+                        // Fire metadata event again with artwork URL (always fire for app UI)
+                        if ([self _hasListeners:@"metadata"]) {
+                            [self fireEvent:@"metadata" withObject:@{
+                                @"title": self->_currentTitle ?: @"",
+                                @"artist": self->_currentArtist ?: @"",
+                                @"artwork": capturedArtworkURL,
+                                @"raw": rawSource
+                            }];
+                        }
+                    });
+                }
+            });
+            // Update immediately without artwork, it'll come shortly
+            changed = YES;
+        }
+
         if (changed) {
-            [self updateNowPlaying];
+            // Only update remote controls if auto-update is enabled
+            if (!artworkURL && self->_autoUpdateMetadata) {
+                [self updateNowPlaying];
+            }
+            // Always fire metadata event for app UI
             if ([self _hasListeners:@"metadata"]) {
                 [self fireEvent:@"metadata" withObject:@{
                     @"title": _currentTitle ?: @"",
                     @"artist": _currentArtist ?: @"",
-                    @"artwork": @"",
+                    @"artwork": artworkURL ?: @"",
                     @"raw": rawSource
                 }];
             }
