@@ -81,6 +81,7 @@ let currentStream = STREAMS[currentStreamKey]
 
 const win = Ti.UI.createWindow({
   barColor: COLORS.card,
+  extendSafeArea: false,
   title: 'ti.audiostream',
   backgroundColor: COLORS.background,
   titleAttributes: { color: COLORS.text }
@@ -160,14 +161,17 @@ const controls = Ti.UI.createView({ top: 15, height: 60, width: Ti.UI.SIZE, layo
 
 const btnPrev = Ti.UI.createButton({
   title: ' BACK ', backgroundColor: COLORS.secondaryBtn, color: COLORS.accent,
+  backgroundSelectedColor: 'transparent',
   borderRadius: 15, height: 40, width: 80, font: { fontWeight: 'bold', fontSize: 12 }
 });
 const btnPlayPause = Ti.UI.createButton({
   title: '  PLAY  ', backgroundColor: COLORS.accent, color: '#fff',
+  backgroundSelectedColor: '#0051d5',
   borderRadius: 25, height: 50, width: 100, left: 15, right: 15
 });
 const btnNext = Ti.UI.createButton({
   title: ' NEXT ', backgroundColor: COLORS.secondaryBtn, color: COLORS.accent,
+  backgroundSelectedColor: 'transparent',
   borderRadius: 15, height: 40, width: 80, font: { fontWeight: 'bold', fontSize: 12 }
 });
 
@@ -201,6 +205,7 @@ Object.keys(STREAMS).forEach(key => {
     font: { fontSize: 11 },
     width: '46%', height: 40,
     backgroundColor: COLORS.card,
+    backgroundSelectedColor: COLORS.card,
     left: 2, right: 2, top: 2, bottom: 2
   });
 
@@ -335,6 +340,7 @@ audioStream.addEventListener('metadata', (e) => {
 
   if (e.title) trackTitleLabel.text = e.title;
   if (e.artist) trackArtistLabel.text = e.artist;
+  if (e.artwork) artworkImage.image = e.artwork;
 });
 audioStream.addEventListener('remotecontrol', (e) => {
   log('Remote Action: ' + e.action);
