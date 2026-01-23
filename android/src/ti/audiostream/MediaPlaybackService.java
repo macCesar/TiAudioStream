@@ -64,6 +64,7 @@ public class MediaPlaybackService extends Service
 	public static final String ACTION_PAUSE = "ti.audiostream.PAUSE";
 	public static final String ACTION_STOP = "ti.audiostream.STOP";
 	public static final String ACTION_SET_METADATA = "ti.audiostream.SET_METADATA";
+	public static final String ACTION_SET_AUTO_UPDATE_METADATA = "ti.audiostream.SET_AUTO_UPDATE_METADATA";
 	public static final String ACTION_NEXT = "ti.audiostream.NEXT";
 	public static final String ACTION_PREV = "ti.audiostream.PREV";
 
@@ -73,11 +74,13 @@ public class MediaPlaybackService extends Service
 	public static final String EXTRA_TITLE = "title";
 	public static final String EXTRA_ARTIST = "artist";
 	public static final String EXTRA_ARTWORK_URL = "artworkUrl";
+	public static final String EXTRA_AUTO_UPDATE_METADATA = "autoUpdateMetadata";
 
 	        // Media3 ExoPlayer
 	        private ExoPlayer player;
 	        private String currentUrl;
 	        private boolean isLive = true;
+	        private boolean autoUpdateMetadata = true;
 	        private boolean resumeOnFocusGain = false;
 		// Audio Focus
 	private AudioManager audioManager;
@@ -256,8 +259,11 @@ public class MediaPlaybackService extends Service
 						}
 					}
 
-					updateMediaSessionMetadata();
-					updateNotification();
+					// Only update remote controls if auto-update is enabled
+					if (autoUpdateMetadata) {
+						updateMediaSessionMetadata();
+						updateNotification();
+					}
 					
 					// Create a RICH raw map with everything Media3 found
 					java.util.Map<String, Object> rawData = new java.util.HashMap<>();
@@ -279,7 +285,7 @@ public class MediaPlaybackService extends Service
 					
 					for (int i = 0; i < metadata.length(); i++) {
 						androidx.media3.common.Metadata.Entry entry = metadata.get(i);
-						
+
 						// Collect raw data for debugging (using values.get(0) to avoid deprecation warnings)
 						if (entry instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
 							androidx.media3.extractor.metadata.id3.TextInformationFrame frame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
@@ -291,6 +297,7 @@ public class MediaPlaybackService extends Service
 							rawData.put("ICY_TITLE", frame.title);
 							rawData.put("ICY_URL", frame.url);
 							Log.d(LCAT, "RAW ICY: " + frame.title);
+							if (frame.url != null) Log.d(LCAT, "RAW ICY URL: " + frame.url);
 						} else if (entry instanceof androidx.media3.extractor.metadata.id3.CommentFrame) {
 							androidx.media3.extractor.metadata.id3.CommentFrame frame = (androidx.media3.extractor.metadata.id3.CommentFrame) entry;
 							rawData.put("COMM_" + frame.description, frame.text);
@@ -306,6 +313,18 @@ public class MediaPlaybackService extends Service
 							String streamTitle = icy.title;
 							if (streamTitle != null && !streamTitle.isEmpty()) {
 								if (parseStreamTitle(streamTitle)) changed = true;
+							}
+
+							// Check if ICY_URL contains an artwork URL (Radio Paradise, etc.)
+							String artworkUrl = icy.url;
+							if (artworkUrl != null && !artworkUrl.isEmpty()) {
+								// Check if it looks like an image URL
+								if (artworkUrl.contains(".jpg") || artworkUrl.contains(".jpeg") ||
+									artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
+									artworkUrl.contains(".webp")) {
+									Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
+									fetchArtworkFromUrl(artworkUrl);
+								}
 							}
 						}
 						// 2. Check for ID3 Text Frames (TIT2, etc)
@@ -336,10 +355,12 @@ public class MediaPlaybackService extends Service
 
 					// Always fire if we found ANY metadata, so raw data can be inspected
 					if (changed || !rawData.isEmpty()) {
-						if (changed) {
+						// Only update remote controls if auto-update is enabled
+						if (changed && autoUpdateMetadata) {
 							updateMediaSessionMetadata();
 							updateNotification();
 						}
+						// Always fire metadata event for app UI
 						AudiostreamModule.fireMetadata(currentTitle, currentArtist, null, rawData);
 					}
 				}
@@ -482,6 +503,9 @@ public class MediaPlaybackService extends Service
 			case ACTION_SET_METADATA:
 				handleSetMetadata(intent);
 				break;
+			case ACTION_SET_AUTO_UPDATE_METADATA:
+				handleSetAutoUpdateMetadata(intent);
+				break;
 
 			case ACTION_NEXT:
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_NEXT);
@@ -499,13 +523,14 @@ public class MediaPlaybackService extends Service
 	{
 		currentUrl = intent.getStringExtra(EXTRA_URL);
 		isLive = intent.getBooleanExtra(EXTRA_IS_LIVE, true);
+		autoUpdateMetadata = intent.getBooleanExtra(EXTRA_AUTO_UPDATE_METADATA, true);
 
 		if (currentUrl == null || currentUrl.isEmpty()) {
 			Log.e(LCAT, "No URL provided");
 			return;
 		}
 
-		Log.d(LCAT, "Setting stream: " + currentUrl + " (live: " + isLive + ")");
+		Log.d(LCAT, "Setting stream: " + currentUrl + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
 
 		resetRetryLogic();
 
@@ -532,6 +557,13 @@ public class MediaPlaybackService extends Service
 		if (artworkUrl != null && !artworkUrl.isEmpty()) {
 			loadArtworkAsync(artworkUrl);
 		}
+	}
+
+	private void handleSetAutoUpdateMetadata(Intent intent)
+	{
+		boolean value = intent.getBooleanExtra(EXTRA_AUTO_UPDATE_METADATA, true);
+		autoUpdateMetadata = value;
+		Log.d(LCAT, "Auto-update metadata set to: " + autoUpdateMetadata);
 	}
 
 	private void play()
@@ -726,6 +758,35 @@ public class MediaPlaybackService extends Service
 		}
 
 		mediaSession.setMetadata(metadata.build());
+	}
+
+	/**
+	 * Fetch artwork from a URL asynchronously (for Radio Paradise style streams)
+	 */
+	private void fetchArtworkFromUrl(String urlString) {
+		executor.execute(() -> {
+			try {
+				Log.d(LCAT, "Fetching artwork from: " + urlString);
+				java.net.URL url = new java.net.URL(urlString);
+				java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+				connection.setDoInput(true);
+				connection.connect();
+				java.io.InputStream input = connection.getInputStream();
+				Bitmap bitmap = BitmapFactory.decodeStream(input);
+				if (bitmap != null) {
+					mainHandler.post(() -> {
+						currentArtwork = bitmap;
+						updateMediaSessionMetadata();
+						updateNotification();
+						Log.i(LCAT, "Artwork updated from URL: " + urlString);
+					});
+				} else {
+					Log.w(LCAT, "Failed to decode bitmap from: " + urlString);
+				}
+			} catch (Exception e) {
+				Log.e(LCAT, "Error fetching artwork: " + e.getMessage());
+			}
+		});
 	}
 
 	private void updatePlaybackState(int state)
