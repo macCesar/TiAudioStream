@@ -5,7 +5,7 @@
 version: 1.0.0
 apiversion: 2
 architectures: arm64 x86_64
-mac: false
+mac: true
 description: Audio streaming module for Titanium
 author: César Estrada
 license: MIT
