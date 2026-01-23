@@ -537,7 +537,7 @@ public class MediaPlaybackService extends Service
 	private void play()
 	{
 		if (player == null) return;
-		
+
 		// Guard clause: If already playing, don't re-prepare or interrupt current playback
 		if (player.isPlaying()) {
 			Log.d(LCAT, "Play command ignored: Player is already playing.");
@@ -545,7 +545,7 @@ public class MediaPlaybackService extends Service
 		}
 
 		Log.i(LCAT, "Play command received. URL: " + currentUrl + " (Live: " + isLive + ")");
-		
+
 		startForegroundWithNotification();
 
 		if (!requestAudioFocus()) {
@@ -554,17 +554,19 @@ public class MediaPlaybackService extends Service
 		}
 
 		int state = player.getPlaybackState();
-		// Intelligence: If it's a live stream and we were not playing, 
-		// force a fresh prepare to jump to live edge.
-		if (isLive || state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
-			Log.i(LCAT, "Preparing source for Play.");
+		// Intelligence: Only re-prepare if truly necessary (IDLE, ENDED, or URL changed)
+		// Do NOT re-prepare if just BUFFERING or PAUSED to avoid audio repeats
+		if (state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
+			Log.i(LCAT, "Player is IDLE/ENDED, preparing source.");
 			if (currentUrl != null && !currentUrl.isEmpty()) {
 				MediaItem mediaItem = MediaItem.fromUri(currentUrl);
 				player.setMediaItem(mediaItem);
 				player.prepare();
 			}
 		}
-		
+		// For live streams that are PAUSED/BUFFERING, just resume without re-preparing
+		// This prevents "repeating" audio from cached buffers
+
 		player.play();
 	}
 
