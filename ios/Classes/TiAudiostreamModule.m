@@ -123,10 +123,10 @@
     [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
 }
 
-- (void)start:(id)unused { 
+- (void)start:(id)unused {
     if (!_player) return;
 
-    // Guard clause: If already playing, don't re-prepare
+    // Guard clause: If already playing, don't re-prepare or interrupt
     if (_player.rate > 0 && _currentItem.status == AVPlayerItemStatusReadyToPlay) {
         return;
     }
@@ -134,20 +134,16 @@
 #if TARGET_OS_IOS
     [[AVAudioSession sharedInstance] setActive:YES error:nil];
 #endif
-    
-    // Intelligence: If it's a live stream, we ALWAYS re-prepare on Play to ensure we jump to the live edge
-    if (_isLive && _currentURL) {
-        NSLog(@"[ti.audiostream] Live stream: Re-preparing source to jump to live edge.");
-        [self setStream:@{@"url": _currentURL, @"isLive": @(_isLive)}];
-    } 
-    // For non-live, only resurrect if it's in a failed/null state
-    else if (_currentURL && (!_currentItem || _currentItem.status == AVPlayerItemStatusFailed)) {
-        NSLog(@"[ti.audiostream] VOD stream item invalid, resurrecting: %@", _currentURL);
-        [self setStream:@{@"url": _currentURL, @"isLive": @(_isLive)}];
+
+    // If player is IDLE or has no valid item, prepare the stream
+    if (!_currentItem || _currentItem.status == AVPlayerItemStatusFailed) {
+        if (_currentURL) {
+            [self setStream:@{@"url": _currentURL, @"isLive": @(_isLive)}];
+        }
     }
-    
-    [_player play]; 
-    [self updateNowPlaying]; 
+
+    [_player play];
+    [self updateNowPlaying];
 }
 
 - (void)pause:(id)unused { 
