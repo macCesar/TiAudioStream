@@ -97,13 +97,15 @@ public class AudiostreamModule extends KrollModule
 		}
 
 		boolean isLive = TiConvert.toBoolean(args.get("isLive"), true);
+		boolean autoUpdateMetadata = TiConvert.toBoolean(args.get("autoUpdateMetadata"), true);
 
-		Log.d(LCAT, "setStream: " + url + " (live: " + isLive + ")");
+		Log.d(LCAT, "setStream: " + url + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_SET_STREAM);
 		intent.putExtra(MediaPlaybackService.EXTRA_URL, url);
 		intent.putExtra(MediaPlaybackService.EXTRA_IS_LIVE, isLive);
+		intent.putExtra(MediaPlaybackService.EXTRA_AUTO_UPDATE_METADATA, autoUpdateMetadata);
 
 		startServiceSafely(intent);
 	}
@@ -179,6 +181,22 @@ public class AudiostreamModule extends KrollModule
 		if (artwork != null) {
 			intent.putExtra(MediaPlaybackService.EXTRA_ARTWORK_URL, artwork);
 		}
+
+		startServiceSafely(intent);
+	}
+
+	/**
+	 * Set whether to automatically update remote controls from stream metadata
+	 * @param enabled true to auto-update, false to only use manual setMetadata
+	 */
+	@Kroll.method
+	public void setAutoUpdateMetadata(boolean enabled)
+	{
+		Log.d(LCAT, "setAutoUpdateMetadata: " + enabled);
+
+		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
+		intent.setAction(MediaPlaybackService.ACTION_SET_AUTO_UPDATE_METADATA);
+		intent.putExtra(MediaPlaybackService.EXTRA_AUTO_UPDATE_METADATA, enabled);
 
 		startServiceSafely(intent);
 	}
