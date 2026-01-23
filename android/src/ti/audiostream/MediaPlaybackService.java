@@ -74,12 +74,12 @@ public class MediaPlaybackService extends Service
 	public static final String EXTRA_ARTIST = "artist";
 	public static final String EXTRA_ARTWORK_URL = "artworkUrl";
 
-	// Media3 ExoPlayer
-	private ExoPlayer player;
-	private String currentUrl;
-	private boolean isLive = true;
-
-	// Audio Focus
+	        // Media3 ExoPlayer
+	        private ExoPlayer player;
+	        private String currentUrl;
+	        private boolean isLive = true;
+	        private boolean resumeOnFocusGain = false;
+		// Audio Focus
 	private AudioManager audioManager;
 	private AudioFocusRequest audioFocusRequest;
 	private boolean hasAudioFocus = false;
@@ -100,48 +100,52 @@ public class MediaPlaybackService extends Service
 	private ExecutorService executor;
 	private Handler mainHandler;
 
-	// Audio focus listener
-	private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
-		switch (focusChange) {
-			case AudioManager.AUDIOFOCUS_GAIN:
-				Log.d(LCAT, "Audio focus gained");
-				hasAudioFocus = true;
-				if (player != null) {
-					player.setVolume(1.0f);
-					player.play();
-				}
-				AudiostreamModule.fireAudioFocusChange(focusChange);
-				break;
-
-			case AudioManager.AUDIOFOCUS_LOSS:
-				Log.d(LCAT, "Audio focus lost permanently");
-				hasAudioFocus = false;
-				if (player != null) {
-					player.pause();
-				}
-				AudiostreamModule.fireAudioFocusChange(focusChange);
-				break;
-
-			case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-				Log.d(LCAT, "Audio focus lost temporarily");
-				hasAudioFocus = false;
-				if (player != null) {
-					player.pause();
-				}
-				AudiostreamModule.fireAudioFocusChange(focusChange);
-				break;
-
-			case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-				Log.d(LCAT, "Audio focus lost - ducking");
-				if (player != null) {
-					player.setVolume(0.2f);
-				}
-				AudiostreamModule.fireAudioFocusChange(focusChange);
-				break;
-		}
-	};
-
-	// Media3 Player listener
+	        // Audio focus listener
+	        private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
+	                switch (focusChange) {
+	                        case AudioManager.AUDIOFOCUS_GAIN:
+	                                Log.d(LCAT, "Audio focus gained");
+	                                hasAudioFocus = true;
+	                                if (player != null) {
+	                                        player.setVolume(1.0f);
+	                                        if (resumeOnFocusGain) {
+	                                                player.play();
+	                                                resumeOnFocusGain = false;
+	                                        }
+	                                }
+	                                AudiostreamModule.fireAudioFocusChange(focusChange);
+	                                break;
+	
+	                        case AudioManager.AUDIOFOCUS_LOSS:
+	                                Log.d(LCAT, "Audio focus lost permanently");
+	                                hasAudioFocus = false;
+	                                resumeOnFocusGain = false;
+	                                if (player != null) {
+	                                        player.pause();
+	                                }
+	                                AudiostreamModule.fireAudioFocusChange(focusChange);
+	                                break;
+	
+	                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+	                                Log.d(LCAT, "Audio focus lost temporarily");
+	                                hasAudioFocus = false;
+	                                if (player != null) {
+	                                        resumeOnFocusGain = player.getPlayWhenReady();
+	                                        player.pause();
+	                                }
+	                                AudiostreamModule.fireAudioFocusChange(focusChange);
+	                                break;
+	
+	                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+	                                Log.d(LCAT, "Audio focus lost - ducking");
+	                                if (player != null) {
+	                                        player.setVolume(0.2f);
+	                                }
+	                                AudiostreamModule.fireAudioFocusChange(focusChange);
+	                                break;
+	                }
+	        };
+		// Media3 Player listener
 	private final Player.Listener playerListener = new Player.Listener() {
 		@Override
 		public void onPlaybackStateChanged(int playbackState)
@@ -167,28 +171,39 @@ public class MediaPlaybackService extends Service
 					AudiostreamModule.fireState("stopped");
 					break;
 
-				case Player.STATE_IDLE:
-					Log.d(LCAT, "Player state: IDLE");
-					break;
+				                                case Player.STATE_IDLE:
+
+				                                        Log.d(LCAT, "Player state: IDLE");
+
+				                                        updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
+
+				                                        AudiostreamModule.fireState("stopped");
+
+				                                        break;
+
+				
 			}
 		}
 
-		@Override
-		public void onIsPlayingChanged(boolean isPlaying)
-		{
-			Log.d(LCAT, "isPlaying changed: " + isPlaying);
-			if (isPlaying) {
-				resetRetryLogic();
-				updatePlaybackState(PlaybackStateCompat.STATE_PLAYING);
-				AudiostreamModule.fireState("playing");
-			} else if (player != null && player.getPlaybackState() != Player.STATE_BUFFERING) {
-				updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
-				AudiostreamModule.fireState("paused");
-			}
-			updateNotification();
-		}
-
-		@Override
+		                @Override
+		                public void onIsPlayingChanged(boolean isPlaying)
+		                {
+		                        Log.d(LCAT, "isPlaying changed: " + isPlaying);
+		                        if (isPlaying) {
+		                                resetRetryLogic();
+		                                updatePlaybackState(PlaybackStateCompat.STATE_PLAYING);
+		                                AudiostreamModule.fireState("playing");
+		                        } else {
+		                                int state = player != null ? player.getPlaybackState() : Player.STATE_IDLE;
+		                                // Only fire paused if we are not IDLE or ENDED (which are 'stopped')
+		                                if (state != Player.STATE_IDLE && state != Player.STATE_ENDED && state != Player.STATE_BUFFERING) {
+		                                        updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+		                                        AudiostreamModule.fireState("paused");
+		                                }
+		                        }
+		                        updateNotification();
+		                }
+				@Override
 		public void onPlayerError(PlaybackException error)
 		{
 			Log.e(LCAT, "Player error (" + error.errorCode + "): " + error.getMessage());
@@ -219,8 +234,146 @@ public class MediaPlaybackService extends Service
 				attemptReconnect();
 			}
 		}
-	};
 
+		        @Override
+				public void onMediaMetadataChanged(androidx.media3.common.MediaMetadata mediaMetadata)
+				{
+					Log.d(LCAT, "onMediaMetadataChanged triggered");
+					
+					// Update internal state from high-level metadata
+					if (mediaMetadata.title != null) currentTitle = mediaMetadata.title.toString();
+					if (mediaMetadata.artist != null) currentArtist = mediaMetadata.artist.toString();
+					else if (mediaMetadata.albumArtist != null) currentArtist = mediaMetadata.albumArtist.toString();
+		
+					updateMediaSessionMetadata();
+					updateNotification();
+					
+					// Create a RICH raw map with everything Media3 found
+					java.util.Map<String, Object> rawData = new java.util.HashMap<>();
+					if (mediaMetadata.title != null) rawData.put("title", mediaMetadata.title.toString());
+					if (mediaMetadata.artist != null) rawData.put("artist", mediaMetadata.artist.toString());
+					if (mediaMetadata.albumTitle != null) rawData.put("album", mediaMetadata.albumTitle.toString());
+					if (mediaMetadata.albumArtist != null) rawData.put("albumArtist", mediaMetadata.albumArtist.toString());
+					if (mediaMetadata.displayTitle != null) rawData.put("displayTitle", mediaMetadata.displayTitle.toString());
+					if (mediaMetadata.subtitle != null) rawData.put("subtitle", mediaMetadata.subtitle.toString());
+					if (mediaMetadata.description != null) rawData.put("description", mediaMetadata.description.toString());
+					if (mediaMetadata.genre != null) rawData.put("genre", mediaMetadata.genre.toString());
+					if (mediaMetadata.composer != null) rawData.put("composer", mediaMetadata.composer.toString());
+					if (mediaMetadata.station != null) rawData.put("station", mediaMetadata.station.toString());
+					
+					Log.d(LCAT, "Firing metadata event with " + rawData.size() + " raw fields");
+					AudiostreamModule.fireMetadata(currentTitle, currentArtist, null, rawData);
+				}
+		
+				@Override
+				public void onMetadata(androidx.media3.common.Metadata metadata) {
+					Log.d(LCAT, "onMetadata received (" + metadata.length() + " entries)");
+					boolean changed = false;
+					java.util.Map<String, Object> rawData = new java.util.HashMap<>();
+					
+					for (int i = 0; i < metadata.length(); i++) {
+						androidx.media3.common.Metadata.Entry entry = metadata.get(i);
+						
+						// Collect raw data for debugging (using values.get(0) to avoid deprecation warnings)
+						if (entry instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
+							androidx.media3.extractor.metadata.id3.TextInformationFrame frame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
+							String value = (frame.values != null && !frame.values.isEmpty()) ? frame.values.get(0) : "";
+							rawData.put(frame.id, value);
+							Log.d(LCAT, "RAW ID3: " + frame.id + "=" + value);
+						} else if (entry instanceof androidx.media3.extractor.metadata.icy.IcyInfo) {
+							androidx.media3.extractor.metadata.icy.IcyInfo frame = (androidx.media3.extractor.metadata.icy.IcyInfo) entry;
+							rawData.put("ICY_TITLE", frame.title);
+							rawData.put("ICY_URL", frame.url);
+							Log.d(LCAT, "RAW ICY: " + frame.title);
+						} else if (entry instanceof androidx.media3.extractor.metadata.id3.CommentFrame) {
+							androidx.media3.extractor.metadata.id3.CommentFrame frame = (androidx.media3.extractor.metadata.id3.CommentFrame) entry;
+							rawData.put("COMM_" + frame.description, frame.text);
+							Log.d(LCAT, "RAW COMM: " + frame.text);
+						} else {
+							rawData.put(entry.getClass().getSimpleName(), entry.toString());
+							Log.d(LCAT, "RAW UNKNOWN: " + entry.toString());
+						}
+
+						// 1. Check for standard ICY info (Shoutcast/Icecast)
+						if (entry instanceof androidx.media3.extractor.metadata.icy.IcyInfo) {
+							androidx.media3.extractor.metadata.icy.IcyInfo icy = (androidx.media3.extractor.metadata.icy.IcyInfo) entry;
+							String streamTitle = icy.title;
+							if (streamTitle != null && !streamTitle.isEmpty()) {
+								if (parseStreamTitle(streamTitle)) changed = true;
+							}
+						}
+						// 2. Check for ID3 Text Frames (TIT2, etc)
+						else if (entry instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
+							androidx.media3.extractor.metadata.id3.TextInformationFrame textFrame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
+							String value = (textFrame.values != null && !textFrame.values.isEmpty()) ? textFrame.values.get(0) : "";
+							if ("TIT2".equals(textFrame.id)) {
+								currentTitle = value;
+								changed = true;
+							} else if ("TPE1".equals(textFrame.id)) {
+								currentArtist = value;
+								changed = true;
+							} else {
+                                // Deep inspect other text frames for embedded JSON/StreamTitle
+                                if (value != null && value.contains("StreamTitle='")) {
+                                    if (parseStreamTitle(value)) changed = true;
+                                }
+                            }
+						}
+						// 3. Check for ID3 Comment Frames (COMM) - This is where Global Player hides metadata
+						else if (entry instanceof androidx.media3.extractor.metadata.id3.CommentFrame) {
+							androidx.media3.extractor.metadata.id3.CommentFrame commFrame = (androidx.media3.extractor.metadata.id3.CommentFrame) entry;
+							if (commFrame.text != null && commFrame.text.contains("StreamTitle='")) {
+								if (parseStreamTitle(commFrame.text)) changed = true;
+							}
+						}
+					}
+
+					// Always fire if we found ANY metadata, so raw data can be inspected
+					if (changed || !rawData.isEmpty()) {
+						if (changed) {
+							updateMediaSessionMetadata();
+							updateNotification();
+						}
+						AudiostreamModule.fireMetadata(currentTitle, currentArtist, null, rawData);
+					}
+				}
+
+				private boolean parseStreamTitle(String rawText) {
+					String title = rawText;
+					String artist = "";
+					
+					// If it looks like the custom JSON/StreamTitle format: StreamTitle='...';
+					if (rawText.contains("StreamTitle='")) {
+						int start = rawText.indexOf("StreamTitle='");
+						if (start != -1) {
+							start += 13; // Length of StreamTitle='
+							int end = rawText.indexOf("';", start);
+							if (end != -1) {
+								title = rawText.substring(start, end);
+								Log.d(LCAT, "Extracted Title: " + title);
+							}
+						}
+					}
+
+					// Standard split logic for "Artist - Title"
+					int dashIndex = title.indexOf(" - ");
+					if (dashIndex != -1) {
+						artist = title.substring(0, dashIndex).trim();
+						title = title.substring(dashIndex + 3).trim();
+					}
+					
+					boolean changed = false;
+					if (!title.equals(currentTitle)) {
+						currentTitle = title;
+						changed = true;
+					}
+					if (!artist.isEmpty() && !artist.equals(currentArtist)) {
+						currentArtist = artist;
+						changed = true;
+					}
+					return changed;
+				}
+			};
 	@Override
 	public void onCreate()
 	{
@@ -377,7 +530,16 @@ public class MediaPlaybackService extends Service
 
 	private void play()
 	{
-		// CRITICAL FIX: Call startForeground immediately to avoid "Context.startForegroundService() did not then call Service.startForeground()" crash on Android 12+
+		if (player == null) return;
+		
+		// Guard clause: If already playing, don't re-prepare or interrupt current playback
+		if (player.isPlaying()) {
+			Log.d(LCAT, "Play command ignored: Player is already playing.");
+			return;
+		}
+
+		Log.i(LCAT, "Play command received. URL: " + currentUrl + " (Live: " + isLive + ")");
+		
 		startForegroundWithNotification();
 
 		if (!requestAudioFocus()) {
@@ -385,27 +547,44 @@ public class MediaPlaybackService extends Service
 			return;
 		}
 
-		if (player != null) {
-			player.play();
+		int state = player.getPlaybackState();
+		// Intelligence: If it's a live stream and we were not playing, 
+		// force a fresh prepare to jump to live edge.
+		if (isLive || state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
+			Log.i(LCAT, "Preparing source for Play.");
+			if (currentUrl != null && !currentUrl.isEmpty()) {
+				MediaItem mediaItem = MediaItem.fromUri(currentUrl);
+				player.setMediaItem(mediaItem);
+				player.prepare();
+			}
 		}
+		
+		player.play();
 	}
 
 	private void pause()
 	{
-		if (player != null) {
-			player.pause();
+		if (player == null) return;
+
+		// Guard clause: If already paused or stopped, do nothing
+		if (!player.isPlaying() && player.getPlaybackState() != Player.STATE_BUFFERING) {
+			Log.d(LCAT, "Pause command ignored: Player is not playing.");
+			return;
 		}
+
+		resumeOnFocusGain = false;
+		player.pause();
 		updateNotification();
 	}
-
-	private void stop()
-	{
-		Log.d(LCAT, "Stopping playback and service");
-
-		resetRetryLogic();
-		abandonAudioFocus();
-
-		if (player != null) {
+	
+	        private void stop()
+	        {
+	                Log.d(LCAT, "Stopping playback and service");
+	
+	                resumeOnFocusGain = false;
+	                resetRetryLogic();
+	                abandonAudioFocus();
+			if (player != null) {
 			player.stop();
 		}
 
