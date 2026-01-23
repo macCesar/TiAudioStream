@@ -19,9 +19,11 @@ The standard `Ti.Media.AudioPlayer` often creates **audio focus conflicts** and 
 
 - **Background Playback**: High-performance streaming with a Foreground Service (Android).
 - **Audio Focus**: Intelligent handling of interruptions (calls, notifications, Siri).
-- **Smart Reconnection**: Interruptible retry logic that validates streams before reconnecting.
-- **Terminal Error Detection**: Stops retrying immediately on HTTP 404/500 errors.
-- **Media Controls**: Seamless integration with Lock Screen and Notification Center.
+- **Deep Metadata Inspection**: Automatically extracts song titles from standard sources (ICY, HLS) AND hidden formats (JSON inside ID3 tags), ensuring support for networks like **Global Player** (Heart, Capital).
+- **Terminal Error Detection**: Stops retrying immediately on HTTP 404/500 errors or down servers.
+- **Media Controls**: Full integration with system UI components:
+    - **Android**: Supports *Compact Media Notification* (lock screen), *Expanded Media Notification* (notification drawer), and the *System Media Player* (Quick Settings / Media Output).
+    - **iOS**: Seamless integration with *Lock Screen Media Controls*, *Control Center Player*, and *Now Playing Info Center* (Apple Watch / CarPlay).
 - **Remote Commands**: Support for headset/Bluetooth controls (Play, Pause, Skip, Stop).
 
 ## Requirements
@@ -59,9 +61,17 @@ Fired when playback state changes.
 Fired when a playback or network error occurs.
 - Payload: `message` (String).
 
+#### `metadata`
+Fired when stream metadata (title, artist) is extracted automatically from the server.
+- Payload: `title` (String), `artist` (String), `artwork` (String).
+
 #### `remotecontrol`
-Fired on system control interaction (Lock screen / Headsets / Bluetooth).
-- Payload: `subtype` (Number). Matches module constants.
+Fired when the user interacts with system media controls (Lock screen, Headsets, Bluetooth).
+- **Behavior**: The module follows industry standards by handling `PLAY`, `PAUSE`, and `STOP` commands **autonomously and immediately**. Redundant calls from the App in response to these events are automatically ignored to prevent playback conflicts.
+- Payload: 
+    - `subtype` (Number): Numeric constant.
+    - `action` (String): Readable action name (`PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV`). 
+- **Recommendation**: Use this event primarily for `NEXT` and `PREV` to switch stations/tracks. For transport actions (`PLAY`/`PAUSE`), the module ensures the system UI and audio engine remain in sync without App intervention.
 
 ## License
 MIT License - Copyright (c) 2026 César Estrada (macCesar)
