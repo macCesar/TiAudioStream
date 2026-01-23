@@ -20,8 +20,7 @@
     NSString *_currentTitle;
     NSString *_currentArtist;
     UIImage *_currentArtwork;
-    NSInteger _retryCount;
-    BOOL _isReconnecting;
+    BOOL _resumeOnInterruption;
 }
 @end
 
@@ -35,8 +34,6 @@
 - (void)startup
 {
     [super startup];
-    _retryCount = 0;
-    _isReconnecting = NO;
     
     AVAudioSession *session = [AVAudioSession sharedInstance];
     [session setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault options:0 error:nil];
@@ -44,13 +41,25 @@
     
     MPRemoteCommandCenter *cc = [MPRemoteCommandCenter sharedCommandCenter];
     [cc.playCommand setEnabled:YES];
-    [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self start:nil]; return MPRemoteCommandHandlerStatusSuccess; }];
+    [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
+        [self start:nil]; 
+        [self fireRemoteControl:100];
+        return MPRemoteCommandHandlerStatusSuccess; 
+    }];
     
     [cc.pauseCommand setEnabled:YES];
-    [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self pause:nil]; return MPRemoteCommandHandlerStatusSuccess; }];
+    [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
+        [self pause:nil]; 
+        [self fireRemoteControl:101];
+        return MPRemoteCommandHandlerStatusSuccess; 
+    }];
     
     [cc.stopCommand setEnabled:YES];
-    [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self stop:nil]; return MPRemoteCommandHandlerStatusSuccess; }];
+    [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { 
+        [self stop:nil]; 
+        [self fireRemoteControl:102];
+        return MPRemoteCommandHandlerStatusSuccess; 
+    }];
     
     [cc.nextTrackCommand setEnabled:YES];
     [cc.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self fireRemoteControl:104]; return MPRemoteCommandHandlerStatusSuccess; }];
@@ -59,6 +68,7 @@
     [cc.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) { [self fireRemoteControl:105]; return MPRemoteCommandHandlerStatusSuccess; }];
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleErrorLogEntry:) name:AVPlayerItemNewErrorLogEntryNotification object:nil];
 }
 
 #pragma mark - JS API
@@ -68,10 +78,8 @@
     ENSURE_SINGLE_ARG(args, NSDictionary);
     _currentURL = [TiUtils stringValue:@"url" properties:args];
     _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
-    _retryCount = 0;
-    _isReconnecting = NO;
-    
-    // 1. Parar y limpiar TODO inmediatamente para evitar que se escuche la frecuencia anterior
+
+    // 1. Parar y limpiar TODO inmediatamente
     if (_player) {
         [_player pause];
         @try { [_player removeObserver:self forKeyPath:@"timeControlStatus"]; } @catch (id e) {}
@@ -79,6 +87,7 @@
     
     if (_currentItem) {
         @try { [_currentItem removeObserver:self forKeyPath:@"status"]; } @catch (id e) {}
+        @try { [_currentItem removeObserver:self forKeyPath:@"timedMetadata"]; } @catch (id e) {}
         _currentItem = nil;
     }
     
@@ -88,37 +97,55 @@
     // 3. Configurar nuevo item
     _currentItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:_currentURL]];
     [_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
+    [_currentItem addObserver:self forKeyPath:@"timedMetadata" options:NSKeyValueObservingOptionNew context:nil];
     
     if (_player) {
         [_player replaceCurrentItemWithPlayerItem:_currentItem];
     } else {
         _player = [AVPlayer playerWithPlayerItem:_currentItem];
-        _player.automaticallyWaitsToMinimizeStalling = YES;
     }
+    
+    _player.automaticallyWaitsToMinimizeStalling = YES;
     
     [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
 }
 
 - (void)start:(id)unused { 
-    if (_player) { 
-        [[AVAudioSession sharedInstance] setActive:YES error:nil]; 
-        [_player play]; 
-        [self updateNowPlaying]; 
+    if (!_player) return;
+
+    // Guard clause: If already playing, don't re-prepare
+    if (_player.rate > 0 && _currentItem.status == AVPlayerItemStatusReadyToPlay) {
+        return;
+    }
+
+    [[AVAudioSession sharedInstance] setActive:YES error:nil];
+    
+    // Intelligence: If it's a live stream, we ALWAYS re-prepare on Play to ensure we jump to the live edge
+    if (_isLive && _currentURL) {
+        NSLog(@"[ti.audiostream] Live stream: Re-preparing source to jump to live edge.");
+        [self setStream:@{@"url": _currentURL, @"isLive": @(_isLive)}];
     } 
+    // For non-live, only resurrect if it's in a failed/null state
+    else if (_currentURL && (!_currentItem || _currentItem.status == AVPlayerItemStatusFailed)) {
+        NSLog(@"[ti.audiostream] VOD stream item invalid, resurrecting: %@", _currentURL);
+        [self setStream:@{@"url": _currentURL, @"isLive": @(_isLive)}];
+    }
+    
+    [_player play]; 
+    [self updateNowPlaying]; 
 }
 
 - (void)pause:(id)unused { 
-    if (_player) { 
+    if (_player && _player.rate > 0) { 
         [_player pause]; 
         [self updateNowPlaying]; 
     } 
 }
 
 - (void)stop:(id)unused { 
-    _isReconnecting = NO;
     if (_player) { 
         [_player pause]; 
-        [_player replaceCurrentItemWithPlayerItem:nil]; 
+        @try { [_player replaceCurrentItemWithPlayerItem:nil]; } @catch (id e) {}
     }
     [self fireState:@"stopped"];
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
@@ -177,6 +204,96 @@
     [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
 }
 
+- (void)parseMetadataItems:(NSArray<AVMetadataItem *> *)items {
+    if (!items || items.count == 0) return;
+
+    __block NSString *title = nil;
+    __block NSString *artist = nil;
+    __block UIImage *artwork = nil;
+
+    for (AVMetadataItem *item in items) {
+        id key = item.key;
+        NSString *commonKey = item.commonKey;
+        id value = item.value;
+        NSString *keyString = [key isKindOfClass:[NSString class]] ? (NSString *)key : [key description];
+        NSString *stringValue = [value isKindOfClass:[NSString class]] ? (NSString *)value : nil;
+
+        NSLog(@"[ti.audiostream] Metadata Item Found: key=%@, commonKey=%@, valueType=%@", keyString, commonKey, NSStringFromClass([value class]));
+
+        if ([commonKey isEqualToString:AVMetadataCommonKeyTitle]) {
+            title = (NSString *)value;
+        } else if ([commonKey isEqualToString:AVMetadataCommonKeyArtist]) {
+            artist = (NSString *)value;
+        } else if ([commonKey isEqualToString:AVMetadataCommonKeyArtwork]) {
+            if ([value isKindOfClass:[NSData class]]) {
+                artwork = [UIImage imageWithData:(NSData *)value];
+            } else if ([value isKindOfClass:[NSDictionary class]]) {
+                NSData *data = [value objectForKey:@"data"];
+                if (data) artwork = [UIImage imageWithData:data];
+            }
+        }
+        // Direct Key Match
+        else if ([keyString isEqualToString:@"title"] || [keyString isEqualToString:@"StreamTitle"]) {
+            title = (NSString *)value;
+        } else if ([keyString isEqualToString:@"artist"]) {
+            artist = (NSString *)value;
+        }
+        
+        // Deep Inspection for Embedded Metadata (Global Player / ID3 COMM frames)
+        if (stringValue && !title) {
+            if ([stringValue containsString:@"StreamTitle='"]) {
+                NSLog(@"[ti.audiostream] Found embedded StreamTitle in: %@", keyString);
+                // Extract content between StreamTitle=' and ';
+                NSRange startRange = [stringValue rangeOfString:@"StreamTitle='"];
+                if (startRange.location != NSNotFound) {
+                    NSUInteger startPos = startRange.location + startRange.length;
+                    NSRange endRange = [stringValue rangeOfString:@"';" options:0 range:NSMakeRange(startPos, stringValue.length - startPos)];
+                    if (endRange.location != NSNotFound) {
+                        title = [stringValue substringWithRange:NSMakeRange(startPos, endRange.location - startPos)];
+                        NSLog(@"[ti.audiostream] Extracted Title: %@", title);
+                    }
+                }
+            }
+        }
+    }
+
+    if (title || artist || artwork) {
+        NSMutableDictionary *rawSource = [NSMutableDictionary dictionary];
+        for (AVMetadataItem *item in items) {
+            id key = item.key;
+            id value = item.value;
+            NSString *keyString = [key isKindOfClass:[NSString class]] ? (NSString *)key : [key description];
+            if (value) rawSource[keyString] = [value description];
+        }
+
+        // Handle "Artist - Title" combined format
+        if (title && !artist && [title containsString:@" - "]) {
+            NSArray *parts = [title componentsSeparatedByString:@" - "];
+            artist = [parts[0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+            title = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+        }
+
+        NSLog(@"[ti.audiostream] Parsed Metadata: Title='%@', Artist='%@', Artwork=%@", title, artist, artwork ? @"YES" : @"NO");
+        
+        BOOL changed = NO;
+        if (title && ![title isEqualToString:_currentTitle]) { _currentTitle = title; changed = YES; }
+        if (artist && ![artist isEqualToString:_currentArtist]) { _currentArtist = artist; changed = YES; }
+        if (artwork) { _currentArtwork = artwork; changed = YES; }
+
+        if (changed) {
+            [self updateNowPlaying];
+            if ([self _hasListeners:@"metadata"]) {
+                [self fireEvent:@"metadata" withObject:@{
+                    @"title": _currentTitle ?: @"",
+                    @"artist": _currentArtist ?: @"",
+                    @"artwork": @"",
+                    @"source": rawSource
+                }];
+            }
+        }
+    }
+}
+
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if (object == _player && [keyPath isEqualToString:@"timeControlStatus"]) {
@@ -187,37 +304,77 @@
         });
     }
     if (object == _currentItem && [keyPath isEqualToString:@"status"]) {
-        if (_currentItem.status == AVPlayerItemStatusFailed) { 
+        AVPlayerItem *item = (AVPlayerItem *)object;
+        if (item.status == AVPlayerItemStatusReadyToPlay) {
+            NSLog(@"[ti.audiostream] PlayerItem ReadyToPlay. Checking commonMetadata...");
+            [self parseMetadataItems:item.asset.commonMetadata];
+        } else if (item.status == AVPlayerItemStatusFailed) { 
+            NSError *error = item.error;
+            NSLog(@"[ti.audiostream] Playback Failed: %@", error.localizedDescription);
+            
             [self fireState:@"error"]; 
-            [self fireError:_currentItem.error.localizedDescription];
-            BOOL isTerminal = NO;
-            if ([_currentItem.error.domain isEqualToString:NSURLErrorDomain]) {
-                if (_currentItem.error.code == NSURLErrorFileDoesNotExist || _currentItem.error.code == NSURLErrorNoPermissionsToReadFile) isTerminal = YES;
-            }
-            if (isTerminal) { _isReconnecting = NO; [_player pause]; [self updateNowPlaying]; } else { [self attemptReconnect]; }
+            [self fireError:error.localizedDescription];
+            
+            [self stop:nil];
         }
+    }
+    if (object == _currentItem && [keyPath isEqualToString:@"timedMetadata"]) {
+        AVPlayerItem *item = (AVPlayerItem *)object;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"[ti.audiostream] timedMetadata received (%lu items)", (unsigned long)item.timedMetadata.count);
+            [self parseMetadataItems:item.timedMetadata];
+        });
     }
 }
 
-- (void)handleInterruption:(NSNotification *)n { 
-    if ([n.userInfo[AVAudioSessionInterruptionTypeKey] intValue] == AVAudioSessionInterruptionTypeBegan) [self pause:nil]; 
+
+- (void)handleErrorLogEntry:(NSNotification *)notification
+{
+    AVPlayerItem *item = (AVPlayerItem *)notification.object;
+    AVPlayerItemErrorLogEvent *lastEvent = item.errorLog.events.lastObject;
+    if (lastEvent && lastEvent.errorStatusCode >= 400) {
+        NSLog(@"[ti.audiostream] HTTP Error Detected: %ld on domain %@", (long)lastEvent.errorStatusCode, lastEvent.errorDomain);
+        
+        [self fireState:@"error"];
+        [self fireError:[NSString stringWithFormat:@"HTTP Error: %ld", (long)lastEvent.errorStatusCode]];
+        
+        // Error HTTP (404, 500, etc) = Detener inmediatamente
+        [self stop:nil];
+    }
 }
 
-- (void)attemptReconnect {
-    if (_isReconnecting || _retryCount >= 5) return;
-    _retryCount++; _isReconnecting = YES;
-    NSString *urlToRetry = [_currentURL copy];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (self->_isReconnecting && [self->_currentURL isEqualToString:urlToRetry]) {
-            self->_isReconnecting = NO;
-            [self setStream:@{@"url":self->_currentURL, @"isLive":@(self->_isLive)}];
-            [self start:nil];
+- (void)handleInterruption:(NSNotification *)n {
+    int type = [n.userInfo[AVAudioSessionInterruptionTypeKey] intValue];
+    if (type == AVAudioSessionInterruptionTypeBegan) {
+        _resumeOnInterruption = (_player && _player.timeControlStatus == AVPlayerTimeControlStatusPlaying);
+        [self pause:nil];
+    } else if (type == AVAudioSessionInterruptionTypeEnded) {
+        if (_resumeOnInterruption) {
+            int options = [n.userInfo[AVAudioSessionInterruptionOptionKey] intValue];
+            if (options == AVAudioSessionInterruptionOptionShouldResume) {
+                [self start:nil];
+            }
         }
-    });
+        _resumeOnInterruption = NO;
+    }
 }
 
 - (void)fireState:(NSString *)state { if ([self _hasListeners:@"state"]) [self fireEvent:@"state" withObject:@{@"state":state}]; }
 - (void)fireError:(NSString *)msg { if ([self _hasListeners:@"error"]) [self fireEvent:@"error" withObject:@{@"message":msg}]; }
-- (void)fireRemoteControl:(NSInteger)subtype { if ([self _hasListeners:@"remotecontrol"]) [self fireEvent:@"remotecontrol" withObject:@{@"subtype": @(subtype)}]; }
+- (void)fireRemoteControl:(NSInteger)subtype { 
+    if ([self _hasListeners:@"remotecontrol"]) {
+        NSString *action = @"UNKNOWN";
+        switch (subtype) {
+            case 100: action = @"PLAY"; break;
+            case 101: action = @"PAUSE"; break;
+            case 102: action = @"STOP"; break;
+            case 103: action = @"PLAY_PAUSE"; break;
+            case 104: action = @"NEXT"; break;
+            case 105: action = @"PREV"; break;
+        }
+        [self fireEvent:@"remotecontrol" withObject:@{@"subtype": @(subtype), @"action": action}]; 
+    }
+}
 
 @end
+
