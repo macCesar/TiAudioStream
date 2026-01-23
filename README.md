@@ -9,9 +9,9 @@ Unlike standard implementations that separate the audio player from the system m
 ### Core Capabilities
 
 - **Autonomous Lifecycle Management**: Handles background persistence using a native Foreground Service (Android) and optimized Audio Session management (iOS).
-- **Intelligent Live Stream Recovery**: Automatically detects stale HLS segments or buffer expiration after long pauses, forcing a "Live Edge" resurrection to prevent infinite buffering or silent failures.
+- **Smart Audio Focus**: Handles system interruptions (calls, Siri, other apps) with smart resume that respects user intent. Automatically resumes after calls if playing, but stays paused if user manually paused.
 - **Deep Metadata Inspection**: An advanced parsing engine that extracts real-time metadata from standard ICY/ID3 tags and non-standard nested formats (e.g., JSON embedded in ID3 frames used by Global Player/Heart Radio).
-- **Proactive Audio Focus**: Built-in logic to handle system interruptions (calls, Siri, notifications) with smart-resume capabilities based on user intent.
+- **Automatic Stream Artwork**: Extracts and displays album art embedded in audio streams directly on system UI (Lock Screen, notifications).
 - **Native OS Integration**: Full support for system UI components:
     - **Android**: Compact Media Notification (Lock Screen), Expanded Media Notification (Drawer), and System Media Player (Quick Settings / Output Switcher).
     - **iOS**: Lock Screen Media Controls, Control Center Player, and Now Playing Info Center (Apple Watch / CarPlay).
@@ -36,9 +36,9 @@ Unlike standard implementations that separate the audio player from the system m
 ### Methods
 
 #### `setStream({ url, isLive })`
-Initializes the audio source. 
+Initializes the audio source.
 - `url` (String): The HLS (.m3u8) or direct audio stream URL.
-- `isLive` (Boolean): If true, enables specialized "Live Edge" recovery logic.
+- `isLive` (Boolean): Stream type hint for metadata parsing. Does not affect playback behavior.
 
 #### `start()` / `play()`
 Starts or resumes playback. It handles Audio Focus requests and system control synchronization automatically.
