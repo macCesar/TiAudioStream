@@ -1,357 +1,306 @@
 /**
- * ti.audiostream - Complete Example
+ * ti.audiostream - Professional Example App (Refined)
  *
- * This example demonstrates all features of the ti.audiostream module:
- * - Stream configuration and playback control
- * - Metadata and artwork display
- * - State change handling
- * - Audio focus events (Android)
- * - Remote control events (lock screen, notification, headphones)
- * - Error handling and automatic reconnection
- *
- * @author César Estrada (macCesar)
- * @license MIT
+ * Demonstrates:
+ * - Optimized Light Mode UI
+ * - Matrix-style Terminal Console (Auto-scrolling)
+ * - Error handling for dead streams
+ * - Real-time metadata and station synchronization
  */
-
-'use strict'
-
-// =============================================================================
-// MODULE IMPORT
-// =============================================================================
 
 const audioStream = require('ti.audiostream')
 
 // =============================================================================
-// CONFIGURATION
+// CONFIGURATION & COLORS
 // =============================================================================
+
+const COLORS = {
+  text: '#1c1c1e',
+  card: '#ffffff',
+  background: '#f2f2f7',
+  secondaryBtn: '#e5e5ea',
+  secondaryText: '#8e8e93',
+  error: '#ff3b30',
+  accent: '#007aff',
+  success: '#34c759',
+  matrixBg: '#000000',
+  matrixText: '#00ff00'
+};
 
 const STREAMS = {
   radioParadise: {
-    url: 'https://stream.radioparadise.com/aac-320',
+    isLive: true,
     title: 'Radio Paradise',
     artist: 'Eclectic Rock',
-    artwork: 'https://radioparadise.com/graphics/fb_logo.png',
-    isLive: true
+    url: 'https://stream.radioparadise.com/aac-320',
+    artwork: 'https://upload.wikimedia.org/wikipedia/commons/7/78/Radio_Paradise_logo.png',
   },
   grooveSalad: {
+    isLive: true,
+    title: 'Groove Salad',
+    artist: 'Ambient Beats',
     url: 'http://ice1.somafm.com/groovesalad-128-mp3',
-    title: 'Groove Salad (Metadata Test)',
-    artist: 'Waiting for stream data...',
-    artwork: 'https://somafm.com/img/groovesalad120.png',
-    isLive: true
+    artwork: 'https://somafm.com/img3/groovesalad-400.png',
   },
-  kcrw: {
-    url: 'https://kcrw.streamguys1.com/kcrw_128k_mp3_e24',
-    title: 'All Things Considered',
-    artist: 'NPR wraps up the day with all the context and original reporting you need.',
-    artwork: 'https://images.ctfassets.net/2658fe8gbo8o/0c84b6ea052973af8bbd15b91b69acdb-photo-asset/9ac95678981cb62b73c760010e8aae97/All-Things-Considered_Tile_NPR-Network-01_Full.jpg?w=750&h=750&fm=webp&q=80&fit=fill&f=center',
-    isLive: true
-  },
-  jazz24: {
-    url: 'https://live.jazz24.org/jazz24-mp3',
-    title: 'Jazz24',
-    artist: 'Seattle Public Radio',
+  heart: {
+    isLive: true,
+    title: 'Heart Radio UK',
+    artist: 'London\'s No.1 Hit Music Station',
+    url: 'https://hls.thisisdax.com/hls/HeartLondon/master.m3u8',
     artwork: 'https://www.jazz24.org/wp-content/uploads/2014/10/jazz24_logo_300.png',
-    isLive: true
   },
   sample: {
     isLive: true,
-    title: 'Reference Audio Streams',
-    artist: 'Sample live audio streams',
+    title: 'Reference Streams',
+    artist: 'Metadata Compliance Test',
     url: 'https://streams.radiomast.io/ref-128k-mp3-stereo/hls.m3u8',
-    artwork: ''
+    artwork: 'https://www.radiomast.io/wp-content/uploads/2022/01/logo-radiomast-vertical.png',
+  },
+  jazz24: {
+    isLive: true,
+    title: 'Jazz24',
+    artist: 'Public Radio from Seattle',
+    url: 'https://knkx-live-a.edge.audiocdn.com/6285_256k/playlist.m3u8',
+    artwork: 'https://www.jazz24.org/wp-content/uploads/2014/10/jazz24_logo_300.png',
+  },
+  offline: {
+    isLive: true,
+    title: 'Offline Test',
+    artist: 'Intentionally broken signal',
+    url: 'https://invalid-url-for-test.org/dead.m3u8',
+    artwork: 'https://www.radiomast.io/wp-content/uploads/2022/01/logo-radiomast-vertical.png',
   }
 }
 
 let currentStreamKey = 'radioParadise'
 let currentStream = STREAMS[currentStreamKey]
 
-const LABELS = {
-  PREV: 'BACK',
-  PLAY: 'PLAY',
-  PAUSE: 'PAUSE',
-  STOP: 'STOP',
-  NEXT: 'NEXT'
-};
-
 // =============================================================================
-// UI CREATION
+// UI COMPONENTS
 // =============================================================================
 
 const win = Ti.UI.createWindow({
-  backgroundColor: '#1a1a2e',
-  title: 'ti.audiostream Demo',
-  width: Ti.UI.FILL,
-  height: Ti.UI.FILL
+  barColor: COLORS.card,
+  title: 'ti.audiostream',
+  backgroundColor: COLORS.background,
+  titleAttributes: { color: COLORS.text }
 })
 
 const mainContainer = Ti.UI.createScrollView({
   layout: 'vertical',
-  top: 50,
-  left: 20,
-  right: 20,
-  bottom: 20,
-  width: Ti.UI.FILL,
   contentHeight: Ti.UI.SIZE
 })
 
-const headerLabel = Ti.UI.createLabel({
+// Header Section (Reduced spacing)
+const header = Ti.UI.createView({ height: 80, top: 10, layout: 'vertical' });
+header.add(Ti.UI.createLabel({
   text: 'ti.audiostream',
   font: { fontSize: 28, fontWeight: 'bold' },
-  color: '#e94560',
-  top: 0
-})
+  color: COLORS.accent
+}));
+header.add(Ti.UI.createLabel({
+  text: 'Unified Audio Engine v1.0.0',
+  font: { fontSize: 13 },
+  color: COLORS.secondaryText
+}));
+mainContainer.add(header);
 
-const subtitleLabel = Ti.UI.createLabel({
-  text: 'Professional Audio Streaming Module',
-  font: { fontSize: 14 },
-  color: '#888888',
-  top: 5
-})
+// Artwork Card (Reduced top margin)
+const playerCard = Ti.UI.createView({
+  width: '90%', height: 300, top: 5,
+  backgroundColor: COLORS.card,
+  borderRadius: 20,
+  elevation: 5,
+  shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 10
+});
 
+// Container to prevent distortion
 const artworkContainer = Ti.UI.createView({
-  width: 200,
-  height: 200,
-  top: 30,
-  backgroundColor: '#16213e',
-  borderRadius: 10
-})
+  width: 160, height: 160, top: 20,
+  backgroundColor: '#f8f8f8',
+  borderRadius: 15
+});
 
 const artworkImage = Ti.UI.createImageView({
-  width: Ti.UI.FILL,
-  height: Ti.UI.FILL,
-  defaultImage: '/images/default_artwork.png'
-})
-artworkContainer.add(artworkImage)
+  width: 160, height: Ti.UI.SIZE, // Fix width, auto height to maintain ratio
+  defaultImage: '/images/default_artwork.png',
+  image: currentStream.artwork
+});
+artworkContainer.add(artworkImage);
+playerCard.add(artworkContainer);
 
 const trackTitleLabel = Ti.UI.createLabel({
   text: currentStream.title,
-  font: { fontSize: 20, fontWeight: 'bold' },
-  color: '#ffffff',
-  top: 20,
-  left: 10,
-  right: 10,
-  height: Ti.UI.SIZE,
-  textAlign: 'center'
-})
+  font: { fontSize: 18, fontWeight: 'bold' },
+  color: COLORS.text,
+  top: 210, textAlign: 'center', width: '90%', height: 24
+});
+playerCard.add(trackTitleLabel);
 
 const trackArtistLabel = Ti.UI.createLabel({
   text: currentStream.artist,
-  font: { fontSize: 16 },
-  color: '#888888',
-  top: 5,
-  left: 10,
-  right: 10,
-  height: Ti.UI.SIZE,
-  textAlign: 'center'
-})
-
-const statusContainer = Ti.UI.createView({
-  layout: 'horizontal',
-  top: 20,
-  height: Ti.UI.SIZE,
-  width: Ti.UI.SIZE
-})
-
-const stateIndicator = Ti.UI.createView({
-  width: 12,
-  height: 12,
-  borderRadius: 6,
-  backgroundColor: '#888888'
-})
+  font: { fontSize: 15 },
+  color: COLORS.secondaryText,
+  top: 235, textAlign: 'center', width: '90%', height: 20
+});
+playerCard.add(trackArtistLabel);
 
 const stateLabel = Ti.UI.createLabel({
-  text: 'Stopped',
-  font: { fontSize: 14 },
-  color: '#888888',
-  left: 10
-})
+  text: 'READY',
+  font: { fontSize: 11, fontWeight: 'bold' },
+  color: COLORS.accent,
+  top: 265
+});
+playerCard.add(stateLabel);
 
-statusContainer.add(stateIndicator)
-statusContainer.add(stateLabel)
+mainContainer.add(playerCard);
 
-const controlsContainer = Ti.UI.createView({
-  layout: 'horizontal',
-  top: 30,
-  height: 80,
-  width: Ti.UI.SIZE
-})
+// Controls (Improved buttons)
+const controls = Ti.UI.createView({ top: 15, height: 60, width: Ti.UI.SIZE, layout: 'horizontal' });
 
 const btnPrev = Ti.UI.createButton({
-  title: LABELS.PREV,
-  font: { fontSize: 11, fontWeight: 'bold' },
-  width: 60,
-  height: 60,
-  borderRadius: 30,
-  backgroundColor: '#16213e',
-  color: '#ffffff'
-})
-
+  title: ' BACK ', backgroundColor: COLORS.secondaryBtn, color: COLORS.accent,
+  borderRadius: 15, height: 40, width: 80, font: { fontWeight: 'bold', fontSize: 12 }
+});
 const btnPlayPause = Ti.UI.createButton({
-  title: LABELS.PLAY,
-  font: { fontSize: 15, fontWeight: 'bold' },
-  width: 80,
-  height: 80,
-  borderRadius: 40,
-  backgroundColor: '#e94560',
-  color: '#ffffff',
-  left: 15
-})
-
-const btnStop = Ti.UI.createButton({
-  title: LABELS.STOP,
-  font: { fontSize: 11, fontWeight: 'bold' },
-  width: 60,
-  height: 60,
-  borderRadius: 30,
-  backgroundColor: '#16213e',
-  color: '#ffffff',
-  left: 15
-})
-
+  title: '  PLAY  ', backgroundColor: COLORS.accent, color: '#fff',
+  borderRadius: 25, height: 50, width: 100, left: 15, right: 15
+});
 const btnNext = Ti.UI.createButton({
-  title: LABELS.NEXT,
-  font: { fontSize: 11, fontWeight: 'bold' },
-  width: 60,
-  height: 60,
-  borderRadius: 30,
-  backgroundColor: '#16213e',
-  color: '#ffffff',
-  left: 15
-})
+  title: ' NEXT ', backgroundColor: COLORS.secondaryBtn, color: COLORS.accent,
+  borderRadius: 15, height: 40, width: 80, font: { fontWeight: 'bold', fontSize: 12 }
+});
 
-controlsContainer.add(btnPrev)
-controlsContainer.add(btnPlayPause)
-controlsContainer.add(btnStop)
-controlsContainer.add(btnNext)
+controls.add(btnPrev);
+controls.add(btnPlayPause);
+controls.add(btnNext);
+mainContainer.add(controls);
 
-const streamSectionLabel = Ti.UI.createLabel({
-  text: 'Select Stream:',
-  font: { fontSize: 14, fontWeight: 'bold' },
-  color: '#e94560',
-  top: 30
-})
+// Station Selection (Reduced spacing)
+mainContainer.add(Ti.UI.createLabel({
+  top: 20,
+  left: 25,
+  text: 'SELECT STATION',
+  color: COLORS.secondaryText,
+  font: { fontSize: 11, fontWeight: 'bold' }
+}));
 
-const streamButtonsContainer = Ti.UI.createView({
-  top: 10,
-  width: Ti.UI.SIZE,
-  height: Ti.UI.SIZE,
-  layout: 'horizontal'
-})
+const stationList = Ti.UI.createView({
+  top: 5, height: Ti.UI.SIZE, width: Ti.UI.SIZE, layout: 'horizontal'
+});
 
-Object.keys(STREAMS).forEach(function (key) {
-  const stream = STREAMS[key]
+const stationButtons = {};
+
+Object.keys(STREAMS).forEach(key => {
+  const s = STREAMS[key];
   const btn = Ti.UI.createButton({
-    top: 5,
-    left: 2,
-    right: 2,
-    height: 40,
+    title: s.title,
     streamKey: key,
-    borderRadius: 5,
-    width: Ti.UI.SIZE,
-    color: '#ffffff',
-    font: { fontSize: 14 },
-    title: `   ${stream.title}   `,
-    backgroundColor: key === currentStreamKey ? '#e94560' : '#16213e'
-  })
+    borderRadius: 10,
+    color: COLORS.text,
+    font: { fontSize: 11 },
+    width: '46%', height: 40,
+    backgroundColor: COLORS.card,
+    left: 2, right: 2, top: 2, bottom: 2
+  });
 
-  btn.addEventListener('click', function () {
-    streamButtonsContainer.children.forEach(function (child) { child.backgroundColor = '#16213e' })
-    btn.backgroundColor = '#e94560'
-    loadStream(key)
-    audioStream.start()
-  })
+  btn.addEventListener('click', () => loadStream(key, true));
+  stationList.add(btn);
+  stationButtons[key] = btn;
+});
+mainContainer.add(stationList);
 
-  streamButtonsContainer.add(btn)
-})
+// Terminal Matrix Console
+const logHeader = Ti.UI.createView({ top: 20, left: 25, right: 25, height: 25 });
+logHeader.add(Ti.UI.createLabel({
+  left: 0,
+  text: 'SYSTEM LOG',
+  color: COLORS.secondaryText,
+  font: { fontSize: 11, fontWeight: 'bold' }
+}));
 
-const logSectionLabel = Ti.UI.createLabel({
-  text: 'Event Log:',
-  font: { fontSize: 14, fontWeight: 'bold' },
-  color: '#e94560',
-  top: 20
-})
+const btnClear = Ti.UI.createLabel({
+  right: 0,
+  text: 'CLEAR',
+  color: COLORS.accent,
+  font: { fontSize: 10, fontWeight: 'bold' }
+});
+logHeader.add(btnClear);
+mainContainer.add(logHeader);
 
-const logContainer = Ti.UI.createScrollView({
-  top: 10,
-  height: 150,
-  backgroundColor: '#0f0f23',
-  borderRadius: 5,
+const consoleView = Ti.UI.createScrollView({
+  top: 5, left: 20, right: 20, bottom: 40,
+  height: 140,
+  backgroundColor: COLORS.matrixBg,
+  borderRadius: 10,
   contentHeight: Ti.UI.SIZE,
   scrollType: 'vertical'
-})
+});
 
 const logLabel = Ti.UI.createLabel({
-  text: '',
-  font: { fontSize: 11, fontFamily: Ti.Platform.osname === 'android' ? 'monospace' : 'Courier' },
-  color: '#00ff00',
-  top: 5,
-  left: 10,
-  right: 10
-})
-logContainer.add(logLabel)
+  height: Ti.UI.SIZE,
+  color: COLORS.matrixText,
+  top: 10, left: 10, right: 10,
+  text: '> System initialized\n',
+  font: { fontSize: 10, fontFamily: 'monospace' }
+});
+consoleView.add(logLabel);
+mainContainer.add(consoleView);
 
-mainContainer.add(headerLabel)
-mainContainer.add(subtitleLabel)
-mainContainer.add(artworkContainer)
-mainContainer.add(trackTitleLabel)
-mainContainer.add(trackArtistLabel)
-mainContainer.add(statusContainer)
-mainContainer.add(controlsContainer)
-mainContainer.add(streamSectionLabel)
-mainContainer.add(streamButtonsContainer)
-mainContainer.add(logSectionLabel)
-mainContainer.add(logContainer)
-
-win.add(mainContainer)
+win.add(mainContainer);
 
 // =============================================================================
-// HELPER FUNCTIONS
+// LOGIC
 // =============================================================================
 
-let logMessages = []
-function log(message) {
-  const entry = '[' + new Date().toLocaleTimeString() + '] ' + message
-  Ti.API.info('[ti.audiostream] ' + message)
-  logMessages.unshift(entry)
-  if (logMessages.length > 50) logMessages = logMessages.slice(0, 50)
-  logLabel.text = logMessages.join('\n')
+function log(msg) {
+  Ti.API.info('[ti.audiostream] ' + msg);
+  const date = new Date().toLocaleTimeString();
+  logLabel.text += `[${date}] ${msg}\n`;
+
+  // Auto-scroll to bottom (standard terminal behavior)
+  setTimeout(() => {
+    consoleView.scrollToBottom();
+  }, 100);
 }
 
-function clearLog() {
-  logMessages = []
-  logLabel.text = ''
+btnClear.addEventListener('click', () => {
+  logLabel.text = '> Console cleared\n';
+});
+function updateButtonStyles(activeKey) {
+  Object.keys(stationButtons).forEach(key => {
+    const btn = stationButtons[key];
+    if (key === activeKey) {
+      btn.backgroundColor = COLORS.accent;
+      btn.color = '#fff';
+    } else {
+      btn.backgroundColor = COLORS.card;
+      btn.color = COLORS.text;
+    }
+  });
 }
 
-function updateStateUI(state) {
-  const stateColors = { buffering: '#ffcc00', playing: '#00ff00', paused: '#ff9900', stopped: '#888888', error: '#ff0000' }
-  stateIndicator.backgroundColor = stateColors[state] || '#888888'
-  stateLabel.text = state.charAt(0).toUpperCase() + state.slice(1)
-  stateLabel.color = stateColors[state] || '#888888'
-  btnPlayPause.title = (state === 'playing') ? LABELS.PAUSE : LABELS.PLAY;
+function loadStream(key, shouldStart) {
+  currentStreamKey = key;
+  currentStream = STREAMS[key];
+
+  log('Loading: ' + currentStream.title);
+  updateButtonStyles(key);
+
+  trackTitleLabel.text = currentStream.title;
+  trackArtistLabel.text = currentStream.artist;
+  artworkImage.image = currentStream.artwork || null;
+
+  audioStream.setStream({ url: currentStream.url, isLive: currentStream.isLive });
+  if (shouldStart) audioStream.start();
 }
 
-function updateTrackInfo(stream) {
-  trackTitleLabel.text = stream.title
-  trackArtistLabel.text = stream.artist
-  artworkImage.image = stream.artwork || null
-}
-
-function loadStream(streamKey) {
-  clearLog()
-  currentStreamKey = streamKey
-  currentStream = STREAMS[streamKey]
-  log('Loading stream: ' + currentStream.title)
-  audioStream.setStream({ url: currentStream.url, isLive: currentStream.isLive })
-  audioStream.setMetadata({ title: currentStream.title, artist: currentStream.artist, artwork: currentStream.artwork })
-  updateTrackInfo(currentStream)
-}
-
-function getNextStreamKey() {
+function getNextKey() {
   const keys = Object.keys(STREAMS);
   return keys[(keys.indexOf(currentStreamKey) + 1) % keys.length];
 }
-function getPrevStreamKey() {
+
+function getPrevKey() {
   const keys = Object.keys(STREAMS);
   const idx = keys.indexOf(currentStreamKey);
   return keys[(idx - 1 + keys.length) % keys.length];
@@ -361,35 +310,48 @@ function getPrevStreamKey() {
 // EVENT LISTENERS
 // =============================================================================
 
-audioStream.addEventListener('state', (e) => { log('State: ' + e.state); updateStateUI(e.state); })
-audioStream.addEventListener('error', (e) => { log('ERROR: ' + e.message); updateStateUI('error'); })
-audioStream.addEventListener('metadata', (e) => {
-  log('RAW METADATA: ' + JSON.stringify(e))
-  if (e.title) trackTitleLabel.text = e.title
-  if (e.artist) trackArtistLabel.text = e.artist
-})
+audioStream.addEventListener('state', (e) => {
+  log('State: ' + e.state);
+  stateLabel.text = e.state.toUpperCase();
+  stateLabel.color = (e.state === 'error') ? COLORS.error : COLORS.accent;
+  btnPlayPause.title = (e.state === 'playing') ? ' PAUSE ' : '  PLAY  ';
+});
 
+audioStream.addEventListener('error', (e) => {
+  const errorMsg = e.message || 'The stream URL is invalid or the server is unreachable.';
+  log('ERROR: ' + errorMsg);
+
+  const dialog = Ti.UI.createAlertDialog({
+    title: 'Connection Failed',
+    message: `Station: ${currentStream.title}\n\nTechnical Details:\n${errorMsg}`,
+    buttonNames: ['Understand']
+  });
+  dialog.show();
+});
+
+audioStream.addEventListener('metadata', (e) => {
+  log('METADATA: ' + e.title + ' - ' + e.artist);
+  if (e.raw) log('RAW: ' + JSON.stringify(e.raw));
+
+  if (e.title) trackTitleLabel.text = e.title;
+  if (e.artist) trackArtistLabel.text = e.artist;
+});
 audioStream.addEventListener('remotecontrol', (e) => {
-  log('Remote control event: ' + e.action)
-  switch (e.subtype) {
-    case audioStream.REMOTE_CONTROL_NEXT: loadStream(getNextStreamKey()); audioStream.start(); break;
-    case audioStream.REMOTE_CONTROL_PREV: loadStream(getPrevStreamKey()); audioStream.start(); break;
-  }
-})
+  log('Remote Action: ' + e.action);
+  if (e.action === 'NEXT') loadStream(getNextKey(), true);
+  if (e.action === 'PREV') loadStream(getPrevKey(), true);
+});
 
 btnPlayPause.addEventListener('click', () => {
-  if (audioStream.playing) audioStream.pause()
-  else {
-    if (stateLabel.text === 'Stopped' || stateLabel.text === 'Error') loadStream(currentStreamKey);
-    audioStream.start()
-  }
-})
+  if (audioStream.playing) audioStream.pause();
+  else audioStream.start();
+});
 
-btnStop.addEventListener('click', () => audioStream.stop())
-btnPrev.addEventListener('click', () => { loadStream(getPrevStreamKey()); audioStream.start(); })
-btnNext.addEventListener('click', () => { loadStream(getNextStreamKey()); audioStream.start(); })
+btnNext.addEventListener('click', () => loadStream(getNextKey(), true));
+btnPrev.addEventListener('click', () => loadStream(getPrevKey(), true));
 
-win.addEventListener('close', () => audioStream.stop())
+win.addEventListener('close', () => audioStream.stop());
 
-loadStream(currentStreamKey)
-win.open()
+// Initialize
+win.open();
+loadStream('radioParadise', true);
