@@ -4,4 +4,9 @@ dependencies {
 	implementation 'androidx.media3:media3-exoplayer:1.5.1'
 	implementation 'androidx.media3:media3-exoplayer-hls:1.5.1'
 	implementation 'androidx.media3:media3-session:1.5.1'
+
+	// Resolver warnings de anotaciones faltantes (InlineMe, DoNotCall, Nullable, etc)
+	compileOnly 'com.google.errorprone:error_prone_annotations:2.15.0'
+	compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+	compileOnly 'org.checkerframework:checker-qual:3.33.0'
 }
