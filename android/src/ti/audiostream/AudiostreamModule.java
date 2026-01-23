@@ -284,7 +284,7 @@ public class AudiostreamModule extends KrollModule
 	}
 
 	/**
-	 * Called by MediaPlaybackService for remote control events
+	 * Called by MediaPlaybackService when remote control events occur
 	 */
 	public static void fireRemoteControl(int subtype)
 	{
@@ -292,12 +292,46 @@ public class AudiostreamModule extends KrollModule
 			return;
 		}
 
+		String action = "UNKNOWN";
+		switch (subtype) {
+			case REMOTE_CONTROL_PLAY: action = "PLAY"; break;
+			case REMOTE_CONTROL_PAUSE: action = "PAUSE"; break;
+			case REMOTE_CONTROL_STOP: action = "STOP"; break;
+			case REMOTE_CONTROL_PLAY_PAUSE: action = "PLAY_PAUSE"; break;
+			case REMOTE_CONTROL_NEXT: action = "NEXT"; break;
+			case REMOTE_CONTROL_PREV: action = "PREV"; break;
+		}
+
 		KrollDict event = new KrollDict();
 		event.put("subtype", subtype);
+		event.put("action", action);
 		activeModule.fireEvent("remotecontrol", event);
 
 		if (DBG) {
-			Log.d(LCAT, "Remote control event fired: " + subtype);
+			Log.d(LCAT, "Remote control event fired: " + action + " (" + subtype + ")");
+		}
+	}
+
+	/**
+	 * Called by MediaPlaybackService when stream metadata changes
+	 */
+	public static void fireMetadata(String title, String artist, String artwork, java.util.Map<String, Object> raw)
+	{
+		if (activeModule == null || !activeModule.hasListeners("metadata")) {
+			return;
+		}
+
+		KrollDict event = new KrollDict();
+		event.put("title", title);
+		event.put("artist", artist);
+		event.put("artwork", artwork);
+		if (raw != null) {
+			event.put("source", new KrollDict(raw));
+		}
+		activeModule.fireEvent("metadata", event);
+
+		if (DBG) {
+			Log.d(LCAT, "Metadata event fired: " + title + " - " + artist);
 		}
 	}
 
@@ -319,24 +353,24 @@ public class AudiostreamModule extends KrollModule
 			return;
 		}
 
+		Intent intent = new Intent(activeModule.getContext(), MediaPlaybackService.class);
+
 		switch (action) {
 			case ACTION_PLAY:
-				activeModule.isPlaying = true;
+				intent.setAction(MediaPlaybackService.ACTION_PLAY);
+				activeModule.startServiceSafely(intent);
 				fireRemoteControl(REMOTE_CONTROL_PLAY);
 				break;
 
 			case ACTION_PAUSE:
-				activeModule.isPlaying = false;
+				intent.setAction(MediaPlaybackService.ACTION_PAUSE);
+				activeModule.startServiceSafely(intent);
 				fireRemoteControl(REMOTE_CONTROL_PAUSE);
 				break;
 
-			case ACTION_PLAY_PAUSE:
-				activeModule.isPlaying = !activeModule.isPlaying;
-				fireRemoteControl(REMOTE_CONTROL_PLAY_PAUSE);
-				break;
-
 			case ACTION_STOP:
-				activeModule.isPlaying = false;
+				intent.setAction(MediaPlaybackService.ACTION_STOP);
+				activeModule.startServiceSafely(intent);
 				fireRemoteControl(REMOTE_CONTROL_STOP);
 				break;
 
@@ -360,24 +394,24 @@ public class AudiostreamModule extends KrollModule
 			return;
 		}
 
+		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
+
 		switch (keyCode) {
 			case KeyEvent.KEYCODE_MEDIA_PLAY:
-				isPlaying = true;
+				intent.setAction(MediaPlaybackService.ACTION_PLAY);
+				startForegroundServiceSafely(intent);
 				fireRemoteControl(REMOTE_CONTROL_PLAY);
 				break;
 
 			case KeyEvent.KEYCODE_MEDIA_PAUSE:
-				isPlaying = false;
+				intent.setAction(MediaPlaybackService.ACTION_PAUSE);
+				startServiceSafely(intent);
 				fireRemoteControl(REMOTE_CONTROL_PAUSE);
 				break;
 
-			case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-				isPlaying = !isPlaying;
-				fireRemoteControl(REMOTE_CONTROL_PLAY_PAUSE);
-				break;
-
 			case KeyEvent.KEYCODE_MEDIA_STOP:
-				isPlaying = false;
+				intent.setAction(MediaPlaybackService.ACTION_STOP);
+				startServiceSafely(intent);
 				fireRemoteControl(REMOTE_CONTROL_STOP);
 				break;
 
