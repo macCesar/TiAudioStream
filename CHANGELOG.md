@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Features
 - **Unified Audio Engine**: Unified playback logic for Android (Media3) and iOS (AVPlayer).
 - **Deep Metadata Inspection**: Automatically extracts song titles from standard sources (ICY, HLS) AND hidden formats (JSON inside ID3 tags), ensuring support for networks like **Global Player** (Heart, Capital).
+- **Automatic Stream Artwork**: Automatically extracts and displays album art embedded in audio streams directly on the system lock screen and notification drawer.
 - **Professional Audio Focus**: Intelligent handling of system interruptions (calls, Siri, other apps) with "smart resume" logic that respects user intent.
 - **Background Persistence**: Reliable background playback using a Foreground Service (Android) and proper Audio Session management (iOS).
 - **Media Controls**: Seamless integration with Lock Screen and Notification Center.
