@@ -35,10 +35,11 @@ Unlike standard implementations that separate the audio player from the system m
 
 ### Methods
 
-#### `setStream({ url, isLive })`
+#### `setStream({ url, isLive, autoUpdateMetadata })`
 Initializes the audio source.
 - `url` (String): The HLS (.m3u8) or direct audio stream URL.
 - `isLive` (Boolean): Stream type hint for metadata parsing. Does not affect playback behavior.
+- `autoUpdateMetadata` (Boolean): Whether to automatically update remote controls from stream metadata. Default: `true`. When `false`, only `setMetadata()` updates will affect Lock Screen/Notification controls.
 
 #### `start()` / `play()`
 Starts or resumes playback. It handles Audio Focus requests and system control synchronization automatically.
@@ -48,6 +49,10 @@ Starts or resumes playback. It handles Audio Focus requests and system control s
 
 #### `setMetadata({ title, artist, artwork })`
 Manually overrides or complements stream metadata. `artwork` supports remote URLs or local asset paths.
+
+#### `setAutoUpdateMetadata(boolean)`
+Dynamically enable or disable automatic metadata updates from the stream. Use this to switch between showing station branding vs. song information.
+- `enabled` (Boolean): `true` to auto-update from stream, `false` to use only manual `setMetadata()`.
 
 ### Events
 
@@ -62,6 +67,7 @@ Fired on terminal or recoverable network failures.
 #### `metadata`
 Fired when the engine extracts new information from the stream.
 - `title`, `artist`: Standardized strings.
+- `artwork` (String): URL of the artwork image (when available in stream).
 - `raw`: A raw Map/Dictionary containing every tag found in the stream for deep inspection.
 
 #### `remotecontrol`
