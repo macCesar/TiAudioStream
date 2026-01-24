@@ -49,6 +49,10 @@ Starts or resumes playback. It handles Audio Focus requests and system control s
 
 #### `setMetadata({ title, artist, artwork })`
 Manually overrides or complements stream metadata. `artwork` supports remote URLs or local asset paths.
+- **Artwork behavior**:
+  - If `artwork` is omitted → Keeps current artwork
+  - If `artwork` is `null` or `""` → Clears/removes artwork
+  - If `artwork` is a valid URL → Loads new artwork
 
 #### `setAutoUpdateMetadata(boolean)`
 Dynamically enable or disable automatic metadata updates from the stream. Use this to switch between showing station branding vs. song information.
