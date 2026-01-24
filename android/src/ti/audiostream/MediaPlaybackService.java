@@ -543,20 +543,26 @@ public class MediaPlaybackService extends Service
 	{
 		currentTitle = intent.getStringExtra(EXTRA_TITLE);
 		currentArtist = intent.getStringExtra(EXTRA_ARTIST);
-		String artworkUrl = intent.getStringExtra(EXTRA_ARTWORK_URL);
 
 		if (currentTitle == null) currentTitle = "";
 		if (currentArtist == null) currentArtist = "";
 
 		Log.d(LCAT, "Setting metadata: " + currentTitle + " - " + currentArtist);
 
-		updateMediaSessionMetadata();
-		updateNotification();
-
-		// Load artwork asynchronously (auto-detects local vs remote)
-		if (artworkUrl != null && !artworkUrl.isEmpty()) {
-			loadArtworkAsync(artworkUrl);
+		// Check if artwork key exists in intent
+		if (intent.hasExtra(EXTRA_ARTWORK_URL)) {
+			String artworkUrl = intent.getStringExtra(EXTRA_ARTWORK_URL);
+			// null, empty, or whitespace-only → clear artwork
+			if (artworkUrl == null || artworkUrl.trim().isEmpty()) {
+				currentArtwork = null;
+				updateMediaSessionMetadata();
+				updateNotification();
+			} else {
+				// Valid URL → load it
+				loadArtworkAsync(artworkUrl);
+			}
 		}
+		// If artwork key doesn't exist → keep current artwork (do nothing)
 	}
 
 	private void handleSetAutoUpdateMetadata(Intent intent)
