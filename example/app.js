@@ -54,21 +54,18 @@ const STREAMS = {
     title: 'Reference Streams',
     artist: 'Metadata Compliance Test',
     url: 'https://streams.radiomast.io/ref-128k-mp3-stereo/hls.m3u8',
-    artwork: 'https://www.radiomast.io/static/stations/images/frontpage/float_middle.svg',
   },
   jazz24: {
     isLive: true,
     title: 'Jazz24',
     artist: 'Public Radio from Seattle',
     url: 'https://knkx-live-a.edge.audiocdn.com/6285_256k/playlist.m3u8',
-    artwork: 'https://www.jazz24.org/wp-content/uploads/2014/10/jazz24_logo_300.png',
   },
   offline: {
     isLive: true,
     title: 'Offline Test',
     artist: 'Intentionally broken signal',
     url: 'https://invalid-url-for-test.org/dead.m3u8',
-    artwork: 'https://www.radiomast.io/wp-content/uploads/2022/01/logo-radiomast-vertical.png',
   }
 }
 
