@@ -106,12 +106,14 @@
   // Check if title, artist, artwork are provided
   NSString *title = [TiUtils stringValue:@"title" properties:args];
   NSString *artist = [TiUtils stringValue:@"artist" properties:args];
-  id artworkValue = [args objectForKey:@"artwork"];  // Check if key exists (can be null)
+  id artworkValue = [args objectForKey:@"artwork"]; // Check if key exists (can be null)
 
   // Always set metadata when changing streams (clears previous)
   NSMutableDictionary *metaDict = [NSMutableDictionary dictionary];
-  if (title) [metaDict setObject:title forKey:@"title"];
-  if (artist) [metaDict setObject:artist forKey:@"artist"];
+  if (title)
+    [metaDict setObject:title forKey:@"title"];
+  if (artist)
+    [metaDict setObject:artist forKey:@"artist"];
 
   // Handle artwork: null/"" → clear, string → load, not provided → clear (new stream behavior)
   if (artworkValue != nil && artworkValue != [NSNull null]) {
@@ -227,6 +229,7 @@
 
   // Check if artwork key exists in args
   id artworkValue = [args objectForKey:@"artwork"];
+
   if (artworkValue != nil && artworkValue != [NSNull null]) {
     NSString *artworkURL = [TiUtils stringValue:@"artwork" properties:args];
 
@@ -239,16 +242,22 @@
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
         UIImage *img = [UIImage imageWithData:data];
-        if (img) {
-          dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+          if (img) {
             self->_currentArtwork = img;
-            [self updateNowPlaying];
-          });
-        }
+          } else {
+            // Failed to load → clear artwork
+            self->_currentArtwork = nil;
+          }
+          [self updateNowPlaying];
+        });
       });
     }
+  } else {
+    // Key not provided → clear artwork (new stream behavior)
+    _currentArtwork = nil;
+    [self updateNowPlaying];
   }
-  // If artwork key doesn't exist → keep current artwork (do nothing)
 }
 
 - (void)setAutoUpdateMetadata:(id)args
