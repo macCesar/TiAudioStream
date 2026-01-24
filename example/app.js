@@ -47,14 +47,14 @@ const STREAMS = {
     title: 'Heart Radio UK',
     artist: 'London\'s No.1 Hit Music Station',
     url: 'https://hls.thisisdax.com/hls/HeartLondon/master.m3u8',
-    artwork: 'https://www.jazz24.org/wp-content/uploads/2014/10/jazz24_logo_300.png',
+    artwork: 'https://cdn.aptoide.com/imgs/1/c/4/1c49a5185c27273e8a56a78ef39f5e58_icon.png',
   },
   sample: {
     isLive: true,
     title: 'Reference Streams',
     artist: 'Metadata Compliance Test',
     url: 'https://streams.radiomast.io/ref-128k-mp3-stereo/hls.m3u8',
-    artwork: 'https://www.radiomast.io/wp-content/uploads/2022/01/logo-radiomast-vertical.png',
+    artwork: 'https://www.radiomast.io/static/stations/images/frontpage/float_middle.svg',
   },
   jazz24: {
     isLive: true,
@@ -296,7 +296,15 @@ function loadStream(key, shouldStart) {
   trackArtistLabel.text = currentStream.artist;
   artworkImage.image = currentStream.artwork || null;
 
-  audioStream.setStream({ url: currentStream.url, isLive: currentStream.isLive });
+  // Now setStream can handle metadata too!
+  audioStream.setStream({
+    url: currentStream.url,
+    isLive: currentStream.isLive,
+    title: currentStream.title,
+    artist: currentStream.artist,
+    artwork: currentStream.artwork
+  });
+
   if (shouldStart) audioStream.start();
 }
 
