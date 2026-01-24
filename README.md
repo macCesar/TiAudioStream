@@ -35,11 +35,14 @@ Unlike standard implementations that separate the audio player from the system m
 
 ### Methods
 
-#### `setStream({ url, isLive, autoUpdateMetadata })`
-Initializes the audio source.
-- `url` (String): The HLS (.m3u8) or direct audio stream URL.
+#### `setStream({ url, isLive, autoUpdateMetadata, title, artist, artwork })`
+Initializes the audio source with optional metadata.
+- `url` (String): The HLS (.m3u8) or direct audio stream URL. **(Required)**
 - `isLive` (Boolean): Stream type hint for metadata parsing. Does not affect playback behavior.
 - `autoUpdateMetadata` (Boolean): Whether to automatically update remote controls from stream metadata. Default: `true`. When `false`, only `setMetadata()` updates will affect Lock Screen/Notification controls.
+- `title` (String): Optional initial title to display.
+- `artist` (String): Optional initial artist to display.
+- `artwork` (String): Optional initial artwork URL to display.
 
 #### `start()` / `play()`
 Starts or resumes playback. It handles Audio Focus requests and system control synchronization automatically.
@@ -48,7 +51,7 @@ Starts or resumes playback. It handles Audio Focus requests and system control s
 `pause()` halts the audio but keeps the notification alive. `stop()` clears all resources and removes system UI components.
 
 #### `setMetadata({ title, artist, artwork })`
-Manually overrides or complements stream metadata. `artwork` supports remote URLs or local asset paths.
+Manually overrides or complements stream metadata. Use this for dynamic updates without changing the stream URL.
 - **Artwork behavior**:
   - If `artwork` is omitted → Keeps current artwork
   - If `artwork` is `null` or `""` → Clears/removes artwork
