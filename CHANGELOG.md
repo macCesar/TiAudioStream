@@ -23,6 +23,11 @@ All notable changes to this project will be documented in this file.
 - **Thread Safety (Android)**: Enforced main-thread execution for player commands to prevent "Wrong Thread" crashes.
 - **Simplified Playback Logic**: Removed aggressive re-prepare logic that caused audio repeats. Now lets native players handle state naturally.
 
+### Fixed
+- **Artwork Clearing**: When changing to a stream without artwork, the previous station's artwork is now properly cleared on both platforms.
+- **Artwork Download Failures**: If an artwork URL fails to load (404, timeout, invalid image), the artwork is now cleared instead of keeping the previous image.
+- **Android Artwork Events**: Remote artwork URLs (e.g., from Radio Paradise ICY_URL) now fire the `metadata` event with the artwork URL, allowing apps to update their UI.
+
 ### Platform Status
 - **Android**: Fully verified on physical devices (Stability: Production-ready).
 - **iOS**: Verified on Simulator & Device (Stability: Production-ready).
