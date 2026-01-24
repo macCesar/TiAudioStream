@@ -553,6 +553,9 @@ public class MediaPlaybackService extends Service
 				} else {
 					loadArtworkAsync(artworkUrl);
 				}
+			} else {
+				// Key not provided → clear artwork for new stream
+				currentArtwork = null;
 			}
 
 			updateMediaSessionMetadata();
@@ -811,6 +814,8 @@ public class MediaPlaybackService extends Service
 						currentArtwork = bitmap;
 						updateMediaSessionMetadata();
 						updateNotification();
+						// Fire metadata event with artwork URL for app UI
+						AudiostreamModule.fireMetadata(currentTitle, currentArtist, urlString, null);
 						Log.i(LCAT, "Artwork updated from URL: " + urlString);
 					});
 				} else {
@@ -883,6 +888,13 @@ public class MediaPlaybackService extends Service
 					final Bitmap finalBitmap = bitmap;
 					mainHandler.post(() -> {
 						currentArtwork = finalBitmap;
+						updateMediaSessionMetadata();
+						updateNotification();
+					});
+				} else {
+					// Failed to load → clear artwork
+					mainHandler.post(() -> {
+						currentArtwork = null;
 						updateMediaSessionMetadata();
 						updateNotification();
 					});
