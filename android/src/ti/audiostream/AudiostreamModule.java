@@ -107,6 +107,19 @@ public class AudiostreamModule extends KrollModule
 		intent.putExtra(MediaPlaybackService.EXTRA_IS_LIVE, isLive);
 		intent.putExtra(MediaPlaybackService.EXTRA_AUTO_UPDATE_METADATA, autoUpdateMetadata);
 
+		// Check if title, artist, artwork are provided and set them
+		String title = TiConvert.toString(args.get("title"), "");
+		String artist = TiConvert.toString(args.get("artist"), "");
+		String artwork = TiConvert.toString(args.get("artwork"), null);
+
+		if (!title.isEmpty() || !artist.isEmpty() || artwork != null) {
+			intent.putExtra(MediaPlaybackService.EXTRA_TITLE, title);
+			intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
+			if (artwork != null) {
+				intent.putExtra(MediaPlaybackService.EXTRA_ARTWORK_URL, artwork);
+			}
+		}
+
 		startServiceSafely(intent);
 	}
 
