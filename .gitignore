@@ -22,3 +22,9 @@ ios/DerivedData/
 # Documentation (internal / planning only)
 docs/
 lanzamiento-del-modulo.md
+
+# LLM / AI Assistant files
+CLAUDE.md
+AGENTS.md
+.claude/
+.cursor/
