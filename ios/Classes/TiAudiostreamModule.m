@@ -103,18 +103,27 @@
   _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
   _autoUpdateMetadata = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
 
-  // Check if title, artist, artwork are provided and set them
+  // Check if title, artist, artwork are provided
   NSString *title = [TiUtils stringValue:@"title" properties:args];
   NSString *artist = [TiUtils stringValue:@"artist" properties:args];
-  NSString *artwork = [TiUtils stringValue:@"artwork" properties:args];
+  id artworkValue = [args objectForKey:@"artwork"];  // Check if key exists (can be null)
 
-  if (title || artist || artwork) {
-    NSMutableDictionary *metaDict = [NSMutableDictionary dictionary];
-    if (title) [metaDict setObject:title forKey:@"title"];
-    if (artist) [metaDict setObject:artist forKey:@"artist"];
-    if (artwork) [metaDict setObject:artwork forKey:@"artwork"];
-    [self setMetadata:metaDict];
+  // Always set metadata when changing streams (clears previous)
+  NSMutableDictionary *metaDict = [NSMutableDictionary dictionary];
+  if (title) [metaDict setObject:title forKey:@"title"];
+  if (artist) [metaDict setObject:artist forKey:@"artist"];
+
+  // Handle artwork: null/"" → clear, string → load, not provided → clear (new stream behavior)
+  if (artworkValue != nil && artworkValue != [NSNull null]) {
+    NSString *artwork = [TiUtils stringValue:@"artwork" properties:args];
+    // null or empty string → clear, valid url → load
+    [metaDict setObject:(artwork ?: @"") forKey:@"artwork"];
+  } else {
+    // Key not provided → clear artwork for new stream
+    [metaDict setObject:@"" forKey:@"artwork"];
   }
+
+  [self setMetadata:metaDict];
 
   // 1. Parar y limpiar TODO inmediatamente
   if (_player) {
