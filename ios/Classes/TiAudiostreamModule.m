@@ -103,6 +103,19 @@
   _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
   _autoUpdateMetadata = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
 
+  // Check if title, artist, artwork are provided and set them
+  NSString *title = [TiUtils stringValue:@"title" properties:args];
+  NSString *artist = [TiUtils stringValue:@"artist" properties:args];
+  NSString *artwork = [TiUtils stringValue:@"artwork" properties:args];
+
+  if (title || artist || artwork) {
+    NSMutableDictionary *metaDict = [NSMutableDictionary dictionary];
+    if (title) [metaDict setObject:title forKey:@"title"];
+    if (artist) [metaDict setObject:artist forKey:@"artist"];
+    if (artwork) [metaDict setObject:artwork forKey:@"artwork"];
+    [self setMetadata:metaDict];
+  }
+
   // 1. Parar y limpiar TODO inmediatamente
   if (_player) {
     [_player pause];
