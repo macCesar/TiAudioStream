@@ -532,6 +532,33 @@ public class MediaPlaybackService extends Service
 
 		Log.d(LCAT, "Setting stream: " + currentUrl + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
 
+		// Check if metadata (title, artist, artwork) are provided in setStream
+		String title = intent.getStringExtra(EXTRA_TITLE);
+		String artist = intent.getStringExtra(EXTRA_ARTIST);
+		String artworkUrl = intent.getStringExtra(EXTRA_ARTWORK_URL);
+
+		if (title != null || artist != null || artworkUrl != null) {
+			if (title == null) title = "";
+			if (artist == null) artist = "";
+
+			currentTitle = title;
+			currentArtist = artist;
+
+			Log.d(LCAT, "Setting metadata from setStream: " + title + " - " + artist);
+
+			// Handle artwork
+			if (artworkUrl != null) {
+				if (artworkUrl.trim().isEmpty()) {
+					currentArtwork = null;
+				} else {
+					loadArtworkAsync(artworkUrl);
+				}
+			}
+
+			updateMediaSessionMetadata();
+			updateNotification();
+		}
+
 		resetRetryLogic();
 
 		MediaItem mediaItem = MediaItem.fromUri(currentUrl);
