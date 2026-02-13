@@ -1,86 +1,410 @@
 # ti.audiostream
 
-Professional Audio Engine for Titanium SDK. High-performance, autonomous audio streaming with integrated system-level controls for Android and iOS.
+Audio streaming module for Titanium SDK. Background playback, system controls, and real-time metadata on Android and iOS from a single API.
 
-## Architectural Overview
+<div align="center">
 
-Unlike standard implementations that separate the audio player from the system media session, `ti.audiostream` employs a **unified engine architecture**. By using **Media3 ExoPlayer** (Android) and **AVPlayer** (iOS) as the single source of truth for both playback and system integration, the module eliminates common synchronization issues, audio focus conflicts, and background termination.
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![SDK](https://img.shields.io/badge/Titanium%20SDK-13.1.0.GA%2B-orange)
 
-### Core Capabilities
+</div>
 
-- **Autonomous Lifecycle Management**: Handles background persistence using a native Foreground Service (Android) and optimized Audio Session management (iOS).
-- **Smart Audio Focus**: Handles system interruptions (calls, Siri, other apps) with smart resume that respects user intent. Automatically resumes after calls if playing, but stays paused if user manually paused.
-- **Deep Metadata Inspection**: An advanced parsing engine that extracts real-time metadata from standard ICY/ID3 tags and non-standard nested formats (e.g., JSON embedded in ID3 frames used by Global Player/Heart Radio).
-- **Automatic Stream Artwork**: Extracts and displays album art embedded in audio streams directly on system UI (Lock Screen, notifications).
-- **Native OS Integration**: Full support for system UI components:
-    - **Android**: Compact Media Notification (Lock Screen), Expanded Media Notification (Drawer), and System Media Player (Quick Settings / Output Switcher).
-    - **iOS**: Lock Screen Media Controls, Control Center Player, and Now Playing Info Center (Apple Watch / CarPlay).
+## Why ti.audiostream?
 
-## Technical Implementation
+`Ti.Media.AudioPlayer` works for basic playback, but it falls short for radio apps and live streams: no lock screen controls, no metadata extraction, no background persistence, no audio focus management. You end up writing platform-specific code that still breaks.
 
-| Feature         | Android Implementation  | iOS Implementation             |
-| :-------------- | :---------------------- | :----------------------------- |
-| **Engine**      | Media3 ExoPlayer (1.5+) | AVFoundation (AVPlayer)        |
-| **Persistence** | Foreground Service      | AVAudioSession (Playback)      |
-| **Controls**    | MediaSessionCompat      | MPRemoteCommandCenter          |
-| **Metadata**    | ID3 / ICY / Deep JSON   | TimedMetadata / CommonMetadata |
+`ti.audiostream` wraps Media3 ExoPlayer (Android) and AVPlayer (iOS) behind a single JavaScript API. Both engines handle playback and system integration together, so ICY/ID3 metadata parsing, lock screen artwork, and smart resume after phone calls all work without platform-specific code.
+
+## Features
+
+- Unified engine: Media3 ExoPlayer on Android, AVPlayer on iOS, same JavaScript API
+- Metadata extraction from ICY headers, ID3 tags, and non-standard formats (embedded JSON used by Global Player/Heart Radio)
+- Automatic stream artwork on lock screen and notifications
+- Smart audio focus: handles interruptions (calls, Siri, other apps) and resumes after a call if you were playing, but stays paused if you paused manually
+- Background persistence via Foreground Service (Android) and AVAudioSession (iOS)
+- System media controls: lock screen, notification shade, Control Center, CarPlay, Apple Watch
+- Metadata auto-update control, so you can show the raw stream metadata or your own cleaned-up version
 
 ## Requirements
 
-- Titanium SDK 13.1.0.GA+
-- Android: API 24+ (Nougat) or higher.
-- iOS: 13.0 or higher.
+|              | Version          |
+| :----------- | :--------------- |
+| Titanium SDK | 13.1.0.GA+       |
+| Android      | API 24+ (Nougat) |
+| iOS          | 13.0+            |
+
+## Installation
+
+### 1. Add the module to tiapp.xml
+
+```xml
+<modules>
+  <module>ti.audiostream</module>
+</modules>
+```
+
+### 2. iOS: Enable background audio
+
+Add the `audio` background mode to your `tiapp.xml` inside the `<ios><plist><dict>` section:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+</array>
+```
+
+Without this, iOS will suspend audio when the app goes to the background.
+
+### 3. Android: Permissions (automatic)
+
+The module's `timodule.xml` declares the required permissions, and Titanium merges them into your build automatically:
+
+- `INTERNET` - stream access
+- `WAKE_LOCK` - prevents CPU sleep during playback
+- `FOREGROUND_SERVICE` - keeps audio alive in the background
+- `FOREGROUND_SERVICE_MEDIA_PLAYBACK` - Android 14+ foreground service type
+
+You don't need to add these to your `tiapp.xml`.
+
+## Quick Start
+
+```javascript
+const audioStream = require('ti.audiostream')
+
+// Configure the stream
+audioStream.setStream({
+  isLive: true,
+  title: 'Radio Paradise',
+  artist: 'Eclectic Rock',
+  artwork: 'https://example.com/logo.png',
+  url: 'https://stream.radioparadise.com/aac-320'
+})
+
+// Listen for state changes
+audioStream.addEventListener('state', (e) => {
+  Ti.API.info('State: ' + e.state) // playing, buffering, paused, stopped, error
+})
+
+// Listen for metadata updates
+audioStream.addEventListener('metadata', (e) => {
+  Ti.API.info(e.artist + ' - ' + e.title)
+  if (e.artwork) {
+    Ti.API.info('Artwork: ' + e.artwork)
+  }
+})
+
+// Start playback
+audioStream.start()
+```
 
 ## API Reference
 
 ### Methods
 
-#### `setStream({ url, isLive, autoUpdateMetadata, title, artist, artwork })`
-Initializes the audio source with optional metadata.
-- `url` (String): The HLS (.m3u8) or direct audio stream URL. **(Required)**
-- `isLive` (Boolean): Stream type hint for metadata parsing. Does not affect playback behavior.
-- `autoUpdateMetadata` (Boolean): Whether to automatically update remote controls from stream metadata. Default: `true`. When `false`, only `setMetadata()` updates will affect Lock Screen/Notification controls.
-- `title` (String): Optional initial title to display.
-- `artist` (String): Optional initial artist to display.
-- `artwork` (String): Optional initial artwork URL to display.
+#### `setStream(options)`
+
+Initializes the audio source. Call this before `start()` or to switch streams.
+
+| Parameter            | Type    | Required | Description                                                      |
+| :------------------- | :------ | :------- | :--------------------------------------------------------------- |
+| `url`                | String  | Yes      | HLS (`.m3u8`) or direct audio stream URL                         |
+| `isLive`             | Boolean | No       | Stream type hint for metadata parsing. Does not affect playback. |
+| `autoUpdateMetadata` | Boolean | No       | Auto-update lock screen from stream metadata. Default: `true`.   |
+| `title`              | String  | No       | Initial title for lock screen / notification                     |
+| `artist`             | String  | No       | Initial artist for lock screen / notification                    |
+| `artwork`            | String  | No       | Initial artwork URL for lock screen / notification               |
+
+```javascript
+audioStream.setStream({
+  isLive: true,
+  title: 'Radio Paradise',
+  artist: 'Eclectic Rock',
+  artwork: 'https://example.com/cover.png',
+  url: 'https://stream.radioparadise.com/aac-320'
+})
+```
 
 #### `start()` / `play()`
-Starts or resumes playback. It handles Audio Focus requests and system control synchronization automatically.
 
-#### `pause()` / `stop()`
-`pause()` halts the audio but keeps the notification alive. `stop()` clears all resources and removes system UI components.
+Starts or resumes playback. Requests audio focus and activates system controls automatically.
 
-#### `setMetadata({ title, artist, artwork })`
-Manually overrides or complements stream metadata. Use this for dynamic updates without changing the stream URL.
-- **Artwork behavior**:
-  - If `artwork` is omitted → Keeps current artwork
-  - If `artwork` is `null` or `""` → Clears/removes artwork
-  - If `artwork` is a valid URL → Loads new artwork
+#### `pause()`
 
-#### `setAutoUpdateMetadata(boolean)`
-Dynamically enable or disable automatic metadata updates from the stream. Use this to switch between showing station branding vs. song information.
-- `enabled` (Boolean): `true` to auto-update from stream, `false` to use only manual `setMetadata()`.
+Pauses playback. The notification stays visible so the user can resume from the lock screen.
+
+#### `stop()`
+
+Stops playback completely. Removes the notification, releases audio focus, and tears down system controls.
+
+#### `setMetadata(options)`
+
+Manually sets lock screen and notification metadata without changing the stream.
+
+| Parameter | Type          | Description                                           |
+| :-------- | :------------ | :---------------------------------------------------- |
+| `title`   | String        | Track or station title                                |
+| `artist`  | String        | Artist or description                                 |
+| `artwork` | String / null | Artwork URL, `null` to clear, or omit to keep current |
+
+**Artwork behavior:**
+- Set `artwork` to `null` or `""` → clears the artwork
+- Set `artwork` to a URL → loads and displays the new image
+- Omit `artwork` → keeps whatever artwork is currently showing
+
+```javascript
+audioStream.setMetadata({
+  title: 'Station Branding',
+  artist: 'Your Radio App'
+  // artwork omitted, keeps current artwork
+})
+```
+
+#### `setAutoUpdateMetadata(enabled)`
+
+Toggles whether stream metadata automatically updates the lock screen and notification.
+
+- `true` - stream metadata updates system controls automatically (default)
+- `false` - only `setMetadata()` calls update system controls. The `metadata` event still fires either way
+
+```javascript
+// Take manual control
+audioStream.setAutoUpdateMetadata(false)
+```
+
+### Properties
+
+| Property  | Type                | Description                          |
+| :-------- | :------------------ | :----------------------------------- |
+| `playing` | Boolean (read-only) | `true` if audio is currently playing |
 
 ### Events
 
 #### `state`
-Fired on playback lifecycle changes.
-- `state` (String): `playing`, `buffering`, `paused`, `stopped`, `error`.
 
-#### `error`
-Fired on terminal or recoverable network failures.
-- `message` (String): Error description.
+Fired on playback state changes.
+
+| Property | Type   | Values                                               |
+| :------- | :----- | :--------------------------------------------------- |
+| `state`  | String | `playing`, `buffering`, `paused`, `stopped`, `error` |
 
 #### `metadata`
-Fired when the engine extracts new information from the stream.
-- `title`, `artist`: Standardized strings.
-- `artwork` (String): URL of the artwork image (when available in stream).
-- `raw`: A raw Map/Dictionary containing every tag found in the stream for deep inspection.
+
+Fired when the engine extracts new metadata from the stream. This event fires regardless of the `autoUpdateMetadata` setting, so your app code always gets it.
+
+| Property  | Type   | Description                                        |
+| :-------- | :----- | :------------------------------------------------- |
+| `title`   | String | Parsed track title                                 |
+| `artist`  | String | Parsed artist name                                 |
+| `artwork` | String | Artwork URL (when available)                       |
+| `raw`     | Object | Every tag found in the stream, for deep inspection |
+
+#### `error`
+
+Fired on playback errors.
+
+| Property  | Type   | Description       |
+| :-------- | :----- | :---------------- |
+| `message` | String | Error description |
+
+On Android, the module automatically retries failed connections up to **5 times** with a **3-second delay** between attempts before firing this event.
 
 #### `remotecontrol`
-Fired on system-level interactions. Note: Transport actions (Play/Pause) are handled autonomously to ensure OS-level stability.
-- `subtype` (Number): Numeric constant.
-- `action` (String): Readable string (`PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV`).
+
+Fired when the user interacts with system media controls (lock screen, notification, Control Center).
+
+| Property  | Type   | Description                             |
+| :-------- | :----- | :-------------------------------------- |
+| `action`  | String | `PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV` |
+| `subtype` | Number | Numeric constant (see table below)      |
+
+The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fire the event so your app can decide what to do (the module doesn't know your playlist).
+
+**Constants:**
+
+| Constant                            | Value | Platform |
+| :---------------------------------- | :---- | :------- |
+| `REMOTE_CONTROL_PLAY`               | 100   | Both     |
+| `REMOTE_CONTROL_PAUSE`              | 101   | Both     |
+| `REMOTE_CONTROL_STOP`               | 102   | Both     |
+| `REMOTE_CONTROL_PLAY_PAUSE`         | 103   | Both     |
+| `REMOTE_CONTROL_NEXT`               | 104   | Both     |
+| `REMOTE_CONTROL_PREV`               | 105   | Both     |
+| `REMOTE_CONTROL_START_SEEK_BACK`    | 106   | Android  |
+| `REMOTE_CONTROL_END_SEEK_BACK`      | 107   | Android  |
+| `REMOTE_CONTROL_START_SEEK_FORWARD` | 108   | Android  |
+| `REMOTE_CONTROL_END_SEEK_FORWARD`   | 109   | Android  |
+
+## Guides
+
+### Updating your app UI from stream metadata
+
+The lock screen, notification, and Control Center update automatically when the stream sends new metadata. You don't need any code for that.
+
+Your app UI is a different story. To keep your own labels and images in sync, listen for the `metadata` event:
+
+```javascript
+const audioStream = require('ti.audiostream')
+
+audioStream.setStream({
+  isLive: true,
+  title: 'Radio Paradise',
+  artist: 'Eclectic Rock',
+  artwork: 'https://example.com/logo.png',
+  url: 'https://stream.radioparadise.com/aac-320'
+})
+
+audioStream.addEventListener('metadata', (e) => {
+  if (e.title) titleLabel.text = e.title
+  if (e.artist) artistLabel.text = e.artist
+  if (e.artwork) artworkImage.image = e.artwork
+})
+
+audioStream.start()
+```
+
+System controls are fully automatic. Your in-app UI is manual via the event.
+
+### Handling remote controls (playlist rotation)
+
+Play/Pause/Stop are handled automatically by the engine. You only need to handle `NEXT` and `PREV`:
+
+```javascript
+const STREAMS = [
+  { url: 'https://stream.radioparadise.com/aac-320', title: 'Radio Paradise', artist: 'Eclectic Rock' },
+  { url: 'http://ice1.somafm.com/groovesalad-128-mp3', title: 'Groove Salad', artist: 'Ambient Beats' },
+  { url: 'https://knkx-live-a.edge.audiocdn.com/6285_256k/playlist.m3u8', title: 'Jazz24', artist: 'Public Radio' }
+]
+
+let currentIndex = 0
+
+function loadStation(index) {
+  currentIndex = index
+  const station = STREAMS[currentIndex]
+
+  audioStream.setStream({
+    url: station.url,
+    isLive: true,
+    title: station.title,
+    artist: station.artist
+  })
+
+  audioStream.start()
+}
+
+audioStream.addEventListener('remotecontrol', (e) => {
+  if (e.action === 'NEXT') {
+    loadStation((currentIndex + 1) % STREAMS.length)
+  }
+  if (e.action === 'PREV') {
+    loadStation((currentIndex - 1 + STREAMS.length) % STREAMS.length)
+  }
+})
+
+loadStation(0)
+```
+
+### Custom metadata cleaning
+
+Some streams send messy metadata with extra tags, weird formatting, or raw codes. You can intercept it, clean it up, and push your own version to the lock screen:
+
+```javascript
+// Disable automatic lock screen updates
+audioStream.setAutoUpdateMetadata(false)
+
+audioStream.addEventListener('metadata', (e) => {
+  // Clean up the title
+  let title = e.title || ''
+  title = title.replace(/\s*\[.*?\]\s*/g, '')  // Remove [tags]
+  title = title.replace(/\s*\(.*?HD\)/gi, '')   // Remove (quality markers)
+  title = title.trim()
+
+  let artist = e.artist || ''
+
+  // Push cleaned metadata to lock screen
+  audioStream.setMetadata({
+    title: title || 'Unknown Track',
+    artist: artist || 'Live Radio'
+  })
+
+  // Update your app UI too
+  titleLabel.text = title
+  artistLabel.text = artist
+})
+```
+
+The `metadata` event always fires regardless of `autoUpdateMetadata`. That flag only controls whether the lock screen gets updated automatically.
+
+### Error handling
+
+```javascript
+audioStream.addEventListener('error', (e) => {
+  const msg = e.message || 'Stream unavailable'
+  Ti.API.error('[AudioStream] ' + msg)
+
+  // Show user-friendly message
+  Ti.UI.createAlertDialog({
+    title: 'Connection Failed',
+    message: 'Could not connect to the station. Check your internet connection and try again.',
+    buttonNames: ['OK']
+  }).show()
+})
+
+audioStream.addEventListener('state', (e) => {
+  if (e.state === 'error') {
+    // Update UI to reflect error state
+    stateLabel.text = 'ERROR'
+    stateLabel.color = '#ff3b30'
+  }
+})
+```
+
+On Android, the engine retries failed connections automatically (5 attempts, 3 seconds apart) before firing the error event.
+
+### Platform-specific behavior
+
+#### iOS
+
+- Background audio requires `UIBackgroundModes: audio` in your plist (see [Installation](#installation))
+- Lock screen controls appear in Control Center and on Apple Watch / CarPlay through MPRemoteCommandCenter
+- Audio session uses the Playback category, so audio continues when the screen locks or the app backgrounds
+- If a phone call interrupts playback, audio resumes when the call ends (only if it was playing before the interruption)
+
+#### Android
+
+- Background playback runs inside a Foreground Service with a persistent media notification
+- The notification has compact (lock screen), expanded (drawer), and system media player (Quick Settings) views
+- Uses MediaSession for Bluetooth devices, Android Auto, and the system output switcher
+- If the stream drops, the engine retries 5 times with a 3-second delay before reporting an error
+- All permissions are declared in the module's `timodule.xml` and merged automatically. No manual manifest editing needed
+
+## How metadata extraction works
+
+Both platforms parse metadata through multiple layers to handle different stream formats:
+
+| Format                 | Source                            | Example                          |
+| :--------------------- | :-------------------------------- | :------------------------------- |
+| **ICY headers**        | Shoutcast/Icecast `StreamTitle`   | `StreamTitle='Artist - Song';`   |
+| **ID3 text frames**    | `TIT2` (title), `TPE1` (artist)   | Standard MP3 metadata            |
+| **ID3 comment frames** | `COMM` field with embedded data   | Global Player / Heart Radio      |
+| **Embedded JSON**      | JSON inside ID3 frames            | `{"title":"...","artist":"..."}` |
+| **Stream URL artwork** | ICY URL ending in image extension | `http://...cover.jpg`            |
+| **Embedded artwork**   | Binary image data in metadata     | APIC frames, CommonMetadata      |
+
+When a stream sends `Artist - Title` as a single string (common with ICY), the module splits it automatically. The `raw` property in the `metadata` event gives you every tag the parser found, which is useful for debugging non-standard formats.
+
+## Technical implementation
+
+| Feature             | Android                     | iOS                                  |
+| :------------------ | :-------------------------- | :----------------------------------- |
+| **Engine**          | Media3 ExoPlayer (1.5+)     | AVFoundation (AVPlayer)              |
+| **Background**      | Foreground Service          | AVAudioSession (Playback)            |
+| **System controls** | MediaSessionCompat          | MPRemoteCommandCenter                |
+| **Metadata**        | ID3 / ICY / Deep JSON       | TimedMetadata / CommonMetadata       |
+| **Audio focus**     | AudioManager + MediaSession | AVAudioSession interruption handling |
+| **Reconnect**       | 5 retries, 3s delay         | Managed by AVPlayer                  |
 
 ## License
-MIT License - Copyright (c) 2026 César Estrada (macCesar)
+
+MIT License. Copyright (c) 2026 César Estrada ([macCesar](https://github.com/macCesar))
