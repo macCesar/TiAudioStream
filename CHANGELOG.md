@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-02-13
+
+### Docs
+- **README rewrite**: Complete rewrite with installation guide, quick start, API reference with parameter tables, 5 practical guides (app UI updates, playlist rotation, custom metadata cleaning, error handling, platform-specific behavior), metadata extraction reference, and technical implementation table.
+- **Metadata clarification**: Documented that lock screen/notification updates are automatic while app UI requires the `metadata` event listener.
+
+### Changed
+- **Example app**: Removed semicolons, standardized all property assignments to use `applyProperties()` for consistency and reduced bridge crossings.
+
+### Added
+- `.editorconfig` for consistent formatting across editors.
+
+---
+
 ## [1.0.0] - 2026-01-22
 *Initial Stable Release*
 
