@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-02-17
+
+### Added
+- **`setMetadataRules(rules)`**: New method for automatic regex-based metadata cleanup. Define `match`/`replace` rules for `title` and `artist` fields, and the module applies them in order **after** its built-in parsing (ICY split, "Artist - Title" split) and **before** updating the lock screen, notification, and firing the `metadata` event. No need to disable `autoUpdateMetadata` — rules and auto-update coexist. Pass `null` to clear all rules. `setMetadata()` (manual override) is intentionally not affected by rules.
+- **`metadataRules` in `setStream()`**: Rules can now be passed inline as part of `setStream()` options. Omitting the key preserves existing rules; passing `null` clears them. The standalone `setMetadataRules()` method still works independently.
+
+### Fixed
+- **`isLive` on Android**: Now sets `METADATA_KEY_DURATION` to `-1` so the system hides the seek bar on lock screen and notification, matching the iOS behavior (`MPNowPlayingInfoPropertyIsLiveStream`).
+- **Duplicate `state` events**: The `state` event now only fires on actual state transitions. Previously, native engines could trigger multiple identical callbacks (e.g., several `buffering` events in a row during stream startup), which were forwarded directly to JavaScript. Both platforms now deduplicate before emitting.
+
+---
+
 ## [1.0.1] - 2026-02-13
 
 ### Docs

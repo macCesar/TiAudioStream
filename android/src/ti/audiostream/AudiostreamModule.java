@@ -22,6 +22,9 @@ import org.appcelerator.kroll.common.TiConfig;
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.util.TiConvert;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 @Kroll.module(name="Audiostream", id="ti.audiostream")
 public class AudiostreamModule extends KrollModule
 {
@@ -61,6 +64,7 @@ public class AudiostreamModule extends KrollModule
 	// State
 	private boolean serviceStarted = false;
 	private boolean isPlaying = false;
+	private static String lastEmittedState = null;
 
 	public AudiostreamModule()
 	{
@@ -116,6 +120,56 @@ public class AudiostreamModule extends KrollModule
 		intent.putExtra(MediaPlaybackService.EXTRA_TITLE, title);
 		intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
 		intent.putExtra(MediaPlaybackService.EXTRA_ARTWORK_URL, artwork);
+
+		// Handle metadataRules: present + KrollDict → serialize, present + null → clear, absent → preserve
+		if (args.containsKey("metadataRules")) {
+			Object rulesObj = args.get("metadataRules");
+			if (rulesObj instanceof KrollDict) {
+				try {
+					JSONObject json = new JSONObject();
+
+					Object titleObj = ((KrollDict) rulesObj).get("title");
+					if (titleObj instanceof Object[]) {
+						JSONArray titleArr = new JSONArray();
+						for (Object item : (Object[]) titleObj) {
+							if (item instanceof KrollDict) {
+								KrollDict rule = (KrollDict) item;
+								JSONObject ruleJson = new JSONObject();
+								ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
+								ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
+								titleArr.put(ruleJson);
+							}
+						}
+						json.put("title", titleArr);
+					}
+
+					Object artistObj = ((KrollDict) rulesObj).get("artist");
+					if (artistObj instanceof Object[]) {
+						JSONArray artistArr = new JSONArray();
+						for (Object item : (Object[]) artistObj) {
+							if (item instanceof KrollDict) {
+								KrollDict rule = (KrollDict) item;
+								JSONObject ruleJson = new JSONObject();
+								ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
+								ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
+								artistArr.put(ruleJson);
+							}
+						}
+						json.put("artist", artistArr);
+					}
+
+					Log.d(LCAT, "setStream: metadataRules: " + json.toString());
+					intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, json.toString());
+				} catch (Exception e) {
+					Log.e(LCAT, "setStream: failed to serialize metadataRules: " + e.getMessage());
+				}
+			} else {
+				// null → signal clear rules
+				Log.d(LCAT, "setStream: clearing metadataRules");
+				intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, "");
+			}
+		}
+		// Key not present → don't add the extra (rules preserved in service)
 
 		startServiceSafely(intent);
 	}
@@ -212,6 +266,68 @@ public class AudiostreamModule extends KrollModule
 	}
 
 	/**
+	 * Set metadata rules for automatic regex-based cleanup of stream metadata.
+	 * Rules are applied after the module's built-in parsing (ICY split, "Artist - Title" split)
+	 * and before updating the lock screen / notification.
+	 * Pass null to clear all rules.
+	 * @param args Dictionary with 'title' and/or 'artist' arrays of {match, replace} rules, or null
+	 */
+	@Kroll.method
+	public void setMetadataRules(@Kroll.argument(optional = true) KrollDict args)
+	{
+		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
+		intent.setAction(MediaPlaybackService.ACTION_SET_METADATA_RULES);
+
+		if (args == null) {
+			Log.d(LCAT, "setMetadataRules: clearing rules");
+			// Send empty string to signal "clear rules"
+			intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, "");
+		} else {
+			try {
+				JSONObject json = new JSONObject();
+
+				Object titleObj = args.get("title");
+				if (titleObj instanceof Object[]) {
+					JSONArray titleArr = new JSONArray();
+					for (Object item : (Object[]) titleObj) {
+						if (item instanceof KrollDict) {
+							KrollDict rule = (KrollDict) item;
+							JSONObject ruleJson = new JSONObject();
+							ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
+							ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
+							titleArr.put(ruleJson);
+						}
+					}
+					json.put("title", titleArr);
+				}
+
+				Object artistObj = args.get("artist");
+				if (artistObj instanceof Object[]) {
+					JSONArray artistArr = new JSONArray();
+					for (Object item : (Object[]) artistObj) {
+						if (item instanceof KrollDict) {
+							KrollDict rule = (KrollDict) item;
+							JSONObject ruleJson = new JSONObject();
+							ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
+							ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
+							artistArr.put(ruleJson);
+						}
+					}
+					json.put("artist", artistArr);
+				}
+
+				Log.d(LCAT, "setMetadataRules: " + json.toString());
+				intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, json.toString());
+			} catch (Exception e) {
+				Log.e(LCAT, "setMetadataRules: failed to serialize rules: " + e.getMessage());
+				return;
+			}
+		}
+
+		startServiceSafely(intent);
+	}
+
+	/**
 	 * Get current playing state
 	 */
 	@Kroll.getProperty
@@ -258,16 +374,26 @@ public class AudiostreamModule extends KrollModule
 	 */
 	public static void fireState(String state)
 	{
-		if (activeModule == null || !activeModule.hasListeners("state")) {
+		if (activeModule == null) {
+			return;
+		}
+
+		// Update internal state regardless of listeners
+		activeModule.isPlaying = "playing".equals(state);
+
+		// Deduplicate: only emit on actual state transitions
+		if (state.equals(lastEmittedState)) {
+			return;
+		}
+		lastEmittedState = state;
+
+		if (!activeModule.hasListeners("state")) {
 			return;
 		}
 
 		KrollDict event = new KrollDict();
 		event.put("state", state);
 		activeModule.fireEvent("state", event);
-
-		// Update internal state
-		activeModule.isPlaying = "playing".equals(state);
 
 		if (DBG) {
 			Log.d(LCAT, "State event fired: " + state);
