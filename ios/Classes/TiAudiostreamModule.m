@@ -162,15 +162,24 @@
     _currentItem = nil;
   }
 
-  // 2. Notificar buffering de inmediato al JS
+  // 2. Crear player vacío si no existe (para que start: lo encuentre de inmediato)
+  if (!_player) {
+    _player = [AVPlayer playerWithPlayerItem:nil];
+    _player.automaticallyWaitsToMinimizeStalling = YES;
+  }
+
+  // 3. Notificar buffering de inmediato al JS
   [self fireState:@"buffering"];
 
-  // 3. Crear AVPlayerItem en hilo secundario para no bloquear la UI
+  // 4. Observar cambios de estado del player (antes del async, player ya existe)
+  [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
+
+  // 5. Crear AVPlayerItem en hilo secundario para no bloquear la UI
   NSString *urlString = [_currentURL copy];
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     AVPlayerItem *newItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:urlString]];
 
-    // 4. Volver al main thread para configurar observers y conectar al player
+    // 6. Volver al main thread para configurar observers y conectar al player
     dispatch_async(dispatch_get_main_queue(), ^{
       // Verificar que la URL no cambió mientras se creaba el item
       if (![urlString isEqualToString:self->_currentURL]) {
@@ -184,15 +193,7 @@
       [self->_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
       [self->_currentItem addOutput:self->_metadataOutput];
 
-      if (self->_player) {
-        [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
-      } else {
-        self->_player = [AVPlayer playerWithPlayerItem:self->_currentItem];
-      }
-
-      self->_player.automaticallyWaitsToMinimizeStalling = YES;
-
-      [self->_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
+      [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
     });
   });
 }
