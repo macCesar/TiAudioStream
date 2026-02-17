@@ -15,6 +15,7 @@
 - (void)pause:(id)unused;
 - (void)stop:(id)unused;
 - (void)setMetadata:(id)args;
+- (void)setMetadataRules:(id)args;
 
 // Properties
 @property (nonatomic, readonly) NSNumber *playing;

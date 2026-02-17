@@ -23,6 +23,9 @@
   UIImage *_currentArtwork;
   BOOL _resumeOnInterruption;
   BOOL _autoUpdateMetadata;
+  NSArray *_titleRules;
+  NSArray *_artistRules;
+  NSString *_lastEmittedState;
 }
 @end
 
@@ -126,6 +129,17 @@
   }
 
   [self setMetadata:metaDict];
+
+  // Handle metadataRules: present + dict → set, present + null → clear, absent → preserve
+  if ([args objectForKey:@"metadataRules"] != nil) {
+    id rulesValue = [args objectForKey:@"metadataRules"];
+    if ([rulesValue isKindOfClass:[NSDictionary class]]) {
+      [self setMetadataRules:rulesValue];
+    } else {
+      // NSNull or any non-dict → clear rules
+      [self setMetadataRules:nil];
+    }
+  }
 
   // 1. Parar y limpiar TODO inmediatamente
   if (_player) {
@@ -301,6 +315,44 @@
   return @(105);
 }
 
+- (void)setMetadataRules:(id)args
+{
+  if (args == nil || args == [NSNull null]) {
+    _titleRules = nil;
+    _artistRules = nil;
+    NSLog(@"[ti.audiostream] Metadata rules cleared");
+    return;
+  }
+
+  ENSURE_SINGLE_ARG(args, NSDictionary);
+  NSDictionary *rules = (NSDictionary *)args;
+
+  _titleRules = [rules objectForKey:@"title"];
+  _artistRules = [rules objectForKey:@"artist"];
+
+  NSLog(@"[ti.audiostream] Metadata rules set: title=%lu, artist=%lu",
+    (unsigned long)(_titleRules ? _titleRules.count : 0),
+    (unsigned long)(_artistRules ? _artistRules.count : 0));
+}
+
+- (NSString *)applyRules:(NSArray *)rules toString:(NSString *)input
+{
+  if (!rules || rules.count == 0 || !input) return input;
+
+  NSString *result = input;
+  for (NSDictionary *rule in rules) {
+    NSString *pattern = rule[@"match"];
+    NSString *replacement = rule[@"replace"];
+    if (!pattern || !replacement) continue;
+
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:nil];
+    if (regex) {
+      result = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, result.length) withTemplate:replacement];
+    }
+  }
+  return result;
+}
+
 #pragma mark - Internal
 
 - (void)updateNowPlaying
@@ -411,6 +463,10 @@
       artist = [parts[0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
       title = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     }
+
+    // Apply metadata rules (user-defined regex transformations)
+    if (_titleRules) title = [self applyRules:_titleRules toString:title];
+    if (_artistRules) artist = [self applyRules:_artistRules toString:artist];
 
     NSLog(@"[ti.audiostream] Parsed Metadata: Title='%@', Artist='%@', Artwork=%@, ArtworkURL=%@", title, artist, artwork ? @"YES" : @"NO", artworkURL ?: @"none");
 
@@ -562,6 +618,12 @@
 
 - (void)fireState:(NSString *)state
 {
+  // Deduplicate: only emit on actual state transitions
+  if ([state isEqualToString:_lastEmittedState]) {
+    return;
+  }
+  _lastEmittedState = state;
+
   if ([self _hasListeners:@"state"])
     [self fireEvent:@"state" withObject:@{ @"state" : state }];
 }
