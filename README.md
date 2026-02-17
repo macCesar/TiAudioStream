@@ -30,9 +30,17 @@ Audio streaming module for Titanium SDK. Background playback, system controls, a
 
 |              | Version          |
 | :----------- | :--------------- |
-| Titanium SDK | 13.1.0.GA+       |
+| Titanium SDK | 13.1.1.GA+       |
 | Android      | API 24+ (Nougat) |
 | iOS          | 13.0+            |
+
+### Mac Catalyst note
+
+The iOS module includes Mac Catalyst support (`mac: true` in manifest). Running Mac Catalyst **apps** is supported since Titanium SDK `13.1.1.GA`. However, building the **module from source** with `mac: true` requires additional CLI fixes that are not yet in a GA release (currently provided by a local SDK build).
+
+The required fixes are in an open Titanium SDK PR: [tidev/titanium-sdk#14391](https://github.com/tidev/titanium-sdk/pull/14391)
+
+Once the PR is merged, building from source will work out of the box with the SDK version that includes these fixes. The pre-built module zip works on `13.1.1.GA+` without any custom SDK.
 
 ## Installation
 
@@ -107,14 +115,15 @@ audioStream.start()
 
 Initializes the audio source. Call this before `start()` or to switch streams.
 
-| Parameter            | Type    | Required | Description                                                      |
-| :------------------- | :------ | :------- | :--------------------------------------------------------------- |
-| `url`                | String  | Yes      | HLS (`.m3u8`) or direct audio stream URL                         |
-| `isLive`             | Boolean | No       | Stream type hint for metadata parsing. Does not affect playback. |
-| `autoUpdateMetadata` | Boolean | No       | Auto-update lock screen from stream metadata. Default: `true`.   |
-| `title`              | String  | No       | Initial title for lock screen / notification                     |
-| `artist`             | String  | No       | Initial artist for lock screen / notification                    |
-| `artwork`            | String  | No       | Initial artwork URL for lock screen / notification               |
+| Parameter            | Type          | Required | Description                                                                                                             |
+| :------------------- | :------------ | :------- | :---------------------------------------------------------------------------------------------------------------------- |
+| `url`                | String        | Yes      | HLS (`.m3u8`) or direct audio stream URL                                                                                |
+| `isLive`             | Boolean       | No       | Hides seek bar and shows live indicator on system controls. Default: `true`.                                            |
+| `autoUpdateMetadata` | Boolean       | No       | Auto-update lock screen from stream metadata. Default: `true`.                                                          |
+| `title`              | String        | No       | Initial title for lock screen / notification                                                                            |
+| `artist`             | String        | No       | Initial artist for lock screen / notification                                                                           |
+| `artwork`            | String        | No       | Initial artwork URL for lock screen / notification                                                                      |
+| `metadataRules`      | Object / null | No       | Regex cleanup rules (see [`setMetadataRules()`](#setmetadatarulesrules)). Omit to keep existing rules, `null` to clear. |
 
 ```javascript
 audioStream.setStream({
@@ -122,7 +131,12 @@ audioStream.setStream({
   title: 'Radio Paradise',
   artist: 'Eclectic Rock',
   artwork: 'https://example.com/cover.png',
-  url: 'https://stream.radioparadise.com/aac-320'
+  url: 'https://stream.radioparadise.com/aac-320',
+  metadataRules: {
+    artist: [
+      { match: '^(.+),\\s*The$', replace: 'The $1' }
+    ]
+  }
 })
 ```
 
@@ -171,6 +185,46 @@ Toggles whether stream metadata automatically updates the lock screen and notifi
 ```javascript
 // Take manual control
 audioStream.setAutoUpdateMetadata(false)
+```
+
+#### `setMetadataRules(rules)`
+
+Defines regex-based cleanup rules that the module applies automatically to parsed metadata before updating the lock screen and firing the `metadata` event. No need to disable `autoUpdateMetadata` — rules and auto-update coexist.
+
+| Parameter | Type          | Description                                                             |
+| :-------- | :------------ | :---------------------------------------------------------------------- |
+| `rules`   | Object / null | Object with `title` and/or `artist` arrays of rules, or `null` to clear |
+
+Each rule is an object with:
+
+| Property  | Type   | Description                                                    |
+| :-------- | :----- | :------------------------------------------------------------- |
+| `match`   | String | Regex pattern to match against the field value                 |
+| `replace` | String | Replacement string (supports capture groups: `$1`, `$2`, etc.) |
+
+Rules are applied in array order. `setMetadata()` (manual override) is **not** affected by rules. You can also pass `metadataRules` directly in [`setStream()`](#setstreamoptions) for convenience.
+
+```javascript
+// Example: Radio sends "Mission, The - Tower Of Strength (1987) - Single"
+// After built-in "Artist - Title" split:
+//   artist = "Mission, The"
+//   title  = "Tower Of Strength (1987) - Single"
+
+audioStream.setMetadataRules({
+  artist: [
+    // "Mission, The" → "The Mission"
+    { match: '^(.+),\\s*The$', replace: 'The $1' }
+  ],
+  title: [
+    // Remove (YYYY) y también (YYYY) - ... al final del título
+    { match: '\\s*\\(\\d{4}\\)(?:\\s*-\\s*.+)?$', replace: '' }
+  ]
+})
+
+// Result on lock screen: "The Mission" — "Tower Of Strength"
+
+// Clear all rules (raw metadata shows again)
+audioStream.setMetadataRules(null)
 ```
 
 ### Properties
@@ -284,8 +338,8 @@ function loadStation(index) {
   const station = STREAMS[currentIndex]
 
   audioStream.setStream({
-    url: station.url,
     isLive: true,
+    url: station.url,
     title: station.title,
     artist: station.artist
   })
@@ -307,7 +361,26 @@ loadStation(0)
 
 ### Custom metadata cleaning
 
-Some streams send messy metadata with extra tags, weird formatting, or raw codes. You can intercept it, clean it up, and push your own version to the lock screen:
+Some streams send messy metadata with extra tags, weird formatting, or raw codes. Use `setMetadataRules()` to define regex cleanup rules that the module applies automatically — no need to disable auto-update or write manual event handling:
+
+```javascript
+// Stream sends: "Mission, The - Tower Of Strength (1987) - Single"
+// Define rules to clean it up automatically
+audioStream.setMetadataRules({
+  artist: [
+    // "Mission, The" → "The Mission"
+    { match: '^(.+),\\s*The$', replace: 'The $1' }
+  ],
+  title: [
+    { match: '\\s*\\[.*?\\]\\s*', replace: '' },       // Remove [tags]
+    { match: '\\s*\\(\\d{4}\\)(?:\\s*-\\s*.+)?$', replace: '' }  // Remove (YYYY) y también (YYYY) - ... al final del título
+  ]
+})
+```
+
+Rules are applied after the module's built-in parsing (ICY split, "Artist - Title" split) and before updating the lock screen. The `metadata` event fires with the cleaned values. Call `setMetadataRules(null)` to clear all rules.
+
+For cases where regex rules aren't enough, you can still take full manual control:
 
 ```javascript
 // Disable automatic lock screen updates
