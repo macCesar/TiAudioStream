@@ -165,25 +165,36 @@
   // 2. Notificar buffering de inmediato al JS
   [self fireState:@"buffering"];
 
-  // 3. Configurar nuevo item
-  _currentItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:_currentURL]];
-  [_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
+  // 3. Crear AVPlayerItem en hilo secundario para no bloquear la UI
+  NSString *urlString = [_currentURL copy];
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    AVPlayerItem *newItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:urlString]];
 
-  // 4. Configurar AVPlayerItemMetadataOutput (reemplazo moderno de timedMetadata)
-  // Pasamos nil para recibir TODOS los metadata disponibles
-  _metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
-  [_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
-  [_currentItem addOutput:_metadataOutput];
+    // 4. Volver al main thread para configurar observers y conectar al player
+    dispatch_async(dispatch_get_main_queue(), ^{
+      // Verificar que la URL no cambió mientras se creaba el item
+      if (![urlString isEqualToString:self->_currentURL]) {
+        return;
+      }
 
-  if (_player) {
-    [_player replaceCurrentItemWithPlayerItem:_currentItem];
-  } else {
-    _player = [AVPlayer playerWithPlayerItem:_currentItem];
-  }
+      self->_currentItem = newItem;
+      [self->_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
 
-  _player.automaticallyWaitsToMinimizeStalling = YES;
+      self->_metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
+      [self->_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
+      [self->_currentItem addOutput:self->_metadataOutput];
 
-  [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
+      if (self->_player) {
+        [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
+      } else {
+        self->_player = [AVPlayer playerWithPlayerItem:self->_currentItem];
+      }
+
+      self->_player.automaticallyWaitsToMinimizeStalling = YES;
+
+      [self->_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
+    });
+  });
 }
 
 - (void)start:(id)unused
