@@ -26,6 +26,7 @@
   NSArray *_titleRules;
   NSArray *_artistRules;
   NSString *_lastEmittedState;
+  BOOL _pendingPlay;
 }
 @end
 
@@ -142,6 +143,7 @@
   }
 
   // 1. Parar y limpiar TODO inmediatamente
+  _pendingPlay = NO;
   if (_player) {
     [_player pause];
     @try {
@@ -194,6 +196,12 @@
       [self->_currentItem addOutput:self->_metadataOutput];
 
       [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
+
+      // Ejecutar play pendiente (start: fue llamado antes de que el item existiera)
+      if (self->_pendingPlay) {
+        self->_pendingPlay = NO;
+        [self->_player play];
+      }
     });
   });
 }
@@ -218,6 +226,12 @@
     if (_currentURL) {
       [self setStream:@{ @"url" : _currentURL, @"isLive" : @(_isLive) }];
     }
+  }
+
+  // Si el item aún no está conectado (async en progreso), diferir el play
+  if (!_currentItem) {
+    _pendingPlay = YES;
+    return;
   }
 
   [_player play];
