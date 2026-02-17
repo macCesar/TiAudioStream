@@ -34,6 +34,16 @@ const STREAMS = {
     artist: 'Eclectic Rock',
     url: 'https://stream.radioparadise.com/aac-320',
     artwork: 'https://upload.wikimedia.org/wikipedia/commons/7/78/Radio_Paradise_logo.png',
+    metadataRules: {
+      artist: [
+        // "Lastname, The" → "The Lastname" (common in radio metadata)
+        { match: '^(.+),\\s*The$', replace: 'The $1' }
+      ],
+      title: [
+        // Remove (YYYY) y también (YYYY) - ... al final del título
+        { match: '\\s*\\(\\d{4}\\)(?:\\s*-\\s*.+)?$', replace: '' }
+      ]
+    }
   },
   grooveSalad: {
     isLive: true,
@@ -292,13 +302,22 @@ function loadStream(key, shouldStart) {
   trackArtistLabel.applyProperties({ text: currentStream.artist })
   artworkImage.applyProperties({ image: currentStream.artwork || null })
 
-  audioStream.setStream({
+  const streamOpts = {
     url: currentStream.url,
     isLive: currentStream.isLive,
     title: currentStream.title,
     artist: currentStream.artist,
     artwork: currentStream.artwork
-  })
+  }
+
+  // Pass metadataRules inline when the stream definition includes them.
+  // Streams without this key preserve whatever rules are already active.
+  // To clear rules on a specific stream, set metadataRules: null.
+  if ('metadataRules' in currentStream) {
+    streamOpts.metadataRules = currentStream.metadataRules
+  }
+
+  audioStream.setStream(streamOpts)
 
   if (shouldStart) audioStream.start()
 }
