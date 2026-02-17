@@ -47,9 +47,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 @OptIn(markerClass = UnstableApi.class)
 public class MediaPlaybackService extends Service
@@ -65,6 +71,7 @@ public class MediaPlaybackService extends Service
 	public static final String ACTION_STOP = "ti.audiostream.STOP";
 	public static final String ACTION_SET_METADATA = "ti.audiostream.SET_METADATA";
 	public static final String ACTION_SET_AUTO_UPDATE_METADATA = "ti.audiostream.SET_AUTO_UPDATE_METADATA";
+	public static final String ACTION_SET_METADATA_RULES = "ti.audiostream.SET_METADATA_RULES";
 	public static final String ACTION_NEXT = "ti.audiostream.NEXT";
 	public static final String ACTION_PREV = "ti.audiostream.PREV";
 
@@ -75,6 +82,7 @@ public class MediaPlaybackService extends Service
 	public static final String EXTRA_ARTIST = "artist";
 	public static final String EXTRA_ARTWORK_URL = "artworkUrl";
 	public static final String EXTRA_AUTO_UPDATE_METADATA = "autoUpdateMetadata";
+	public static final String EXTRA_METADATA_RULES = "metadataRules";
 
 	        // Media3 ExoPlayer
 	        private ExoPlayer player;
@@ -102,6 +110,19 @@ public class MediaPlaybackService extends Service
 	// Executor for background tasks
 	private ExecutorService executor;
 	private Handler mainHandler;
+
+	// Metadata rules for regex-based cleanup
+	private static class MetadataRule {
+		final Pattern pattern;
+		final String replace;
+
+		MetadataRule(Pattern pattern, String replace) {
+			this.pattern = pattern;
+			this.replace = replace;
+		}
+	}
+	private List<MetadataRule> titleRules;
+	private List<MetadataRule> artistRules;
 
 	        // Audio focus listener
 	        private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
@@ -247,7 +268,11 @@ public class MediaPlaybackService extends Service
 					if (mediaMetadata.title != null) currentTitle = mediaMetadata.title.toString();
 					if (mediaMetadata.artist != null) currentArtist = mediaMetadata.artist.toString();
 					else if (mediaMetadata.albumArtist != null) currentArtist = mediaMetadata.albumArtist.toString();
-		
+
+					// Apply metadata rules (user-defined regex transformations)
+					currentTitle = applyRules(titleRules, currentTitle);
+					currentArtist = applyRules(artistRules, currentArtist);
+
 					// Intelligence: Extract artwork from stream if available
 					if (mediaMetadata.artworkData != null) {
 						try {
@@ -332,10 +357,10 @@ public class MediaPlaybackService extends Service
 							androidx.media3.extractor.metadata.id3.TextInformationFrame textFrame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
 							String value = (textFrame.values != null && !textFrame.values.isEmpty()) ? textFrame.values.get(0) : "";
 							if ("TIT2".equals(textFrame.id)) {
-								currentTitle = value;
+								currentTitle = applyRules(titleRules, value);
 								changed = true;
 							} else if ("TPE1".equals(textFrame.id)) {
-								currentArtist = value;
+								currentArtist = applyRules(artistRules, value);
 								changed = true;
 							} else {
                                 // Deep inspect other text frames for embedded JSON/StreamTitle
@@ -388,7 +413,11 @@ public class MediaPlaybackService extends Service
 						artist = title.substring(0, dashIndex).trim();
 						title = title.substring(dashIndex + 3).trim();
 					}
-					
+
+					// Apply metadata rules (user-defined regex transformations)
+					title = applyRules(titleRules, title);
+					artist = applyRules(artistRules, artist);
+
 					boolean changed = false;
 					if (!title.equals(currentTitle)) {
 						currentTitle = title;
@@ -507,6 +536,10 @@ public class MediaPlaybackService extends Service
 				handleSetAutoUpdateMetadata(intent);
 				break;
 
+			case ACTION_SET_METADATA_RULES:
+				handleSetMetadataRules(intent);
+				break;
+
 			case ACTION_NEXT:
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_NEXT);
 				break;
@@ -562,6 +595,11 @@ public class MediaPlaybackService extends Service
 			updateNotification();
 		}
 
+		// Handle metadataRules if present in setStream intent
+		if (intent.hasExtra(EXTRA_METADATA_RULES)) {
+			handleSetMetadataRules(intent);
+		}
+
 		resetRetryLogic();
 
 		MediaItem mediaItem = MediaItem.fromUri(currentUrl);
@@ -600,6 +638,64 @@ public class MediaPlaybackService extends Service
 		boolean value = intent.getBooleanExtra(EXTRA_AUTO_UPDATE_METADATA, true);
 		autoUpdateMetadata = value;
 		Log.d(LCAT, "Auto-update metadata set to: " + autoUpdateMetadata);
+	}
+
+	private void handleSetMetadataRules(Intent intent)
+	{
+		String jsonStr = intent.getStringExtra(EXTRA_METADATA_RULES);
+
+		if (jsonStr == null || jsonStr.isEmpty()) {
+			titleRules = null;
+			artistRules = null;
+			Log.d(LCAT, "Metadata rules cleared");
+			return;
+		}
+
+		try {
+			JSONObject json = new JSONObject(jsonStr);
+
+			if (json.has("title")) {
+				JSONArray arr = json.getJSONArray("title");
+				titleRules = new ArrayList<>();
+				for (int i = 0; i < arr.length(); i++) {
+					JSONObject rule = arr.getJSONObject(i);
+					Pattern pattern = Pattern.compile(rule.getString("match"));
+					titleRules.add(new MetadataRule(pattern, rule.getString("replace")));
+				}
+			} else {
+				titleRules = null;
+			}
+
+			if (json.has("artist")) {
+				JSONArray arr = json.getJSONArray("artist");
+				artistRules = new ArrayList<>();
+				for (int i = 0; i < arr.length(); i++) {
+					JSONObject rule = arr.getJSONObject(i);
+					Pattern pattern = Pattern.compile(rule.getString("match"));
+					artistRules.add(new MetadataRule(pattern, rule.getString("replace")));
+				}
+			} else {
+				artistRules = null;
+			}
+
+			Log.d(LCAT, "Metadata rules set: title=" + (titleRules != null ? titleRules.size() : 0)
+				+ ", artist=" + (artistRules != null ? artistRules.size() : 0));
+		} catch (Exception e) {
+			Log.e(LCAT, "Failed to parse metadata rules: " + e.getMessage());
+			titleRules = null;
+			artistRules = null;
+		}
+	}
+
+	private String applyRules(List<MetadataRule> rules, String input)
+	{
+		if (rules == null || rules.isEmpty() || input == null) return input;
+
+		String result = input;
+		for (MetadataRule rule : rules) {
+			result = rule.pattern.matcher(result).replaceAll(rule.replace);
+		}
+		return result;
 	}
 
 	private void play()
@@ -787,6 +883,10 @@ public class MediaPlaybackService extends Service
 		MediaMetadataCompat.Builder metadata = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
 			.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist);
+
+		if (isLive) {
+			metadata.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1);
+		}
 
 		if (currentArtwork != null) {
 			metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtwork);
