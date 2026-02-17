@@ -189,7 +189,7 @@ audioStream.setAutoUpdateMetadata(false)
 
 #### `setMetadataRules(rules)`
 
-Defines regex-based cleanup rules that the module applies automatically to parsed metadata before updating the lock screen and firing the `metadata` event. No need to disable `autoUpdateMetadata` — rules and auto-update coexist.
+Defines regex-based cleanup rules that the module applies automatically to parsed metadata before updating the lock screen and firing the `metadata` event. `autoUpdateMetadata` stays on; rules and auto-update work together.
 
 | Parameter | Type          | Description                                                             |
 | :-------- | :------------ | :---------------------------------------------------------------------- |
@@ -202,7 +202,7 @@ Each rule is an object with:
 | `match`   | String | Regex pattern to match against the field value                 |
 | `replace` | String | Replacement string (supports capture groups: `$1`, `$2`, etc.) |
 
-Rules are applied in array order. `setMetadata()` (manual override) is **not** affected by rules. You can also pass `metadataRules` directly in [`setStream()`](#setstreamoptions) for convenience.
+Rules are applied in array order. `setMetadata()` (manual override) is **not** affected by rules. You can also pass `metadataRules` directly in [`setStream()`](#setstreamoptions).
 
 ```javascript
 // Example: Radio sends "Mission, The - Tower Of Strength (1987) - Single"
@@ -221,7 +221,7 @@ audioStream.setMetadataRules({
   ]
 })
 
-// Result on lock screen: "The Mission" — "Tower Of Strength"
+// Result on lock screen: "The Mission" - "Tower Of Strength"
 
 // Clear all rules (raw metadata shows again)
 audioStream.setMetadataRules(null)
@@ -361,7 +361,7 @@ loadStation(0)
 
 ### Custom metadata cleaning
 
-Some streams send messy metadata with extra tags, weird formatting, or raw codes. Use `setMetadataRules()` to define regex cleanup rules that the module applies automatically — no need to disable auto-update or write manual event handling:
+Some streams send messy metadata with extra tags, weird formatting, or raw codes. Use `setMetadataRules()` to define regex cleanup rules that the module applies automatically, without disabling auto-update or writing manual event handling:
 
 ```javascript
 // Stream sends: "Mission, The - Tower Of Strength (1987) - Single"
