@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **`metadataRules` in `setStream()`**: Rules can now be passed inline as part of `setStream()` options. Omitting the key preserves existing rules; passing `null` clears them. The standalone `setMetadataRules()` method still works independently.
 
 ### Fixed
+- **UI freeze during buffering (iOS/Mac Catalyst)**: `setStream:` no longer blocks the main thread. AVPlayerItem creation (DNS + connection) now runs on a background thread, so the app stays responsive while buffering. Switching stations mid-buffer discards the obsolete item automatically.
 - **`isLive` on Android**: Now sets `METADATA_KEY_DURATION` to `-1` so the system hides the seek bar on lock screen and notification, matching the iOS behavior (`MPNowPlayingInfoPropertyIsLiveStream`).
 - **Duplicate `state` events**: The `state` event now only fires on actual state transitions. Previously, native engines could trigger multiple identical callbacks (e.g., several `buffering` events in a row during stream startup), which were forwarded directly to JavaScript. Both platforms now deduplicate before emitting.
 
