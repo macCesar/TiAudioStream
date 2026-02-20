@@ -27,6 +27,7 @@
   NSArray *_artistRules;
   NSString *_lastEmittedState;
   BOOL _pendingPlay;
+  NSUInteger _artworkGeneration;
 }
 @end
 
@@ -103,6 +104,7 @@
 - (void)setStream:(id)args
 {
   ENSURE_SINGLE_ARG(args, NSDictionary);
+  _artworkGeneration++;
   _currentURL = [TiUtils stringValue:@"url" properties:args];
   _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
   _autoUpdateMetadata = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
@@ -248,6 +250,7 @@
 
 - (void)stop:(id)unused
 {
+  _artworkGeneration++;
   if (_player) {
     [_player pause];
     @try {
@@ -264,6 +267,8 @@
 - (void)setMetadata:(id)args
 {
   ENSURE_SINGLE_ARG(args, NSDictionary);
+  _artworkGeneration++;
+  NSUInteger expectedGeneration = _artworkGeneration;
   _currentTitle = [TiUtils stringValue:@"title" properties:args def:@""];
   _currentArtist = [TiUtils stringValue:@"artist" properties:args def:@""];
 
@@ -283,6 +288,9 @@
         NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
         UIImage *img = [UIImage imageWithData:data];
         dispatch_async(dispatch_get_main_queue(), ^{
+          if (expectedGeneration != self->_artworkGeneration) {
+            return;
+          }
           if (img) {
             self->_currentArtwork = img;
           } else {
@@ -513,11 +521,19 @@
     // Fetch artwork from URL if found
     if (artworkURL) {
       __block NSString *capturedArtworkURL = [artworkURL copy]; // Capture for block
+      NSUInteger expectedGeneration = _artworkGeneration;
+      NSString *expectedURL = [_currentURL copy];
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:capturedArtworkURL]];
         UIImage *img = [UIImage imageWithData:data];
         if (img) {
           dispatch_async(dispatch_get_main_queue(), ^{
+            if (expectedGeneration != self->_artworkGeneration) {
+              return;
+            }
+            if (expectedURL && self->_currentURL && ![expectedURL isEqualToString:self->_currentURL]) {
+              return;
+            }
             self->_currentArtwork = img;
             // Only update remote controls if auto-update is enabled
             if (self->_autoUpdateMetadata) {
