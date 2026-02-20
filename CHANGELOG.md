@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-02-20
+
+### Fixed
+- **Metadata parity (Android/iOS)**: Android metadata parsing now matches iOS behavior for common stream formats (including `"Artist - Title - ..."` inputs), so final `title` / `artist` values are consistent across platforms.
+- **Metadata rules reliability (Android)**: `metadataRules` serialization now handles Titanium payload variants more robustly, improving regex cleanup consistency when rules are passed inline in `setStream()` or via `setMetadataRules()`.
+- **Duplicate metadata emissions (Android)**: Reduced repeated `metadata` events caused by overlapping native callbacks (`onMediaMetadataChanged` + `onMetadata`) when values did not actually change.
+- **Stale artwork race conditions (Android/iOS)**: Added guards to prevent async artwork fetches from previous streams from being applied after station switches.
+- **Lock screen artwork clearing on Android OEM skins**: Improved artwork reset behavior when switching to streams without artwork (including explicit null/URI cleanup and notification icon replacement) so previous station covers do not persist on lock screen controls.
+
+---
+
 ## [1.1.0] - 2026-02-17
 
 ### Added

@@ -167,6 +167,10 @@ Manually sets lock screen and notification metadata without changing the stream.
 - Set `artwork` to a URL → loads and displays the new image
 - Omit `artwork` → keeps whatever artwork is currently showing
 
+**Android OEM lock screen note:**
+- On some vendor lock screens, stale artwork can persist when `largeIcon` is sent as `null`.
+- The module forces a real icon replacement when no artwork is available to ensure previous covers are cleared.
+
 ```javascript
 audioStream.setMetadata({
   title: 'Station Branding',

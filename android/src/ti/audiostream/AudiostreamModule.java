@@ -25,6 +25,9 @@ import org.appcelerator.titanium.util.TiConvert;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.List;
+import java.util.Map;
+
 @Kroll.module(name="Audiostream", id="ti.audiostream")
 public class AudiostreamModule extends KrollModule
 {
@@ -70,6 +73,57 @@ public class AudiostreamModule extends KrollModule
 	{
 		super();
 		activeModule = this;
+	}
+
+	private void appendMetadataRule(JSONArray target, Object item) throws Exception
+	{
+		String match = null;
+		String replace = "";
+
+		if (item instanceof KrollDict) {
+			KrollDict rule = (KrollDict) item;
+			match = TiConvert.toString(rule.get("match"), null);
+			replace = TiConvert.toString(rule.get("replace"), "");
+		} else if (item instanceof Map) {
+			Map<?, ?> rule = (Map<?, ?>) item;
+			match = TiConvert.toString(rule.get("match"), null);
+			replace = TiConvert.toString(rule.get("replace"), "");
+		}
+
+		if (match == null || match.isEmpty()) {
+			return;
+		}
+
+		JSONObject ruleJson = new JSONObject();
+		ruleJson.put("match", match);
+		ruleJson.put("replace", replace);
+		target.put(ruleJson);
+	}
+
+	private JSONArray serializeMetadataRulesArray(Object value) throws Exception
+	{
+		JSONArray result = new JSONArray();
+		if (value == null) {
+			return result;
+		}
+
+		if (value instanceof Object[]) {
+			for (Object item : (Object[]) value) {
+				appendMetadataRule(result, item);
+			}
+			return result;
+		}
+
+		if (value instanceof List) {
+			for (Object item : (List<?>) value) {
+				appendMetadataRule(result, item);
+			}
+			return result;
+		}
+
+		// Titanium may pass a single object instead of an array in edge cases.
+		appendMetadataRule(result, value);
+		return result;
 	}
 
 	@Kroll.onAppCreate
@@ -124,38 +178,26 @@ public class AudiostreamModule extends KrollModule
 		// Handle metadataRules: present + KrollDict → serialize, present + null → clear, absent → preserve
 		if (args.containsKey("metadataRules")) {
 			Object rulesObj = args.get("metadataRules");
-			if (rulesObj instanceof KrollDict) {
+			if (rulesObj instanceof KrollDict || rulesObj instanceof Map) {
 				try {
 					JSONObject json = new JSONObject();
-
-					Object titleObj = ((KrollDict) rulesObj).get("title");
-					if (titleObj instanceof Object[]) {
-						JSONArray titleArr = new JSONArray();
-						for (Object item : (Object[]) titleObj) {
-							if (item instanceof KrollDict) {
-								KrollDict rule = (KrollDict) item;
-								JSONObject ruleJson = new JSONObject();
-								ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
-								ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
-								titleArr.put(ruleJson);
-							}
-						}
-						json.put("title", titleArr);
+					Object titleRules = null;
+					Object artistRules = null;
+					if (rulesObj instanceof KrollDict) {
+						KrollDict rulesDict = (KrollDict) rulesObj;
+						if (rulesDict.containsKey("title")) titleRules = rulesDict.get("title");
+						if (rulesDict.containsKey("artist")) artistRules = rulesDict.get("artist");
+					} else {
+						Map<?, ?> rulesMap = (Map<?, ?>) rulesObj;
+						if (rulesMap.containsKey("title")) titleRules = rulesMap.get("title");
+						if (rulesMap.containsKey("artist")) artistRules = rulesMap.get("artist");
 					}
 
-					Object artistObj = ((KrollDict) rulesObj).get("artist");
-					if (artistObj instanceof Object[]) {
-						JSONArray artistArr = new JSONArray();
-						for (Object item : (Object[]) artistObj) {
-							if (item instanceof KrollDict) {
-								KrollDict rule = (KrollDict) item;
-								JSONObject ruleJson = new JSONObject();
-								ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
-								ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
-								artistArr.put(ruleJson);
-							}
-						}
-						json.put("artist", artistArr);
+					if (titleRules != null) {
+						json.put("title", serializeMetadataRulesArray(titleRules));
+					}
+					if (artistRules != null) {
+						json.put("artist", serializeMetadataRulesArray(artistRules));
 					}
 
 					Log.d(LCAT, "setStream: metadataRules: " + json.toString());
@@ -286,34 +328,12 @@ public class AudiostreamModule extends KrollModule
 			try {
 				JSONObject json = new JSONObject();
 
-				Object titleObj = args.get("title");
-				if (titleObj instanceof Object[]) {
-					JSONArray titleArr = new JSONArray();
-					for (Object item : (Object[]) titleObj) {
-						if (item instanceof KrollDict) {
-							KrollDict rule = (KrollDict) item;
-							JSONObject ruleJson = new JSONObject();
-							ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
-							ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
-							titleArr.put(ruleJson);
-						}
-					}
-					json.put("title", titleArr);
+				if (args.containsKey("title")) {
+					json.put("title", serializeMetadataRulesArray(args.get("title")));
 				}
 
-				Object artistObj = args.get("artist");
-				if (artistObj instanceof Object[]) {
-					JSONArray artistArr = new JSONArray();
-					for (Object item : (Object[]) artistObj) {
-						if (item instanceof KrollDict) {
-							KrollDict rule = (KrollDict) item;
-							JSONObject ruleJson = new JSONObject();
-							ruleJson.put("match", TiConvert.toString(rule.get("match"), ""));
-							ruleJson.put("replace", TiConvert.toString(rule.get("replace"), ""));
-							artistArr.put(ruleJson);
-						}
-					}
-					json.put("artist", artistArr);
+				if (args.containsKey("artist")) {
+					json.put("artist", serializeMetadataRulesArray(args.get("artist")));
 				}
 
 				Log.d(LCAT, "setMetadataRules: " + json.toString());

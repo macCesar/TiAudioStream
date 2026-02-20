@@ -49,9 +49,11 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 import org.json.JSONArray;
@@ -100,6 +102,12 @@ public class MediaPlaybackService extends Service
 	private String currentTitle = "";
 	private String currentArtist = "";
 	private Bitmap currentArtwork = null;
+	private Bitmap transparentArtwork = null;
+	private boolean sessionHadArtwork = false;
+	private final AtomicLong artworkGeneration = new AtomicLong(0);
+	private String lastEmittedTitle = null;
+	private String lastEmittedArtist = null;
+	private String lastEmittedArtwork = null;
 
 	// Reconnection
 	private int retryCount = 0;
@@ -263,15 +271,37 @@ public class MediaPlaybackService extends Service
 				public void onMediaMetadataChanged(androidx.media3.common.MediaMetadata mediaMetadata)
 				{
 					Log.d(LCAT, "onMediaMetadataChanged triggered");
-					
-					// Update internal state from high-level metadata
-					if (mediaMetadata.title != null) currentTitle = mediaMetadata.title.toString();
-					if (mediaMetadata.artist != null) currentArtist = mediaMetadata.artist.toString();
-					else if (mediaMetadata.albumArtist != null) currentArtist = mediaMetadata.albumArtist.toString();
+					boolean changed = false;
+					String incomingTitle = mediaMetadata.title != null ? mediaMetadata.title.toString() : null;
+					String incomingArtist = null;
+					if (mediaMetadata.artist != null) {
+						incomingArtist = mediaMetadata.artist.toString();
+					} else if (mediaMetadata.albumArtist != null) {
+						incomingArtist = mediaMetadata.albumArtist.toString();
+					}
 
-					// Apply metadata rules (user-defined regex transformations)
-					currentTitle = applyRules(titleRules, currentTitle);
-					currentArtist = applyRules(artistRules, currentArtist);
+					// When Media3 delivers "Artist - Title - Suffix" only in title, parse like iOS.
+					if (incomingTitle != null) {
+						if ((incomingArtist == null || incomingArtist.isEmpty()) && incomingTitle.contains(" - ")) {
+							if (parseStreamTitle(incomingTitle)) {
+								changed = true;
+							}
+						} else {
+							String cleanedTitle = applyRules(titleRules, incomingTitle);
+							if (!cleanedTitle.equals(currentTitle)) {
+								currentTitle = cleanedTitle;
+								changed = true;
+							}
+						}
+					}
+
+					if (incomingArtist != null && !incomingArtist.isEmpty()) {
+						String cleanedArtist = applyRules(artistRules, incomingArtist);
+						if (!cleanedArtist.equals(currentArtist)) {
+							currentArtist = cleanedArtist;
+							changed = true;
+						}
+					}
 
 					// Intelligence: Extract artwork from stream if available
 					if (mediaMetadata.artworkData != null) {
@@ -279,13 +309,14 @@ public class MediaPlaybackService extends Service
 							Log.i(LCAT, "Artwork data found in stream! Updating notification icon.");
 							byte[] data = mediaMetadata.artworkData;
 							currentArtwork = BitmapFactory.decodeByteArray(data, 0, data.length);
+							changed = true;
 						} catch (Exception e) {
 							Log.e(LCAT, "Failed to decode artwork from stream: " + e.getMessage());
 						}
 					}
 
 					// Only update remote controls if auto-update is enabled
-					if (autoUpdateMetadata) {
+					if (changed && autoUpdateMetadata) {
 						updateMediaSessionMetadata();
 						updateNotification();
 					}
@@ -298,9 +329,11 @@ public class MediaPlaybackService extends Service
 					if (mediaMetadata.artworkData != null) rawData.put("has_artwork", true);
 					if (mediaMetadata.displayTitle != null) rawData.put("displayTitle", mediaMetadata.displayTitle.toString());
 					
-					Log.d(LCAT, "Firing metadata event with " + rawData.size() + " raw fields");
-					AudiostreamModule.fireMetadata(currentTitle, currentArtist, null, rawData);
-				}
+						if (changed) {
+							Log.d(LCAT, "Firing metadata event with " + rawData.size() + " raw fields");
+							emitMetadataIfChanged(null, rawData);
+						}
+					}
 		
 				@Override
 				public void onMetadata(androidx.media3.common.Metadata metadata) {
@@ -344,14 +377,14 @@ public class MediaPlaybackService extends Service
 							String artworkUrl = icy.url;
 							if (artworkUrl != null && !artworkUrl.isEmpty()) {
 								// Check if it looks like an image URL
-								if (artworkUrl.contains(".jpg") || artworkUrl.contains(".jpeg") ||
-									artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
-									artworkUrl.contains(".webp")) {
-									Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
-									fetchArtworkFromUrl(artworkUrl);
+									if (artworkUrl.contains(".jpg") || artworkUrl.contains(".jpeg") ||
+										artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
+										artworkUrl.contains(".webp")) {
+										Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
+										fetchArtworkFromUrl(artworkUrl, artworkGeneration.get());
+									}
 								}
 							}
-						}
 						// 2. Check for ID3 Text Frames (TIT2, etc)
 						else if (entry instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
 							androidx.media3.extractor.metadata.id3.TextInformationFrame textFrame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
@@ -378,15 +411,14 @@ public class MediaPlaybackService extends Service
 						}
 					}
 
-					// Always fire if we found ANY metadata, so raw data can be inspected
-					if (changed || !rawData.isEmpty()) {
+					// Emit only when title/artist actually changed to avoid duplicate UI updates.
+					if (changed) {
 						// Only update remote controls if auto-update is enabled
-						if (changed && autoUpdateMetadata) {
+						if (autoUpdateMetadata) {
 							updateMediaSessionMetadata();
 							updateNotification();
 						}
-						// Always fire metadata event for app UI
-						AudiostreamModule.fireMetadata(currentTitle, currentArtist, null, rawData);
+						emitMetadataIfChanged(null, rawData);
 					}
 				}
 
@@ -407,11 +439,12 @@ public class MediaPlaybackService extends Service
 						}
 					}
 
-					// Standard split logic for "Artist - Title"
-					int dashIndex = title.indexOf(" - ");
-					if (dashIndex != -1) {
-						artist = title.substring(0, dashIndex).trim();
-						title = title.substring(dashIndex + 3).trim();
+					// Keep parity with iOS parsing:
+					// "Artist - Title - Single" -> artist=Artist, title=Title
+					String[] parts = title.split(" - ");
+					if (parts.length >= 2) {
+						artist = parts[0].trim();
+						title = parts[1].trim();
 					}
 
 					// Apply metadata rules (user-defined regex transformations)
@@ -557,6 +590,7 @@ public class MediaPlaybackService extends Service
 		currentUrl = intent.getStringExtra(EXTRA_URL);
 		isLive = intent.getBooleanExtra(EXTRA_IS_LIVE, true);
 		autoUpdateMetadata = intent.getBooleanExtra(EXTRA_AUTO_UPDATE_METADATA, true);
+		long generation = artworkGeneration.incrementAndGet();
 
 		if (currentUrl == null || currentUrl.isEmpty()) {
 			Log.e(LCAT, "No URL provided");
@@ -564,35 +598,32 @@ public class MediaPlaybackService extends Service
 		}
 
 		Log.d(LCAT, "Setting stream: " + currentUrl + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
+		resetMetadataEventDedup();
 
-		// Check if metadata (title, artist, artwork) are provided in setStream
-		String title = intent.getStringExtra(EXTRA_TITLE);
-		String artist = intent.getStringExtra(EXTRA_ARTIST);
-		String artworkUrl = intent.getStringExtra(EXTRA_ARTWORK_URL);
+			// Check if metadata (title, artist, artwork) are provided in setStream
+			String title = intent.getStringExtra(EXTRA_TITLE);
+			String artist = intent.getStringExtra(EXTRA_ARTIST);
+			String artworkUrl = normalizeArtworkUrl(intent.getStringExtra(EXTRA_ARTWORK_URL));
 
-		if (title != null || artist != null || artworkUrl != null) {
-			if (title == null) title = "";
-			if (artist == null) artist = "";
+			if (title != null || artist != null || artworkUrl != null) {
+				if (title == null) title = "";
+				if (artist == null) artist = "";
 
 			currentTitle = title;
 			currentArtist = artist;
 
 			Log.d(LCAT, "Setting metadata from setStream: " + title + " - " + artist);
 
-			// Handle artwork
-			if (artworkUrl != null) {
-				if (artworkUrl.trim().isEmpty()) {
-					currentArtwork = null;
-				} else {
-					loadArtworkAsync(artworkUrl);
-				}
-			} else {
-				// Key not provided → clear artwork for new stream
+				// Always clear previous artwork first when switching streams.
 				currentArtwork = null;
-			}
 
-			updateMediaSessionMetadata();
-			updateNotification();
+				// Handle artwork (if valid and non-empty after normalization).
+				if (artworkUrl != null) {
+					loadArtworkAsync(artworkUrl, generation);
+				}
+
+				updateMediaSessionMetadata();
+				updateNotification();
 		}
 
 		// Handle metadataRules if present in setStream intent
@@ -619,15 +650,15 @@ public class MediaPlaybackService extends Service
 
 		// Check if artwork key exists in intent
 		if (intent.hasExtra(EXTRA_ARTWORK_URL)) {
-			String artworkUrl = intent.getStringExtra(EXTRA_ARTWORK_URL);
+			String artworkUrl = normalizeArtworkUrl(intent.getStringExtra(EXTRA_ARTWORK_URL));
 			// null, empty, or whitespace-only → clear artwork
-			if (artworkUrl == null || artworkUrl.trim().isEmpty()) {
+			if (artworkUrl == null) {
 				currentArtwork = null;
 				updateMediaSessionMetadata();
 				updateNotification();
 			} else {
 				// Valid URL → load it
-				loadArtworkAsync(artworkUrl);
+				loadArtworkAsync(artworkUrl, artworkGeneration.get());
 			}
 		}
 		// If artwork key doesn't exist → keep current artwork (do nothing)
@@ -698,6 +729,49 @@ public class MediaPlaybackService extends Service
 		return result;
 	}
 
+	private String normalizeArtworkUrl(String artworkUrl)
+	{
+		if (artworkUrl == null) return null;
+		String value = artworkUrl.trim();
+		if (value.isEmpty()) return null;
+		String lower = value.toLowerCase(Locale.ROOT);
+		if ("null".equals(lower) || "undefined".equals(lower)) {
+			Log.i(LCAT, "Ignoring invalid artwork value: " + artworkUrl);
+			return null;
+		}
+		return value;
+	}
+
+	private void resetMetadataEventDedup()
+	{
+		lastEmittedTitle = null;
+		lastEmittedArtist = null;
+		lastEmittedArtwork = null;
+	}
+
+	private boolean sameString(String a, String b)
+	{
+		if (a == null) return b == null;
+		return a.equals(b);
+	}
+
+	private void emitMetadataIfChanged(String artwork, java.util.Map<String, Object> rawData)
+	{
+		String title = currentTitle != null ? currentTitle : "";
+		String artist = currentArtist != null ? currentArtist : "";
+
+		if (sameString(lastEmittedTitle, title)
+			&& sameString(lastEmittedArtist, artist)
+			&& sameString(lastEmittedArtwork, artwork)) {
+			return;
+		}
+
+		lastEmittedTitle = title;
+		lastEmittedArtist = artist;
+		lastEmittedArtwork = artwork;
+		AudiostreamModule.fireMetadata(title, artist, artwork, rawData);
+	}
+
 	private void play()
 	{
 		if (player == null) return;
@@ -752,7 +826,8 @@ public class MediaPlaybackService extends Service
 	        private void stop()
 	        {
 	                Log.d(LCAT, "Stopping playback and service");
-	
+	                artworkGeneration.incrementAndGet();
+
 	                resumeOnFocusGain = false;
 	                resetRetryLogic();
 	                abandonAudioFocus();
@@ -880,6 +955,27 @@ public class MediaPlaybackService extends Service
 			return;
 		}
 
+		boolean hasArtwork = currentArtwork != null;
+
+		// Some OEM lock screens keep stale art unless ART/ALBUM_ART are explicitly cleared.
+		if (!hasArtwork) {
+			MediaMetadataCompat.Builder clearMetadata = new MediaMetadataCompat.Builder()
+				.putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
+				.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, null)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, null)
+				.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, null)
+				.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, "")
+				.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, "")
+				.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, "");
+
+			if (isLive) {
+				clearMetadata.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1);
+			}
+
+			mediaSession.setMetadata(clearMetadata.build());
+		}
+
 		MediaMetadataCompat.Builder metadata = new MediaMetadataCompat.Builder()
 			.putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
 			.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist);
@@ -888,19 +984,27 @@ public class MediaPlaybackService extends Service
 			metadata.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1);
 		}
 
-		if (currentArtwork != null) {
-			metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtwork);
-			metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentArtwork);
+		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtwork);
+		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentArtwork);
+		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, currentArtwork);
+		if (!hasArtwork) {
+			metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, "");
+			metadata.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, "");
+			metadata.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, "");
 		}
 
 		mediaSession.setMetadata(metadata.build());
+		sessionHadArtwork = hasArtwork;
 	}
 
 	/**
 	 * Fetch artwork from a URL asynchronously (for Radio Paradise style streams)
 	 */
-	private void fetchArtworkFromUrl(String urlString) {
+	private void fetchArtworkFromUrl(String urlString, long expectedGeneration) {
 		executor.execute(() -> {
+			if (artworkGeneration.get() != expectedGeneration) {
+				return;
+			}
 			try {
 				Log.d(LCAT, "Fetching artwork from: " + urlString);
 				java.net.URL url = new java.net.URL(urlString);
@@ -911,13 +1015,17 @@ public class MediaPlaybackService extends Service
 				Bitmap bitmap = BitmapFactory.decodeStream(input);
 				if (bitmap != null) {
 					mainHandler.post(() -> {
-						currentArtwork = bitmap;
-						updateMediaSessionMetadata();
-						updateNotification();
-						// Fire metadata event with artwork URL for app UI
-						AudiostreamModule.fireMetadata(currentTitle, currentArtist, urlString, null);
-						Log.i(LCAT, "Artwork updated from URL: " + urlString);
-					});
+							if (artworkGeneration.get() != expectedGeneration) {
+								Log.d(LCAT, "Ignoring stale fetched artwork for old stream: " + urlString);
+								return;
+							}
+							currentArtwork = bitmap;
+							updateMediaSessionMetadata();
+							updateNotification();
+							// Fire metadata event with artwork URL for app UI
+							emitMetadataIfChanged(urlString, null);
+							Log.i(LCAT, "Artwork updated from URL: " + urlString);
+						});
 				} else {
 					Log.w(LCAT, "Failed to decode bitmap from: " + urlString);
 				}
@@ -951,9 +1059,12 @@ public class MediaPlaybackService extends Service
 		mediaSession.setPlaybackState(playbackState);
 	}
 
-	private void loadArtworkAsync(String artworkUrl)
+	private void loadArtworkAsync(String artworkUrl, long expectedGeneration)
 	{
 		executor.execute(() -> {
+			if (artworkGeneration.get() != expectedGeneration) {
+				return;
+			}
 			try {
 				Bitmap bitmap = null;
 				boolean isRemoteURL = artworkUrl.startsWith("http://") || artworkUrl.startsWith("https://");
@@ -987,6 +1098,10 @@ public class MediaPlaybackService extends Service
 				if (bitmap != null) {
 					final Bitmap finalBitmap = bitmap;
 					mainHandler.post(() -> {
+						if (artworkGeneration.get() != expectedGeneration) {
+							Log.d(LCAT, "Ignoring stale artwork load for old stream: " + artworkUrl);
+							return;
+						}
 						currentArtwork = finalBitmap;
 						updateMediaSessionMetadata();
 						updateNotification();
@@ -994,6 +1109,9 @@ public class MediaPlaybackService extends Service
 				} else {
 					// Failed to load → clear artwork
 					mainHandler.post(() -> {
+						if (artworkGeneration.get() != expectedGeneration) {
+							return;
+						}
 						currentArtwork = null;
 						updateMediaSessionMetadata();
 						updateNotification();
@@ -1033,6 +1151,18 @@ public class MediaPlaybackService extends Service
 		}
 	}
 
+	private Bitmap getTransparentArtwork()
+	{
+		// TODO(macCesar): Revisit this workaround.
+		// Some OEM lock screens (e.g. OPPO/ColorOS) keep stale artwork when largeIcon is null.
+		// We force-replace it with a transparent 1x1 bitmap for now.
+		// Future: find an official way to restore the system generic placeholder icon on lock screen.
+		if (transparentArtwork == null || transparentArtwork.isRecycled()) {
+			transparentArtwork = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+		}
+		return transparentArtwork;
+	}
+
 	private Notification buildNotification()
 	{
 		int smallIcon = getResources().getIdentifier("appicon", "drawable", getPackageName());
@@ -1041,12 +1171,13 @@ public class MediaPlaybackService extends Service
 		}
 
 		boolean isPlaying = player != null && player.isPlaying();
+		Bitmap largeIcon = currentArtwork != null ? currentArtwork : getTransparentArtwork();
 
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
 			.setContentTitle(currentTitle)
 			.setContentText(currentArtist)
 			.setSmallIcon(smallIcon)
-			.setLargeIcon(currentArtwork)
+			.setLargeIcon(largeIcon)
 			.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 			.setOnlyAlertOnce(true)
 			.setOngoing(isPlaying)
