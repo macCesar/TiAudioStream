@@ -1,6 +1,6 @@
 # ti.audiostream
 
-Audio streaming module for Titanium SDK. Background playback, system controls, and real-time metadata on Android and iOS from a single API.
+Audio streaming module for Titanium SDK. It gives you background playback, system media controls, and real-time metadata on Android and iOS through one API.
 
 <div align="center">
 
@@ -12,19 +12,19 @@ Audio streaming module for Titanium SDK. Background playback, system controls, a
 
 ## Why ti.audiostream?
 
-`Ti.Media.AudioPlayer` works for basic playback, but it falls short for radio apps and live streams: no lock screen controls, no metadata extraction, no background persistence, no audio focus management. You end up writing platform-specific code that still breaks.
+`Ti.Media.AudioPlayer` is fine for simple playback, but radio and live streams usually need more: lock screen controls, metadata parsing, reliable background behavior, and proper audio focus handling. Without that, you end up adding platform-specific patches in app code.
 
-`ti.audiostream` wraps Media3 ExoPlayer (Android) and AVPlayer (iOS) behind a single JavaScript API. Both engines handle playback and system integration together, so ICY/ID3 metadata parsing, lock screen artwork, and smart resume after phone calls all work without platform-specific code.
+`ti.audiostream` uses Media3 ExoPlayer on Android and AVPlayer on iOS behind one JavaScript API. Playback and system integration are handled in the module, so ICY/ID3 parsing, artwork updates, and interruption/resume behavior stay consistent across platforms.
 
 ## Features
 
-- Unified engine: Media3 ExoPlayer on Android, AVPlayer on iOS, same JavaScript API
-- Metadata extraction from ICY headers, ID3 tags, and non-standard formats (embedded JSON used by Global Player/Heart Radio)
-- Automatic stream artwork on lock screen and notifications
-- Smart audio focus: handles interruptions (calls, Siri, other apps) and resumes after a call if you were playing, but stays paused if you paused manually
-- Background persistence via Foreground Service (Android) and AVAudioSession (iOS)
-- System media controls: lock screen, notification shade, Control Center, CarPlay, Apple Watch
-- Metadata auto-update control, so you can show the raw stream metadata or your own cleaned-up version
+- Same JavaScript API for Android (Media3 ExoPlayer) and iOS (AVPlayer)
+- Metadata parsing from ICY headers, ID3 tags, and non-standard payloads (for example embedded JSON used by some stations)
+- Artwork updates for lock screen and notification/control surfaces
+- Audio focus and interruption handling (calls, Siri, other apps) with resume logic that respects manual pauses
+- Background playback support via Foreground Service (Android) and AVAudioSession (iOS)
+- System media controls support: lock screen, notification shade, Control Center, CarPlay, Apple Watch
+- Optional metadata auto-update control when you want to keep station branding instead of live track metadata
 
 ## Requirements
 

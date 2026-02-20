@@ -1,30 +1,82 @@
-# Titanium
-build/
-dist/
-bin/
-*.zip
-*.a
-*.xcframework/
-*.xcarchive/
-.gradle/
-.DS_Store
+# Titanium SDK Multiplatform Module .gitignore (Optimized)
 
-# Android
-android/build/
-android/dist/
-android/local.properties
-
-# iOS
-ios/build/
-ios/dist/
-ios/DerivedData/
-
-# Documentation (internal / planning only)
+# === Documentation (internal/planning only) ===
 docs/
 lanzamiento-del-modulo.md
 
-# LLM / AI Assistant files
-CLAUDE.md
+# === Node.js ===
+node_modules/
+npm-debug.log*
+
+# === macOS & System files ===
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# === Build, temp, and backup files ===
+build/
+bin/
+*.pyc
+*.pyo
+*.swp
+*.swo
+*.tmp
+*.log
+*~
+*.bak
+*.orig
+
+# === Android ===
+android/build/
+android/local.properties
+android/.gradle/
+android/.idea/
+android/.DS_Store
+android/.cxx/
+android/.externalNativeBuild/
+android/.settings/
+android/.project
+android/.classpath
+android/.factorypath
+android/.metadata/
+android/.recommenders/
+android/.gradletasknamecache
+
+# === iOS ===
+ios/build/
+ios/DerivedData/
+ios/Classes/*.xcuserstate
+ios/Classes/*.xcworkspace
+ios/Classes/*.xcuserdata
+ios/Classes/*.moved-aside
+ios/Classes/*.xcuserdatad
+ios/Classes/*.xcscmblueprint
+ios/Classes/*.xcsettings
+
+# === Xcode & Apple build artifacts ===
+*.xcuserstate
+*.xcworkspace
+*.xcuserdata
+*.moved-aside
+*.xcuserdatad
+*.xcscmblueprint
+*.xcsettings
+*.a
+*.xcframework/
+*.xcarchive/
+
+# === Release/package artifacts (do NOT ignore dist/ folders!) ===
+# *.zip  # Uncomment if you want to ignore all zips, but keep commented for module releases
+
+# === IDE & AI/Assistant config files ===
+.idea/
+.vscode/
 AGENTS.md
+CLAUDE.md
+GEMINI.md
 .claude/
 .cursor/
+
+# === Add any other patterns specific to your workflow below ===
