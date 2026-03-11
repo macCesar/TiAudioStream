@@ -150,7 +150,25 @@ Pauses playback. The notification stays visible so the user can resume from the 
 
 #### `stop()`
 
-Stops playback completely. Removes the notification, releases audio focus, and tears down system controls.
+Soft-stops playback for live streams. It hides system controls and releases audio focus, but keeps the current stream prepared when possible so `start()` can resume quickly.
+
+Use this when you want fast resume behavior similar to many radio/music apps.
+
+#### `hardStop()`
+
+Stops playback completely and tears down the active stream/session so the next `start()` performs a fresh reconnect.
+
+Use this for live radio when you want to return to the live edge instead of resuming from buffered audio.
+
+```javascript
+// Fast resume
+audioStream.stop()
+
+// Fresh reconnect to live edge
+audioStream.hardStop()
+// or, on both platforms:
+audioStream.stop({ hard: true })
+```
 
 #### `setMetadata(options)`
 

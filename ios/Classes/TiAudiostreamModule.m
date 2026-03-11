@@ -187,7 +187,28 @@
   }
 }
 
-- (void)stop:(id)unused
+- (void)stop:(id)args
+{
+  if ([args isKindOfClass:[NSDictionary class]] && [TiUtils boolValue:@"hard" properties:args def:NO]) {
+    [self hardStop:nil];
+    return;
+  }
+
+  _artworkGeneration++;
+  _pendingPlay = NO;
+  if (_player) {
+    [_player pause];
+  }
+  [self fireState:@"stopped"];
+#if TARGET_OS_IOS
+  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+  [[AVAudioSession sharedInstance] setActive:NO
+                                 withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+                                       error:nil];
+#endif
+}
+
+- (void)hardStop:(id)unused
 {
   _artworkGeneration++;
   _pendingPlay = NO;
