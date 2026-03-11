@@ -498,18 +498,21 @@ public class MediaPlaybackService extends Service
 			@Override
 			public void onPlay()
 			{
+				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PLAY);
 				play();
 			}
 
 			@Override
 			public void onPause()
 			{
+				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PAUSE);
 				pause();
 			}
 
 			@Override
 			public void onStop()
 			{
+				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_STOP);
 				stop();
 			}
 
@@ -783,6 +786,10 @@ public class MediaPlaybackService extends Service
 		}
 
 		Log.i(LCAT, "Play command received. URL: " + currentUrl + " (Live: " + isLive + ")");
+
+		if (mediaSession != null && !mediaSession.isActive()) {
+			mediaSession.setActive(true);
+		}
 
 		startForegroundWithNotification();
 

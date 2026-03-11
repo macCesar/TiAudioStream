@@ -144,68 +144,7 @@
     }
   }
 
-  // 1. Parar y limpiar TODO inmediatamente
-  _pendingPlay = NO;
-  if (_player) {
-    [_player pause];
-    @try {
-      [_player removeObserver:self forKeyPath:@"timeControlStatus"];
-    } @catch (id e) {
-    }
-  }
-
-  if (_currentItem) {
-    @try {
-      [_currentItem removeObserver:self forKeyPath:@"status"];
-    } @catch (id e) {
-    }
-    if (_metadataOutput) {
-      [_currentItem removeOutput:_metadataOutput];
-      _metadataOutput = nil;
-    }
-    _currentItem = nil;
-  }
-
-  // 2. Crear player vacío si no existe (para que start: lo encuentre de inmediato)
-  if (!_player) {
-    _player = [AVPlayer playerWithPlayerItem:nil];
-    _player.automaticallyWaitsToMinimizeStalling = YES;
-  }
-
-  // 3. Notificar buffering de inmediato al JS
-  [self fireState:@"buffering"];
-
-  // 4. Observar cambios de estado del player (antes del async, player ya existe)
-  [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
-
-  // 5. Crear AVPlayerItem en hilo secundario para no bloquear la UI
-  NSString *urlString = [_currentURL copy];
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    AVPlayerItem *newItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:urlString]];
-
-    // 6. Volver al main thread para configurar observers y conectar al player
-    dispatch_async(dispatch_get_main_queue(), ^{
-      // Verificar que la URL no cambió mientras se creaba el item
-      if (![urlString isEqualToString:self->_currentURL]) {
-        return;
-      }
-
-      self->_currentItem = newItem;
-      [self->_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
-
-      self->_metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
-      [self->_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
-      [self->_currentItem addOutput:self->_metadataOutput];
-
-      [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
-
-      // Ejecutar play pendiente (start: fue llamado antes de que el item existiera)
-      if (self->_pendingPlay) {
-        self->_pendingPlay = NO;
-        [self->_player play];
-      }
-    });
-  });
+  [self prepareCurrentStreamItem];
 }
 
 - (void)start:(id)unused
@@ -224,14 +163,14 @@
 #endif
 
   // If player is IDLE or has no valid item, prepare the stream
-  if (!_currentItem || _currentItem.status == AVPlayerItemStatusFailed) {
+  if (!_currentItem || !_player.currentItem || _currentItem.status == AVPlayerItemStatusFailed) {
     if (_currentURL) {
-      [self setStream:@{ @"url" : _currentURL, @"isLive" : @(_isLive) }];
+      [self prepareCurrentStreamItem];
     }
   }
 
   // Si el item aún no está conectado (async en progreso), diferir el play
-  if (!_currentItem) {
+  if (!_currentItem || !_player.currentItem) {
     _pendingPlay = YES;
     return;
   }
@@ -251,6 +190,7 @@
 - (void)stop:(id)unused
 {
   _artworkGeneration++;
+  _pendingPlay = NO;
   if (_player) {
     [_player pause];
     @try {
@@ -258,9 +198,23 @@
     } @catch (id e) {
     }
   }
+  if (_currentItem) {
+    @try {
+      [_currentItem removeObserver:self forKeyPath:@"status"];
+    } @catch (id e) {
+    }
+    if (_metadataOutput) {
+      [_currentItem removeOutput:_metadataOutput];
+      _metadataOutput = nil;
+    }
+    _currentItem = nil;
+  }
   [self fireState:@"stopped"];
 #if TARGET_OS_IOS
   [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+  [[AVAudioSession sharedInstance] setActive:NO
+                                 withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+                                       error:nil];
 #endif
 }
 
@@ -387,6 +341,64 @@
   return result;
 }
 
+- (void)prepareCurrentStreamItem
+{
+  _pendingPlay = NO;
+
+  if (_player) {
+    [_player pause];
+    @try {
+      [_player removeObserver:self forKeyPath:@"timeControlStatus"];
+    } @catch (id e) {
+    }
+  }
+
+  if (_currentItem) {
+    @try {
+      [_currentItem removeObserver:self forKeyPath:@"status"];
+    } @catch (id e) {
+    }
+    if (_metadataOutput) {
+      [_currentItem removeOutput:_metadataOutput];
+      _metadataOutput = nil;
+    }
+    _currentItem = nil;
+  }
+
+  if (!_player) {
+    _player = [AVPlayer playerWithPlayerItem:nil];
+    _player.automaticallyWaitsToMinimizeStalling = YES;
+  }
+
+  [self fireState:@"buffering"];
+  [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
+
+  NSString *urlString = [_currentURL copy];
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    AVPlayerItem *newItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:urlString]];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (![urlString isEqualToString:self->_currentURL]) {
+        return;
+      }
+
+      self->_currentItem = newItem;
+      [self->_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
+
+      self->_metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
+      [self->_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
+      [self->_currentItem addOutput:self->_metadataOutput];
+
+      [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
+
+      if (self->_pendingPlay) {
+        self->_pendingPlay = NO;
+        [self->_player play];
+      }
+    });
+  });
+}
+
 #pragma mark - Internal
 
 - (void)updateNowPlaying
@@ -504,23 +516,29 @@
 
     NSLog(@"[ti.audiostream] Parsed Metadata: Title='%@', Artist='%@', Artwork=%@, ArtworkURL=%@", title, artist, artwork ? @"YES" : @"NO", artworkURL ?: @"none");
 
+    NSString *eventTitle = title ?: @"";
+    NSString *eventArtist = artist ?: @"";
     BOOL changed = NO;
-    if (title && ![title isEqualToString:_currentTitle]) {
-      _currentTitle = title;
-      changed = YES;
-    }
-    if (artist && ![artist isEqualToString:_currentArtist]) {
-      _currentArtist = artist;
-      changed = YES;
-    }
-    if (artwork) {
-      _currentArtwork = artwork;
-      changed = YES;
+    if (_autoUpdateMetadata) {
+      if (title && ![title isEqualToString:_currentTitle]) {
+        _currentTitle = title;
+        changed = YES;
+      }
+      if (artist && ![artist isEqualToString:_currentArtist]) {
+        _currentArtist = artist;
+        changed = YES;
+      }
+      if (artwork) {
+        _currentArtwork = artwork;
+        changed = YES;
+      }
     }
 
     // Fetch artwork from URL if found
     if (artworkURL) {
       __block NSString *capturedArtworkURL = [artworkURL copy]; // Capture for block
+      __block NSString *capturedEventTitle = [eventTitle copy];
+      __block NSString *capturedEventArtist = [eventArtist copy];
       NSUInteger expectedGeneration = _artworkGeneration;
       NSString *expectedURL = [_currentURL copy];
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -534,17 +552,17 @@
             if (expectedURL && self->_currentURL && ![expectedURL isEqualToString:self->_currentURL]) {
               return;
             }
-            self->_currentArtwork = img;
             // Only update remote controls if auto-update is enabled
             if (self->_autoUpdateMetadata) {
+              self->_currentArtwork = img;
               [self updateNowPlaying];
             }
             // Fire metadata event again with artwork URL (always fire for app UI)
             if ([self _hasListeners:@"metadata"]) {
               [self fireEvent:@"metadata"
                    withObject:@{
-                     @"title" : self->_currentTitle ?: @"",
-                     @"artist" : self->_currentArtist ?: @"",
+                     @"title" : capturedEventTitle ?: @"",
+                     @"artist" : capturedEventArtist ?: @"",
                      @"artwork" : capturedArtworkURL,
                      @"raw" : rawSource
                    }];
@@ -556,21 +574,18 @@
       changed = YES;
     }
 
-    if (changed) {
-      // Only update remote controls if auto-update is enabled
-      if (!artworkURL && self->_autoUpdateMetadata) {
-        [self updateNowPlaying];
-      }
-      // Always fire metadata event for app UI
-      if ([self _hasListeners:@"metadata"]) {
-        [self fireEvent:@"metadata"
-             withObject:@{
-               @"title" : _currentTitle ?: @"",
-               @"artist" : _currentArtist ?: @"",
-               @"artwork" : artworkURL ?: @"",
-               @"raw" : rawSource
-             }];
-      }
+    if (changed && !artworkURL && self->_autoUpdateMetadata) {
+      [self updateNowPlaying];
+    }
+
+    if ([self _hasListeners:@"metadata"]) {
+      [self fireEvent:@"metadata"
+           withObject:@{
+             @"title" : eventTitle,
+             @"artist" : eventArtist,
+             @"artwork" : artworkURL ?: @"",
+             @"raw" : rawSource
+           }];
     }
   }
 }
