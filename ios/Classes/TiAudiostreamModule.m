@@ -26,6 +26,9 @@
   NSArray *_titleRules;
   NSArray *_artistRules;
   NSString *_lastEmittedState;
+  NSString *_lastEmittedMetadataTitle;
+  NSString *_lastEmittedMetadataArtist;
+  NSString *_lastEmittedMetadataArtwork;
   BOOL _pendingPlay;
   NSUInteger _artworkGeneration;
 }
@@ -105,6 +108,9 @@
 {
   ENSURE_SINGLE_ARG(args, NSDictionary);
   _artworkGeneration++;
+  _lastEmittedMetadataTitle = nil;
+  _lastEmittedMetadataArtist = nil;
+  _lastEmittedMetadataArtwork = nil;
   _currentURL = [TiUtils stringValue:@"url" properties:args];
   _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
   _autoUpdateMetadata = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
@@ -195,6 +201,9 @@
   }
 
   _artworkGeneration++;
+  _lastEmittedMetadataTitle = nil;
+  _lastEmittedMetadataArtist = nil;
+  _lastEmittedMetadataArtwork = nil;
   _pendingPlay = NO;
   if (_player) {
     [_player pause];
@@ -211,6 +220,9 @@
 - (void)hardStop:(id)unused
 {
   _artworkGeneration++;
+  _lastEmittedMetadataTitle = nil;
+  _lastEmittedMetadataArtist = nil;
+  _lastEmittedMetadataArtwork = nil;
   _pendingPlay = NO;
   if (_player) {
     [_player pause];
@@ -420,6 +432,33 @@
   });
 }
 
+- (void)emitMetadataIfChangedWithTitle:(NSString *)title artist:(NSString *)artist artwork:(NSString *)artwork raw:(NSDictionary *)raw
+{
+  NSString *safeTitle = title ?: @"";
+  NSString *safeArtist = artist ?: @"";
+  NSString *safeArtwork = artwork ?: @"";
+
+  if ((_lastEmittedMetadataTitle == safeTitle || [_lastEmittedMetadataTitle isEqualToString:safeTitle]) &&
+      (_lastEmittedMetadataArtist == safeArtist || [_lastEmittedMetadataArtist isEqualToString:safeArtist]) &&
+      (_lastEmittedMetadataArtwork == safeArtwork || [_lastEmittedMetadataArtwork isEqualToString:safeArtwork])) {
+    return;
+  }
+
+  _lastEmittedMetadataTitle = [safeTitle copy];
+  _lastEmittedMetadataArtist = [safeArtist copy];
+  _lastEmittedMetadataArtwork = [safeArtwork copy];
+
+  if ([self _hasListeners:@"metadata"]) {
+    [self fireEvent:@"metadata"
+         withObject:@{
+           @"title" : safeTitle,
+           @"artist" : safeArtist,
+           @"artwork" : safeArtwork,
+           @"raw" : raw ?: @{}
+         }];
+  }
+}
+
 #pragma mark - Internal
 
 - (void)updateNowPlaying
@@ -578,16 +617,10 @@
               self->_currentArtwork = img;
               [self updateNowPlaying];
             }
-            // Fire metadata event again with artwork URL (always fire for app UI)
-            if ([self _hasListeners:@"metadata"]) {
-              [self fireEvent:@"metadata"
-                   withObject:@{
-                     @"title" : capturedEventTitle ?: @"",
-                     @"artist" : capturedEventArtist ?: @"",
-                     @"artwork" : capturedArtworkURL,
-                     @"raw" : rawSource
-                   }];
-            }
+            [self emitMetadataIfChangedWithTitle:capturedEventTitle
+                                          artist:capturedEventArtist
+                                         artwork:capturedArtworkURL
+                                             raw:rawSource];
           });
         }
       });
@@ -599,15 +632,10 @@
       [self updateNowPlaying];
     }
 
-    if ([self _hasListeners:@"metadata"]) {
-      [self fireEvent:@"metadata"
-           withObject:@{
-             @"title" : eventTitle,
-             @"artist" : eventArtist,
-             @"artwork" : artworkURL ?: @"",
-             @"raw" : rawSource
-           }];
-    }
+    [self emitMetadataIfChangedWithTitle:eventTitle
+                                  artist:eventArtist
+                                 artwork:(artworkURL ? @"" : @"")
+                                     raw:rawSource];
   }
 }
 

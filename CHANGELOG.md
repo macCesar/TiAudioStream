@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - **Manual lock screen metadata no longer gets overwritten on iOS**: When `autoUpdateMetadata` is `false`, timed stream metadata still fires the `metadata` event for app UI, but it no longer mutates the internal Now Playing fields or replaces values previously set with `setMetadata()`.
+- **Duplicate `metadata` events on iOS / Mac Catalyst**: Timed metadata that included a `StreamUrl` artwork link could emit the same payload twice. The module now deduplicates repeated payloads and only emits artwork to app UI once the artwork URL has been resolved.
 - **`remotecontrol` PLAY/STOP parity on Android**: Added `remotecontrol` emission from the `MediaSessionCompat.Callback` path so devices like Pixel that route transport commands through the media session deliver `PLAY`, `PAUSE`, and `STOP` events consistently.
 
 ---
