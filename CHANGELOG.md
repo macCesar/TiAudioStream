@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-03-11
+
+### Fixed
+- **Manual lock screen metadata no longer gets overwritten on iOS**: When `autoUpdateMetadata` is `false`, timed stream metadata still fires the `metadata` event for app UI, but it no longer mutates the internal Now Playing fields or replaces values previously set with `setMetadata()`.
+- **`stop()` / restart lifecycle on iOS**: Stopping playback now fully clears the active `AVPlayerItem`, metadata output, observers, and deactivates the audio session. This fixes Control Center getting stuck after `stop()` and improves restart behavior from remote controls.
+- **`remotecontrol` PLAY/STOP parity on Android**: Added `remotecontrol` emission from the `MediaSessionCompat.Callback` path so devices like Pixel that route transport commands through the media session deliver `PLAY`, `PAUSE`, and `STOP` events consistently.
+
+---
+
 ## [1.1.1] - 2026-02-20
 
 ### Fixed
