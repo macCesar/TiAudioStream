@@ -4,9 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [1.1.2] - 2026-03-11
 
+### Added
+- **`hardStop()` for explicit live reconnect behavior**: Added a dedicated hard-stop API for cases where apps want a real teardown and a fresh reconnect to the live edge on the next `start()`. `stop({ hard: true })` is also supported for parity.
+
+### Changed
+- **`stop()` now stays a soft stop**: `stop()` preserves fast-resume behavior for live streams while hiding system controls. This avoids changing the practical behavior expected by radio-style apps, while `hardStop()` covers the explicit teardown case.
+
 ### Fixed
 - **Manual lock screen metadata no longer gets overwritten on iOS**: When `autoUpdateMetadata` is `false`, timed stream metadata still fires the `metadata` event for app UI, but it no longer mutates the internal Now Playing fields or replaces values previously set with `setMetadata()`.
-- **`stop()` / restart lifecycle on iOS**: Stopping playback now fully clears the active `AVPlayerItem`, metadata output, observers, and deactivates the audio session. This fixes Control Center getting stuck after `stop()` and improves restart behavior from remote controls.
 - **`remotecontrol` PLAY/STOP parity on Android**: Added `remotecontrol` emission from the `MediaSessionCompat.Callback` path so devices like Pixel that route transport commands through the media session deliver `PLAY`, `PAUSE`, and `STOP` events consistently.
 
 ---

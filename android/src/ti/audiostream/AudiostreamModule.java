@@ -247,17 +247,38 @@ public class AudiostreamModule extends KrollModule
 	}
 
 	/**
-	 * Stop playback and release resources
+	 * Soft-stop playback while keeping the stream ready for quick resume
 	 */
 	@Kroll.method
-	public void stop()
+	public void stop(@Kroll.argument(optional = true) KrollDict args)
 	{
 		Log.d(LCAT, "stop");
+		isPlaying = false;
+		boolean hardStop = args != null && TiConvert.toBoolean(args.get("hard"), false);
+		if (hardStop) {
+			serviceStarted = false;
+		}
+
+		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
+		intent.setAction(MediaPlaybackService.ACTION_STOP);
+		intent.putExtra(MediaPlaybackService.EXTRA_HARD_STOP, hardStop);
+
+		startServiceSafely(intent);
+	}
+
+	/**
+	 * Stop playback completely, release resources, and force a fresh reconnect on next start
+	 */
+	@Kroll.method
+	public void hardStop()
+	{
+		Log.d(LCAT, "hardStop");
 		isPlaying = false;
 		serviceStarted = false;
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_STOP);
+		intent.putExtra(MediaPlaybackService.EXTRA_HARD_STOP, true);
 
 		startServiceSafely(intent);
 	}

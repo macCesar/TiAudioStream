@@ -85,6 +85,7 @@ public class MediaPlaybackService extends Service
 	public static final String EXTRA_ARTWORK_URL = "artworkUrl";
 	public static final String EXTRA_AUTO_UPDATE_METADATA = "autoUpdateMetadata";
 	public static final String EXTRA_METADATA_RULES = "metadataRules";
+	public static final String EXTRA_HARD_STOP = "hardStop";
 
 	        // Media3 ExoPlayer
 	        private ExoPlayer player;
@@ -562,7 +563,7 @@ public class MediaPlaybackService extends Service
 				break;
 
 			case ACTION_STOP:
-				stop();
+				handleStop(intent);
 				break;
 
 			case ACTION_SET_METADATA:
@@ -829,18 +830,53 @@ public class MediaPlaybackService extends Service
 		player.pause();
 		updateNotification();
 	}
-	
-	        private void stop()
-	        {
-	                Log.d(LCAT, "Stopping playback and service");
-	                artworkGeneration.incrementAndGet();
 
-	                resumeOnFocusGain = false;
-	                resetRetryLogic();
-	                abandonAudioFocus();
-			if (player != null) {
+	private void handleStop(Intent intent)
+	{
+		boolean hardStop = intent != null && intent.getBooleanExtra(EXTRA_HARD_STOP, false);
+		if (hardStop) {
+			hardStop();
+			return;
+		}
+		stop();
+	}
+
+	private void stop()
+	{
+		Log.d(LCAT, "Soft stop: pausing playback and hiding controls");
+		artworkGeneration.incrementAndGet();
+
+		resumeOnFocusGain = false;
+		resetRetryLogic();
+		abandonAudioFocus();
+		if (player != null) {
+			player.pause();
+		}
+
+		updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
+		AudiostreamModule.fireState("stopped");
+
+		if (mediaSession != null) {
+			mediaSession.setActive(false);
+		}
+
+		removeNotification();
+	}
+
+	private void hardStop()
+	{
+		Log.d(LCAT, "Hard stop: tearing down playback and service");
+		artworkGeneration.incrementAndGet();
+
+		resumeOnFocusGain = false;
+		resetRetryLogic();
+		abandonAudioFocus();
+		if (player != null) {
 			player.stop();
 		}
+
+		updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
+		AudiostreamModule.fireState("stopped");
 
 		if (mediaSession != null) {
 			mediaSession.setActive(false);
@@ -1226,10 +1262,20 @@ public class MediaPlaybackService extends Service
 		return new NotificationCompat.Action(icon, title, pendingIntent);
 	}
 
+	private void removeNotification()
+	{
+		Log.d(LCAT, "Removing playback notification");
+		ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
+		NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+		if (manager != null) {
+			manager.cancel(NOTIFICATION_ID);
+		}
+	}
+
 	private void stopForegroundService()
 	{
 		Log.d(LCAT, "Stopping foreground service");
-		ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
+		removeNotification();
 		stopSelf();
 	}
 
@@ -1301,7 +1347,7 @@ public class MediaPlaybackService extends Service
 	public void onTaskRemoved(Intent rootIntent)
 	{
 		Log.d(LCAT, "App task removed - cleaning up");
-		stop();
+		hardStop();
 		super.onTaskRemoved(rootIntent);
 	}
 
