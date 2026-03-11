@@ -1,6 +1,6 @@
 # ti.audiostream
 
-Audio streaming module for Titanium SDK. It gives you background playback, system media controls, and real-time metadata on Android and iOS through one API.
+Audio streaming module for Titanium SDK. It handles background playback, system media controls, and live metadata on Android and iOS through one API.
 
 <div align="center">
 
@@ -14,7 +14,7 @@ Audio streaming module for Titanium SDK. It gives you background playback, syste
 
 `Ti.Media.AudioPlayer` is fine for simple playback, but radio and live streams usually need more: lock screen controls, metadata parsing, reliable background behavior, and proper audio focus handling. Without that, you end up adding platform-specific patches in app code.
 
-`ti.audiostream` uses Media3 ExoPlayer on Android and AVPlayer on iOS behind one JavaScript API. Playback and system integration are handled in the module, so ICY/ID3 parsing, artwork updates, and interruption/resume behavior stay consistent across platforms.
+`ti.audiostream` uses Media3 ExoPlayer on Android and AVPlayer on iOS behind a single JavaScript API. The module handles playback and system integration, so ICY/ID3 parsing, artwork updates, and interruption or resume behavior stay consistent across platforms.
 
 ## Features
 
@@ -40,7 +40,7 @@ The iOS module includes Mac Catalyst support (`mac: true` in manifest). Running 
 
 The required fixes are in an open Titanium SDK PR: [tidev/titanium-sdk#14391](https://github.com/tidev/titanium-sdk/pull/14391)
 
-Once the PR is merged, building from source will work out of the box with the SDK version that includes these fixes. The pre-built module zip works on `13.1.1.GA+` without any custom SDK.
+Once that PR lands in a GA release, building from source should work without any custom SDK. The pre-built module zip already works on `13.1.1.GA+`.
 
 ## Installation
 
@@ -65,9 +65,9 @@ Add the `audio` background mode to your `tiapp.xml` inside the `<ios><plist><dic
 
 Without this, iOS will suspend audio when the app goes to the background.
 
-### 3. Android: Permissions (automatic)
+### 3. Android: permissions
 
-The module's `timodule.xml` declares the required permissions, and Titanium merges them into your build automatically:
+The module's `timodule.xml` declares the required permissions, and Titanium merges them into your build:
 
 - `INTERNET` - stream access
 - `WAKE_LOCK` - prevents CPU sleep during playback
@@ -76,7 +76,7 @@ The module's `timodule.xml` declares the required permissions, and Titanium merg
 
 You don't need to add these to your `tiapp.xml`.
 
-## Quick Start
+## Quick start
 
 ```javascript
 const audioStream = require('ti.audiostream')
@@ -107,13 +107,13 @@ audioStream.addEventListener('metadata', (e) => {
 audioStream.start()
 ```
 
-## API Reference
+## API reference
 
 ### Methods
 
 #### `setStream(options)`
 
-Initializes the audio source. Call this before `start()` or to switch streams.
+Initializes the audio source. Call this before `start()` or when switching streams.
 
 | Parameter            | Type          | Required | Description                                                                                                             |
 | :------------------- | :------------ | :------- | :---------------------------------------------------------------------------------------------------------------------- |
@@ -142,7 +142,7 @@ audioStream.setStream({
 
 #### `start()` / `play()`
 
-Starts or resumes playback. Requests audio focus and activates system controls automatically.
+Starts or resumes playback. The module requests audio focus and enables system controls automatically.
 
 #### `pause()`
 
@@ -152,11 +152,11 @@ Pauses playback. The notification stays visible so the user can resume from the 
 
 Soft-stops playback for live streams. It hides system controls and releases audio focus, but keeps the current stream prepared when possible so `start()` can resume quickly.
 
-Use this when you want fast resume behavior similar to many radio/music apps.
+Use this when you want fast resume behavior, similar to many radio or music apps.
 
 #### `hardStop()`
 
-Stops playback completely and tears down the active stream/session so the next `start()` performs a fresh reconnect.
+Stops playback completely and tears down the active stream or session so the next `start()` does a fresh reconnect.
 
 Use this for live radio when you want to return to the live edge instead of resuming from buffered audio.
 
@@ -199,7 +199,7 @@ audioStream.setMetadata({
 
 #### `setAutoUpdateMetadata(enabled)`
 
-Toggles whether stream metadata automatically updates the lock screen and notification.
+Controls whether stream metadata updates the lock screen and notification automatically.
 
 - `true` - stream metadata updates system controls automatically (default)
 - `false` - only `setMetadata()` calls update system controls. The `metadata` event still fires either way
@@ -211,7 +211,7 @@ audioStream.setAutoUpdateMetadata(false)
 
 #### `setMetadataRules(rules)`
 
-Defines regex-based cleanup rules that the module applies automatically to parsed metadata before updating the lock screen and firing the `metadata` event. `autoUpdateMetadata` stays on; rules and auto-update work together.
+Defines regex-based cleanup rules. The module applies them to parsed metadata before updating the lock screen and firing the `metadata` event. `autoUpdateMetadata` stays on, so rules and auto-update still work together.
 
 | Parameter | Type          | Description                                                             |
 | :-------- | :------------ | :---------------------------------------------------------------------- |
@@ -259,7 +259,7 @@ audioStream.setMetadataRules(null)
 
 #### `state`
 
-Fired on playback state changes.
+Fires on playback state changes.
 
 | Property | Type   | Values                                               |
 | :------- | :----- | :--------------------------------------------------- |
@@ -267,7 +267,7 @@ Fired on playback state changes.
 
 #### `metadata`
 
-Fired when the engine extracts new metadata from the stream. This event fires regardless of the `autoUpdateMetadata` setting, so your app code always gets it.
+Fires when the engine extracts new metadata from the stream. This event fires regardless of the `autoUpdateMetadata` setting, so your app code always receives it.
 
 | Property  | Type   | Description                                        |
 | :-------- | :----- | :------------------------------------------------- |
@@ -278,24 +278,24 @@ Fired when the engine extracts new metadata from the stream. This event fires re
 
 #### `error`
 
-Fired on playback errors.
+Fires on playback errors.
 
 | Property  | Type   | Description       |
 | :-------- | :----- | :---------------- |
 | `message` | String | Error description |
 
-On Android, the module automatically retries failed connections up to **5 times** with a **3-second delay** between attempts before firing this event.
+On Android, the module retries failed connections up to **5 times** with a **3-second delay** between attempts before firing this event.
 
 #### `remotecontrol`
 
-Fired when the user interacts with system media controls (lock screen, notification, Control Center).
+Fires when the user interacts with system media controls (lock screen, notification, Control Center).
 
 | Property  | Type   | Description                             |
 | :-------- | :----- | :-------------------------------------- |
 | `action`  | String | `PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV` |
 | `subtype` | Number | Numeric constant (see table below)      |
 
-The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fire the event so your app can decide what to do (the module doesn't know your playlist).
+The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fire the event so your app can decide what to do. The module does not know your playlist.
 
 **Constants:**
 
@@ -316,9 +316,9 @@ The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fir
 
 ### Updating your app UI from stream metadata
 
-The lock screen, notification, and Control Center update automatically when the stream sends new metadata. You don't need any code for that.
+The lock screen, notification, and Control Center update automatically when the stream sends new metadata. You do not need any extra code for that.
 
-Your app UI is a different story. To keep your own labels and images in sync, listen for the `metadata` event:
+Your app UI is separate. To keep your own labels and images in sync, listen for the `metadata` event:
 
 ```javascript
 const audioStream = require('ti.audiostream')
@@ -340,11 +340,11 @@ audioStream.addEventListener('metadata', (e) => {
 audioStream.start()
 ```
 
-System controls are fully automatic. Your in-app UI is manual via the event.
+System controls update automatically. Your in-app UI updates through the event.
 
 ### Handling remote controls (playlist rotation)
 
-Play/Pause/Stop are handled automatically by the engine. You only need to handle `NEXT` and `PREV`:
+Play, pause, and stop are handled automatically by the engine. You only need to handle `NEXT` and `PREV`:
 
 ```javascript
 const STREAMS = [
@@ -383,7 +383,7 @@ loadStation(0)
 
 ### Custom metadata cleaning
 
-Some streams send messy metadata with extra tags, weird formatting, or raw codes. Use `setMetadataRules()` to define regex cleanup rules that the module applies automatically, without disabling auto-update or writing manual event handling:
+Some streams send messy metadata with extra tags, odd formatting, or raw codes. Use `setMetadataRules()` to define regex cleanup rules that the module applies automatically, without disabling auto-update or writing manual event handling:
 
 ```javascript
 // Stream sends: "Mission, The - Tower Of Strength (1987) - Single"
@@ -395,14 +395,14 @@ audioStream.setMetadataRules({
   ],
   title: [
     { match: '\\s*\\[.*?\\]\\s*', replace: '' },       // Remove [tags]
-    { match: '\\s*\\(\\d{4}\\)(?:\\s*-\\s*.+)?$', replace: '' }  // Remove (YYYY) y también (YYYY) - ... al final del título
+    { match: '\\s*\\(\\d{4}\\)(?:\\s*-\\s*.+)?$', replace: '' }  // Remove trailing (YYYY) or (YYYY) - ...
   ]
 })
 ```
 
 Rules are applied after the module's built-in parsing (ICY split, "Artist - Title" split) and before updating the lock screen. The `metadata` event fires with the cleaned values. Call `setMetadataRules(null)` to clear all rules.
 
-For cases where regex rules aren't enough, you can still take full manual control:
+If regex rules are not enough, you can still take full manual control:
 
 ```javascript
 // Disable automatic lock screen updates
@@ -476,7 +476,7 @@ On Android, the engine retries failed connections automatically (5 attempts, 3 s
 
 ## How metadata extraction works
 
-Both platforms parse metadata through multiple layers to handle different stream formats:
+Both platforms parse metadata through multiple layers so they can handle different stream formats:
 
 | Format                 | Source                            | Example                          |
 | :--------------------- | :-------------------------------- | :------------------------------- |
@@ -487,7 +487,7 @@ Both platforms parse metadata through multiple layers to handle different stream
 | **Stream URL artwork** | ICY URL ending in image extension | `http://...cover.jpg`            |
 | **Embedded artwork**   | Binary image data in metadata     | APIC frames, CommonMetadata      |
 
-When a stream sends `Artist - Title` as a single string (common with ICY), the module splits it automatically. The `raw` property in the `metadata` event gives you every tag the parser found, which is useful for debugging non-standard formats.
+When a stream sends `Artist - Title` as a single string, which is common with ICY, the module splits it automatically. The `raw` property in the `metadata` event gives you every tag the parser found, which helps when debugging non-standard formats.
 
 ## Technical implementation
 
