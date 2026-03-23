@@ -39,7 +39,9 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
 import org.appcelerator.kroll.common.Log;
 
@@ -377,14 +379,13 @@ public class MediaPlaybackService extends Service
 							// Check if ICY_URL contains an artwork URL (Radio Paradise, etc.)
 							String artworkUrl = icy.url;
 							if (artworkUrl != null && !artworkUrl.isEmpty()) {
-								// Check if it looks like an image URL
-									if (artworkUrl.contains(".jpg") || artworkUrl.contains(".jpeg") ||
-										artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
-										artworkUrl.contains(".webp")) {
-										Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
-										fetchArtworkFromUrl(artworkUrl, artworkGeneration.get());
-									}
+								if (artworkUrl.contains(".jpg") || artworkUrl.contains(".jpeg") ||
+									artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
+									artworkUrl.contains(".webp")) {
+									Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
+									fetchArtworkFromUrl(artworkUrl, artworkGeneration.get());
 								}
+							}
 							}
 						// 2. Check for ID3 Text Frames (TIT2, etc)
 						else if (entry instanceof androidx.media3.extractor.metadata.id3.TextInformationFrame) {
@@ -481,7 +482,13 @@ public class MediaPlaybackService extends Service
 
 	private void initializePlayer()
 	{
-		player = new ExoPlayer.Builder(this).build();
+		DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+			.setUserAgent("Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36");
+		DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(this)
+			.setDataSourceFactory(httpFactory);
+		player = new ExoPlayer.Builder(this)
+			.setMediaSourceFactory(mediaSourceFactory)
+			.build();
 		player.addListener(playerListener);
 		Log.d(LCAT, "Media3 ExoPlayer initialized");
 	}

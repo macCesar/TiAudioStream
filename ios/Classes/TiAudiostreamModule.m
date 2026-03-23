@@ -531,7 +531,7 @@
           [stringValue hasSuffix:@".png"] || [stringValue hasSuffix:@".gif"] ||
           [stringValue containsString:@".jpg?"] || [stringValue containsString:@".png?"]) {
         artworkURL = stringValue;
-        NSLog(@"[ti.audiostream] Found artwork URL: %@", artworkURL);
+        NSLog(@"[ti.audiostream] Found artwork URL in StreamUrl: %@", artworkURL);
       }
     }
 
