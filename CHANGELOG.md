@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2026-03-23
+
+### Fixed
+- **Android: 403 errors on streams that block ExoPlayer's default User-Agent (Live365, etc.)**: ExoPlayer sends `ExoPlayer/<version>` as its User-Agent, which some streaming servers reject. The module now uses a standard mobile browser User-Agent so these streams connect successfully.
+
+---
+
 ## [1.1.2] - 2026-03-11
 
 ### Added
