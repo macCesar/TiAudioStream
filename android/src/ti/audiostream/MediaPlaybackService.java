@@ -12,28 +12,33 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.IBinder;
 import android.os.Looper;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.ServiceCompat;
+import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
@@ -62,7 +67,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 @OptIn(markerClass = UnstableApi.class)
-public class MediaPlaybackService extends Service
+public class MediaPlaybackService extends MediaBrowserServiceCompat
 {
 	private static final String LCAT = "AudiostreamService";
 	private static final String CHANNEL_ID = "audiostream_media";
@@ -106,11 +111,18 @@ public class MediaPlaybackService extends Service
 	private String currentArtist = "";
 	private Bitmap currentArtwork = null;
 	private Bitmap transparentArtwork = null;
+	private Bitmap appIconBitmap = null;
 	private boolean sessionHadArtwork = false;
 	private final AtomicLong artworkGeneration = new AtomicLong(0);
 	private String lastEmittedTitle = null;
 	private String lastEmittedArtist = null;
 	private String lastEmittedArtwork = null;
+
+	// onEvents() state: both onMediaMetadataChanged and onMetadata collect state,
+	// onEvents() emits exactly once per batch with complete data.
+	private boolean metadataDirty = false;
+	private String pendingArtworkUrl = null;
+	private java.util.Map<String, Object> pendingRawData = null;
 
 	// Reconnection
 	private int retryCount = 0;
@@ -333,8 +345,12 @@ public class MediaPlaybackService extends Service
 					if (mediaMetadata.displayTitle != null) rawData.put("displayTitle", mediaMetadata.displayTitle.toString());
 					
 						if (changed) {
-							Log.d(LCAT, "Firing metadata event with " + rawData.size() + " raw fields");
-							emitMetadataIfChanged(null, rawData);
+							metadataDirty = true;
+							if (pendingRawData == null) {
+								pendingRawData = new java.util.HashMap<>(rawData);
+							} else {
+								pendingRawData.putAll(rawData);
+							}
 						}
 					}
 		
@@ -343,7 +359,7 @@ public class MediaPlaybackService extends Service
 					Log.d(LCAT, "onMetadata received (" + metadata.length() + " entries)");
 					boolean changed = false;
 					java.util.Map<String, Object> rawData = new java.util.HashMap<>();
-					
+
 					for (int i = 0; i < metadata.length(); i++) {
 						androidx.media3.common.Metadata.Entry entry = metadata.get(i);
 
@@ -383,7 +399,7 @@ public class MediaPlaybackService extends Service
 									artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
 									artworkUrl.contains(".webp")) {
 									Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
-									fetchArtworkFromUrl(artworkUrl, artworkGeneration.get());
+									pendingArtworkUrl = artworkUrl;
 								}
 							}
 							}
@@ -413,14 +429,34 @@ public class MediaPlaybackService extends Service
 						}
 					}
 
-					// Emit only when title/artist actually changed to avoid duplicate UI updates.
-					if (changed) {
-						// Only update remote controls if auto-update is enabled
+					if (changed || pendingArtworkUrl != null) {
 						if (autoUpdateMetadata) {
 							updateMediaSessionMetadata();
 							updateNotification();
 						}
-						emitMetadataIfChanged(null, rawData);
+						metadataDirty = true;
+						if (pendingRawData == null) {
+							pendingRawData = new java.util.HashMap<>(rawData);
+						} else {
+							pendingRawData.putAll(rawData);
+						}
+					}
+				}
+
+				@Override
+				public void onEvents(Player player, Player.Events events) {
+					if (!metadataDirty) return;
+
+					metadataDirty = false;
+					String artworkUrl = pendingArtworkUrl;
+					java.util.Map<String, Object> rawData = pendingRawData;
+					pendingArtworkUrl = null;
+					pendingRawData = null;
+
+					emitMetadataIfChanged(artworkUrl, rawData);
+
+					if (artworkUrl != null) {
+						fetchArtworkFromUrl(artworkUrl, artworkGeneration.get());
 					}
 				}
 
@@ -478,6 +514,9 @@ public class MediaPlaybackService extends Service
 		ensureNotificationChannel();
 		initializePlayer();
 		initializeMediaSession();
+
+		// Android Auto: expose session token so browser clients can control playback
+		setSessionToken(mediaSession.getSessionToken());
 	}
 
 	private void initializePlayer()
@@ -534,6 +573,14 @@ public class MediaPlaybackService extends Service
 			public void onSkipToPrevious()
 			{
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PREV);
+			}
+
+			@Override
+			public void onPlayFromMediaId(String mediaId, Bundle extras)
+			{
+				if ("CURRENT_STREAM".equals(mediaId)) {
+					play();
+				}
 			}
 		});
 
@@ -758,6 +805,9 @@ public class MediaPlaybackService extends Service
 		lastEmittedTitle = null;
 		lastEmittedArtist = null;
 		lastEmittedArtwork = null;
+		metadataDirty = false;
+		pendingArtworkUrl = null;
+		pendingRawData = null;
 	}
 
 	private boolean sameString(String a, String b)
@@ -999,6 +1049,30 @@ public class MediaPlaybackService extends Service
 		cancelPendingReconnect();
 	}
 
+	private static final int MAX_ARTWORK_SIZE = 512;
+
+	/**
+	 * Scale a bitmap down to MAX_ARTWORK_SIZE if it exceeds that dimension.
+	 * Large bitmaps can exceed Binder transaction limits when passed through
+	 * MediaSession metadata, causing Bluetooth AVRCP and Android Auto to
+	 * silently drop the artwork.
+	 */
+	private static Bitmap scaleArtwork(Bitmap source)
+	{
+		if (source == null) {
+			return null;
+		}
+		int w = source.getWidth();
+		int h = source.getHeight();
+		if (w <= MAX_ARTWORK_SIZE && h <= MAX_ARTWORK_SIZE) {
+			return source;
+		}
+		float scale = Math.min((float) MAX_ARTWORK_SIZE / w, (float) MAX_ARTWORK_SIZE / h);
+		int newW = Math.round(w * scale);
+		int newH = Math.round(h * scale);
+		return Bitmap.createScaledBitmap(source, newW, newH, true);
+	}
+
 	private void updateMediaSessionMetadata()
 	{
 		if (mediaSession == null) {
@@ -1006,9 +1080,13 @@ public class MediaPlaybackService extends Service
 		}
 
 		boolean hasArtwork = currentArtwork != null;
+		Bitmap effectiveArtwork = currentArtwork != null ? currentArtwork : getAppIconBitmap();
+		Bitmap sessionArtwork = scaleArtwork(effectiveArtwork);
 
 		// Some OEM lock screens keep stale art unless ART/ALBUM_ART are explicitly cleared.
-		if (!hasArtwork) {
+		// When we have no stream artwork but DO have app icon fallback, we still need to
+		// clear first to force the OEM to pick up the new (fallback) bitmap.
+		if (!hasArtwork && sessionHadArtwork) {
 			MediaMetadataCompat.Builder clearMetadata = new MediaMetadataCompat.Builder()
 				.putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
 				.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentArtist)
@@ -1034,10 +1112,10 @@ public class MediaPlaybackService extends Service
 			metadata.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, -1);
 		}
 
-		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArtwork);
-		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, currentArtwork);
-		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, currentArtwork);
-		if (!hasArtwork) {
+		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, sessionArtwork);
+		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, sessionArtwork);
+		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, sessionArtwork);
+		if (!hasArtwork && sessionArtwork == null) {
 			metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, "");
 			metadata.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, "");
 			metadata.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, "");
@@ -1045,6 +1123,9 @@ public class MediaPlaybackService extends Service
 
 		mediaSession.setMetadata(metadata.build());
 		sessionHadArtwork = hasArtwork;
+
+		// Android Auto: refresh browse tree when metadata changes
+		notifyChildrenChanged("ROOT");
 	}
 
 	/**
@@ -1072,8 +1153,6 @@ public class MediaPlaybackService extends Service
 							currentArtwork = bitmap;
 							updateMediaSessionMetadata();
 							updateNotification();
-							// Fire metadata event with artwork URL for app UI
-							emitMetadataIfChanged(urlString, null);
 							Log.i(LCAT, "Artwork updated from URL: " + urlString);
 						});
 				} else {
@@ -1203,14 +1282,33 @@ public class MediaPlaybackService extends Service
 
 	private Bitmap getTransparentArtwork()
 	{
-		// TODO(macCesar): Revisit this workaround.
 		// Some OEM lock screens (e.g. OPPO/ColorOS) keep stale artwork when largeIcon is null.
 		// We force-replace it with a transparent 1x1 bitmap for now.
-		// Future: find an official way to restore the system generic placeholder icon on lock screen.
 		if (transparentArtwork == null || transparentArtwork.isRecycled()) {
 			transparentArtwork = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
 		}
 		return transparentArtwork;
+	}
+
+	private static final int APP_ICON_SIZE = 512;
+
+	private Bitmap getAppIconBitmap()
+	{
+		if (appIconBitmap == null || appIconBitmap.isRecycled()) {
+			try {
+				Drawable d = getPackageManager().getApplicationIcon(getPackageName());
+				if (d != null) {
+					appIconBitmap = Bitmap.createBitmap(APP_ICON_SIZE, APP_ICON_SIZE, Bitmap.Config.ARGB_8888);
+					Canvas canvas = new Canvas(appIconBitmap);
+					d.setBounds(0, 0, APP_ICON_SIZE, APP_ICON_SIZE);
+					d.draw(canvas);
+					Log.i(LCAT, "App icon loaded: " + APP_ICON_SIZE + "x" + APP_ICON_SIZE);
+				}
+			} catch (Exception e) {
+				Log.w(LCAT, "Could not load app icon: " + e.getMessage());
+			}
+		}
+		return appIconBitmap;
 	}
 
 	private Notification buildNotification()
@@ -1221,7 +1319,7 @@ public class MediaPlaybackService extends Service
 		}
 
 		boolean isPlaying = player != null && player.isPlaying();
-		Bitmap largeIcon = currentArtwork != null ? currentArtwork : getTransparentArtwork();
+		Bitmap largeIcon = currentArtwork != null ? currentArtwork : (getAppIconBitmap() != null ? getAppIconBitmap() : getTransparentArtwork());
 
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
 			.setContentTitle(currentTitle)
@@ -1312,11 +1410,37 @@ public class MediaPlaybackService extends Service
 		return flags;
 	}
 
+	// --- Android Auto: MediaBrowserServiceCompat ---
+
 	@Nullable
 	@Override
-	public IBinder onBind(Intent intent)
+	public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints)
 	{
-		return null;
+		return new BrowserRoot("ROOT", null);
+	}
+
+	@Override
+	public void onLoadChildren(@NonNull String parentId, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result)
+	{
+		List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+
+		if ("ROOT".equals(parentId) && currentUrl != null && !currentUrl.isEmpty()) {
+			MediaDescriptionCompat.Builder desc = new MediaDescriptionCompat.Builder()
+				.setMediaId("CURRENT_STREAM")
+				.setTitle(currentTitle != null && !currentTitle.isEmpty() ? currentTitle : "Live Stream")
+				.setSubtitle(currentArtist != null ? currentArtist : "");
+
+			Bitmap effectiveIcon = currentArtwork != null ? currentArtwork : getAppIconBitmap();
+			Bitmap icon = scaleArtwork(effectiveIcon);
+			if (icon != null) {
+				desc.setIconBitmap(icon);
+			}
+
+			items.add(new MediaBrowserCompat.MediaItem(desc.build(),
+				MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+		}
+
+		result.sendResult(items);
 	}
 
 	@Override
