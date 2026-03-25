@@ -10,6 +10,7 @@
 #import "TiHost.h"
 #import "TiUtils.h"
 #import <AVFoundation/AVFoundation.h>
+#import <ImageIO/ImageIO.h>
 #import <MediaPlayer/MediaPlayer.h>
 
 @interface TiAudiostreamModule () <AVPlayerItemMetadataOutputPushDelegate> {
@@ -31,6 +32,7 @@
   NSString *_lastEmittedMetadataArtwork;
   BOOL _pendingPlay;
   NSUInteger _artworkGeneration;
+  UIImage *_appIconImage;
 }
 @end
 
@@ -461,6 +463,86 @@
 
 #pragma mark - Internal
 
+- (UIImage *)appIconImage
+{
+  if (!_appIconImage) {
+    // Method 1: Load icon PNG directly from bundle (most reliable)
+    NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
+    NSArray *candidates = @[@"AppIcon60x60@3x.png", @"AppIcon60x60@2x.png",
+                            @"AppIcon76x76@2x.png", @"AppIcon83.5x83.5@2x.png",
+                            @"AppIcon60x60.png", @"AppIcon76x76.png"];
+    for (NSString *name in candidates) {
+      NSString *path = [bundlePath stringByAppendingPathComponent:name];
+      if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        _appIconImage = [UIImage imageWithContentsOfFile:path];
+        if (_appIconImage) {
+          NSLog(@"[ti.audiostream] App icon loaded from bundle: %@ (%gx%g)", name, _appIconImage.size.width, _appIconImage.size.height);
+          break;
+        }
+      }
+    }
+
+    // Method 2: CFBundleIcons → imageNamed
+    if (!_appIconImage) {
+      NSArray *iconFiles = [[NSBundle mainBundle] infoDictionary][@"CFBundleIcons"][@"CFBundlePrimaryIcon"][@"CFBundleIconFiles"];
+      if (iconFiles.count > 0) {
+        _appIconImage = [UIImage imageNamed:iconFiles.lastObject];
+        if (_appIconImage) {
+          NSLog(@"[ti.audiostream] App icon loaded via CFBundleIcons: %@", iconFiles.lastObject);
+        }
+      }
+    }
+
+    // Method 3: Try AppIcon by name
+    if (!_appIconImage) {
+      _appIconImage = [UIImage imageNamed:@"AppIcon"];
+      if (_appIconImage) {
+        NSLog(@"[ti.audiostream] App icon loaded via imageNamed:AppIcon");
+      }
+    }
+
+    // Method 4: Load from .icns file (Mac Catalyst)
+    if (!_appIconImage) {
+      NSString *icnsPath = [[NSBundle mainBundle] pathForResource:@"AppIcon" ofType:@"icns"];
+      if (icnsPath) {
+        NSData *data = [NSData dataWithContentsOfFile:icnsPath];
+        if (data) {
+          CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
+          if (source) {
+            CGImageRef largest = NULL;
+            size_t largestWidth = 0;
+            size_t count = CGImageSourceGetCount(source);
+            for (size_t i = 0; i < count; i++) {
+              CGImageRef img = CGImageSourceCreateImageAtIndex(source, i, NULL);
+              if (img) {
+                size_t w = CGImageGetWidth(img);
+                if (w > largestWidth) {
+                  if (largest) CGImageRelease(largest);
+                  largest = img;
+                  largestWidth = w;
+                } else {
+                  CGImageRelease(img);
+                }
+              }
+            }
+            if (largest) {
+              _appIconImage = [UIImage imageWithCGImage:largest];
+              CGImageRelease(largest);
+              NSLog(@"[ti.audiostream] App icon loaded from .icns (%gx%g)", _appIconImage.size.width, _appIconImage.size.height);
+            }
+            CFRelease(source);
+          }
+        }
+      }
+    }
+
+    if (!_appIconImage) {
+      NSLog(@"[ti.audiostream] WARNING: Could not load app icon from any source");
+    }
+  }
+  return _appIconImage;
+}
+
 - (void)updateNowPlaying
 {
   if (!_player)
@@ -473,10 +555,11 @@
   info[MPNowPlayingInfoPropertyPlaybackRate] = @(_player.rate);
   if (_isLive)
     info[MPNowPlayingInfoPropertyIsLiveStream] = @YES;
-  if (_currentArtwork) {
-    info[MPMediaItemPropertyArtwork] = [[MPMediaItemArtwork alloc] initWithBoundsSize:_currentArtwork.size
+  UIImage *artworkToShow = _currentArtwork ?: [self appIconImage];
+  if (artworkToShow) {
+    info[MPMediaItemPropertyArtwork] = [[MPMediaItemArtwork alloc] initWithBoundsSize:artworkToShow.size
                                                                        requestHandler:^UIImage *(CGSize size) {
-                                                                         return self->_currentArtwork;
+                                                                         return artworkToShow;
                                                                        }];
   }
   [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
@@ -502,8 +585,6 @@
     id value = item.value;
     NSString *keyString = [key isKindOfClass:[NSString class]] ? (NSString *)key : [key description];
     NSString *stringValue = [value isKindOfClass:[NSString class]] ? (NSString *)value : nil;
-
-    NSLog(@"[ti.audiostream] Metadata Item Found: key=%@, commonKey=%@, valueType=%@", keyString, commonKey, NSStringFromClass([value class]));
 
     if ([commonKey isEqualToString:AVMetadataCommonKeyTitle]) {
       title = (NSString *)value;
@@ -538,7 +619,6 @@
     // Deep Inspection for Embedded Metadata (Global Player / ID3 COMM frames)
     if (stringValue && !title) {
       if ([stringValue containsString:@"StreamTitle='"]) {
-        NSLog(@"[ti.audiostream] Found embedded StreamTitle in: %@", keyString);
         // Extract content between StreamTitle=' and ';
         NSRange startRange = [stringValue rangeOfString:@"StreamTitle='"];
         if (startRange.location != NSNotFound) {
@@ -546,7 +626,6 @@
           NSRange endRange = [stringValue rangeOfString:@"';" options:0 range:NSMakeRange(startPos, stringValue.length - startPos)];
           if (endRange.location != NSNotFound) {
             title = [stringValue substringWithRange:NSMakeRange(startPos, endRange.location - startPos)];
-            NSLog(@"[ti.audiostream] Extracted Title: %@", title);
           }
         }
       }
@@ -574,8 +653,6 @@
     if (_titleRules) title = [self applyRules:_titleRules toString:title];
     if (_artistRules) artist = [self applyRules:_artistRules toString:artist];
 
-    NSLog(@"[ti.audiostream] Parsed Metadata: Title='%@', Artist='%@', Artwork=%@, ArtworkURL=%@", title, artist, artwork ? @"YES" : @"NO", artworkURL ?: @"none");
-
     NSString *eventTitle = title ?: @"";
     NSString *eventArtist = artist ?: @"";
     BOOL changed = NO;
@@ -594,15 +671,12 @@
       }
     }
 
-    // Fetch artwork from URL if found
+    // Fetch artwork bitmap from URL for lock screen (no JS event — emitted below)
     if (artworkURL) {
-      __block NSString *capturedArtworkURL = [artworkURL copy]; // Capture for block
-      __block NSString *capturedEventTitle = [eventTitle copy];
-      __block NSString *capturedEventArtist = [eventArtist copy];
       NSUInteger expectedGeneration = _artworkGeneration;
       NSString *expectedURL = [_currentURL copy];
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:capturedArtworkURL]];
+        NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
         UIImage *img = [UIImage imageWithData:data];
         if (img) {
           dispatch_async(dispatch_get_main_queue(), ^{
@@ -612,19 +686,13 @@
             if (expectedURL && self->_currentURL && ![expectedURL isEqualToString:self->_currentURL]) {
               return;
             }
-            // Only update remote controls if auto-update is enabled
             if (self->_autoUpdateMetadata) {
               self->_currentArtwork = img;
               [self updateNowPlaying];
             }
-            [self emitMetadataIfChangedWithTitle:capturedEventTitle
-                                          artist:capturedEventArtist
-                                         artwork:capturedArtworkURL
-                                             raw:rawSource];
           });
         }
       });
-      // Update immediately without artwork, it'll come shortly
       changed = YES;
     }
 
@@ -634,7 +702,7 @@
 
     [self emitMetadataIfChangedWithTitle:eventTitle
                                   artist:eventArtist
-                                 artwork:(artworkURL ? @"" : @"")
+                                 artwork:(artworkURL ?: @"")
                                      raw:rawSource];
   }
 }
@@ -643,12 +711,9 @@
 
 - (void)metadataOutput:(AVPlayerItemMetadataOutput *)output didOutputTimedMetadataGroups:(NSArray<AVTimedMetadataGroup *> *)groups fromPlayerItemTrack:(AVPlayerItemTrack *)track
 {
-  NSLog(@"[ti.audiostream] Metadata output received %lu groups", (unsigned long)groups.count);
-
   for (AVTimedMetadataGroup *group in groups) {
     NSArray<AVMetadataItem *> *items = group.items;
     if (items.count > 0) {
-      NSLog(@"[ti.audiostream] Processing metadata group with %lu items", (unsigned long)items.count);
       [self parseMetadataItems:items];
     }
   }
@@ -674,7 +739,6 @@
   if (object == _currentItem && [keyPath isEqualToString:@"status"]) {
     AVPlayerItem *item = (AVPlayerItem *)object;
     if (item.status == AVPlayerItemStatusReadyToPlay) {
-      NSLog(@"[ti.audiostream] PlayerItem ReadyToPlay. Checking commonMetadata...");
       [self parseMetadataItems:item.asset.commonMetadata];
     } else if (item.status == AVPlayerItemStatusFailed) {
       NSError *error = item.error;
