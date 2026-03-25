@@ -1,0 +1,144 @@
+# ti.audiostream - iOS
+
+Platform-specific details for the iOS implementation of `ti.audiostream`.
+
+For the full API reference, see the [main README](../README.md).
+
+## iOS-specific behavior
+
+### Background audio
+
+Audio playback uses `AVAudioSession` with the **Playback** category, so audio continues when the screen locks or the app moves to the background.
+
+Background audio requires the `UIBackgroundModes` key in your `tiapp.xml` (inside `<ios><plist><dict>`):
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+</array>
+```
+
+Without this, iOS suspends audio when the app goes to the background.
+
+### Lock screen and system controls
+
+The module registers commands with `MPRemoteCommandCenter`:
+
+- Play
+- Pause
+- Stop
+- Next track
+- Previous track
+
+These controls appear on the lock screen, in Control Center, and on Apple Watch automatically.
+
+### Audio interruption handling
+
+| Scenario                               | Behavior                                                          |
+| :------------------------------------- | :---------------------------------------------------------------- |
+| Interruption begins (phone call, Siri) | Playback pauses                                                   |
+| Interruption ends                      | Playback resumes (only if it was playing before the interruption) |
+
+If the user manually paused before the interruption, playback stays paused after the interruption ends.
+
+### Mac Catalyst
+
+The iOS module includes Mac Catalyst support (`mac: true` in manifest). See the [main README](../README.md#mac-catalyst-note) for SDK version requirements.
+
+## CarPlay
+
+CarPlay works **automatically** with the module's existing `MPNowPlayingInfoCenter` and `MPRemoteCommandCenter` integration. No code changes are needed in the module or in your app.
+
+The only requirement is Apple's **CarPlay Audio entitlement**.
+
+### Setup step-by-step
+
+#### 1. Request the entitlement
+
+1. Go to [Apple's CarPlay entitlement request form](https://developer.apple.com/contact/carplay/)
+2. Fill in your app details and select **Audio** as the app type
+3. Submit. Apple reviews and approves it, usually within a few business days.
+
+#### 2. Update your provisioning profile
+
+After Apple approves the entitlement:
+
+1. Go to [Apple Developer account](https://developer.apple.com/account) > Certificates, Identifiers & Profiles > Identifiers
+2. Select your app identifier
+3. Enable the **CarPlay Audio** capability
+4. Regenerate your provisioning profile and download it
+
+#### 3. Add entitlement to tiapp.xml
+
+Add the CarPlay entitlement inside your `<ios>` section:
+
+```xml
+<ios>
+    <entitlements>
+        <dict>
+            <key>com.apple.developer.carplay-audio</key>
+            <true/>
+        </dict>
+    </entitlements>
+</ios>
+```
+
+#### 4. Background audio (required)
+
+Background audio must already be enabled in your `tiapp.xml` (inside `<ios><plist><dict>`). This is the same configuration required for background playback:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+</array>
+```
+
+#### 5. That's it
+
+Once configured, CarPlay picks up the module's Now Playing data automatically.
+
+### What appears on CarPlay
+
+- **Now Playing screen** with title, artist, and artwork
+- **Transport controls**: play/pause, next, previous, stop
+- The `remotecontrol` event fires normally from CarPlay interactions, with the same `action` values (`PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV`) as from the lock screen or Control Center
+
+### Limitations
+
+- Currently supports the **Now Playing screen only** (no station browsing list)
+- Apple must approve the entitlement before CarPlay works
+- The entitlement is **per-app**, not per-module
+
+## Testing with CarPlay Simulator
+
+1. Run your app on the iOS Simulator
+2. In the Simulator menu: **I/O → External Displays → CarPlay**
+3. Start a stream in your app
+4. Tap **Now Playing** on the CarPlay display
+
+The CarPlay entitlement is required even in the Simulator. Without it, your app will not appear as a selectable audio source on the CarPlay home screen.
+
+### Using a physical device
+
+Connect an iPhone to a CarPlay-compatible head unit (USB or wireless). The CarPlay entitlement must be approved and included in the provisioning profile.
+
+## Troubleshooting
+
+### App does not appear on CarPlay
+
+- Verify the CarPlay Audio entitlement is **approved** in your Apple Developer account
+- Confirm the provisioning profile has been regenerated and installed after approval
+- Make sure `UIBackgroundModes: audio` is set in `tiapp.xml`
+
+### No metadata on CarPlay
+
+- Ensure `setStream()` or `setMetadata()` is called before or during playback
+- Check that the stream is actually playing (metadata requires an active session)
+
+### Controls do not respond
+
+- Make sure you have a `remotecontrol` event listener set up for `NEXT` and `PREV`
+- Play, pause, and stop are handled automatically by the module
+- If no controls appear at all, verify the `UIBackgroundModes: audio` configuration

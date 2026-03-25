@@ -6,7 +6,7 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![SDK](https://img.shields.io/badge/Titanium%20SDK-13.1.0.GA%2B-orange)
+![SDK](https://img.shields.io/badge/Titanium%20SDK-13.1.1.GA%2B-orange)
 
 </div>
 
@@ -20,10 +20,10 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 
 - Same JavaScript API for Android (Media3 ExoPlayer) and iOS (AVPlayer)
 - Metadata parsing from ICY headers, ID3 tags, and non-standard payloads (for example embedded JSON used by some stations)
-- Artwork updates for lock screen and notification/control surfaces
+- Artwork updates for lock screen and notification/control surfaces, with automatic app icon fallback when no artwork is available
 - Audio focus and interruption handling (calls, Siri, other apps) with resume logic that respects manual pauses
 - Background playback support via Foreground Service (Android) and AVAudioSession (iOS)
-- System media controls support: lock screen, notification shade, Control Center, CarPlay, Apple Watch
+- System media controls support: lock screen, notification shade, Control Center, CarPlay, Apple Watch, Android Auto
 - Optional metadata auto-update control when you want to keep station branding instead of live track metadata
 
 ## Requirements
@@ -470,9 +470,41 @@ On Android, the engine retries failed connections automatically (5 attempts, 3 s
 
 - Background playback runs inside a Foreground Service with a persistent media notification
 - The notification has compact (lock screen), expanded (drawer), and system media player (Quick Settings) views
-- Uses MediaSession for Bluetooth devices, Android Auto, and the system output switcher
+- Uses MediaSession for Bluetooth devices and the system output switcher
+- Android Auto support via MediaBrowserService: the module registers as a media source so Android Auto can discover, display, and control the stream (see [Android Auto](#android-auto))
 - If the stream drops, the engine retries 5 times with a 3-second delay before reporting an error
 - All permissions are declared in the module's `timodule.xml` and merged automatically. No manual manifest editing needed
+
+## Android Auto
+
+The module registers as a `MediaBrowserService` so Android Auto discovers it as a media source automatically. No extra app code is needed. When connected to a head unit, the car display shows the stream title, artist, artwork, and playback controls.
+
+For setup details, testing with Desktop Head Unit, and troubleshooting, see the [Android-specific documentation](android/README.md#android-auto).
+
+## CarPlay
+
+The module uses `MPNowPlayingInfoCenter` and `MPRemoteCommandCenter`, which CarPlay reads from automatically. Once Apple approves the CarPlay Audio entitlement for your app, CarPlay shows the Now Playing screen with metadata and controls. No code changes needed.
+
+For the step-by-step entitlement setup, testing with CarPlay Simulator, and troubleshooting, see the [iOS-specific documentation](ios/README.md#carplay).
+
+### Car integration comparison
+
+| Feature | Bluetooth (AVRCP) | Android Auto | CarPlay |
+| :--- | :--- | :--- | :--- |
+| Title / Artist | Yes (AVRCP 1.3+) | Always | Always |
+| Artwork | Depends on AVRCP version | Always | Always |
+| App icon on head unit | No | Yes | No |
+| Playback controls | Basic (play/pause/next/prev) | Full | Full |
+| Content browsing | No | Yes | No (Now Playing only) |
+| Setup required | None | None | Apple entitlement approval |
+
+### Artwork on car stereos
+
+Android Auto uses its own display protocol and always shows artwork when available. Plain Bluetooth uses the AVRCP profile, where artwork support depends on the car stereo hardware.
+
+The module scales artwork to 512x512 before passing it to the MediaSession, which keeps bitmaps within the Binder transaction limits that the Bluetooth AVRCP stack requires. Without this, large artwork images are silently dropped and never reach the car display.
+
+If your car stereo supports AVRCP cover art (most modern stereos do), artwork should appear over Bluetooth. If it does not, the stereo likely uses an older AVRCP version (1.3 or below) that only transmits title and artist.
 
 ## How metadata extraction works
 
