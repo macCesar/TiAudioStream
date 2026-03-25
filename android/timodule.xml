@@ -7,6 +7,12 @@
 			<uses-permission android:name="android.permission.INTERNET"/>
 			<uses-permission android:name="android.permission.WAKE_LOCK"/>
 			<application>
+				<meta-data
+					android:name="com.google.android.gms.car.application"
+					android:resource="@xml/automotive_app_desc"/>
+				<meta-data
+					android:name="androidx.car.app.TintableAttributionIcon"
+					android:resource="@drawable/ic_audiostream_attribution"/>
 				<receiver
 					android:name="ti.audiostream.MediaActionReceiver"
 					android:exported="true">
@@ -24,7 +30,11 @@
 					android:name="ti.audiostream.MediaPlaybackService"
 					android:foregroundServiceType="mediaPlayback"
 					android:stopWithTask="false"
-					android:exported="false"/>
+					android:exported="true">
+					<intent-filter>
+						<action android:name="android.media.browse.MediaBrowserService"/>
+					</intent-filter>
+				</service>
 			</application>
 		</manifest>
 	</android>
