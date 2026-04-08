@@ -2,15 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.0] - 2026-03-24
+## [1.2.0] - 2026-04-08
 
 ### Added
 - **Android Auto support**: The module now registers as a `MediaBrowserService`, so Android Auto can discover, display, and control the stream. The car display shows the current title, artist, artwork, and playback controls automatically. No app code changes needed.
 - **App icon fallback artwork**: When no artwork is available from the stream or from `setStream()`/`setMetadata()`, the module automatically uses the app icon as fallback artwork for lock screen, notification, Control Center, CarPlay, and Android Auto.
+- **Automatic retry with error classification (Android/iOS)**: When a stream fails due to a transient network error (connection lost, timeout, no internet), the module retries up to 5 times with a 3-second delay between attempts. Terminal errors (bad domain, SSL/certificate failures) stop playback immediately with no retries. On Android, the retry logic now classifies the root cause of error code 2001 by inspecting the exception chain. On iOS, retry logic is entirely new — previous versions had no automatic reconnection.
 
 ### Fixed
 - **Android/iOS: duplicate `metadata` events when stream includes artwork URL**: Streams like Live365 that include artwork URLs in ICY metadata fired the `metadata` event twice, first without artwork, then again ~1s later with the URL after the async fetch completed. On Android, metadata collection now goes through Media3's `onEvents()` so both `onMediaMetadataChanged` and `onMetadata` merge into a single emit. On iOS, the async artwork fetch no longer emits a second event. Both platforms now fire one `metadata` event with the artwork URL included from the start.
 - **Android: artwork not showing on Bluetooth car stereos**: Large bitmaps could exceed Binder transaction limits, causing the AVRCP stack to silently drop the artwork. The module now scales artwork to 512x512 max before passing it to the MediaSession.
+- **Android: ForegroundServiceStartNotAllowedException on retry**: When the playback service was already running in the foreground, calling `start()` again (e.g., after retries exhausted) used `startForegroundService()` which crashes on Android 12+ if the app is in the background. Now uses `startService()` when the service is already active, and fires an error event if the foreground service fails to start.
 
 ### Changed
 - **iOS: removed verbose metadata parsing logs**: Repetitive `NSLog` calls that fired every HLS segment (~8s) were visible in production builds. Removed them. Only errors, config changes, and artwork URL discovery are logged now.
