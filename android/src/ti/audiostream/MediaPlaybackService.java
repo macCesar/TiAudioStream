@@ -259,16 +259,29 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			AudiostreamModule.fireState("error");
 			AudiostreamModule.fireError("Stream error: " + error.getMessage());
 
-			// Detect terminal errors (Source Errors)
-			boolean isSourceError = 
+			// Terminal errors — things that won't change on retry
+			boolean isTerminalError =
 				error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
 				error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
-				error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE ||
-				error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED;
+				error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE;
 
-			if (isSourceError) {
+			// For generic network errors (code 2001), inspect the cause chain
+			// to distinguish permanent failures from transient ones
+			if (!isTerminalError && error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
+				Throwable rootCause = error;
+				while (rootCause.getCause() != null) {
+					rootCause = rootCause.getCause();
+				}
+				if (rootCause instanceof java.net.UnknownHostException ||
+					rootCause instanceof javax.net.ssl.SSLException) {
+					Log.w(LCAT, "Permanent network error (" + rootCause.getClass().getSimpleName() + "): " + rootCause.getMessage());
+					isTerminalError = true;
+				}
+			}
+
+			if (isTerminalError) {
 				Log.w(LCAT, "Terminal source error detected. Stopping player but keeping notification controls.");
-				
+
 				// REFINEMENT: Stop player but DO NOT kill the service/notification
 				resetRetryLogic();
 				abandonAudioFocus();
