@@ -33,6 +33,10 @@
   BOOL _pendingPlay;
   NSUInteger _artworkGeneration;
   UIImage *_appIconImage;
+  int _retryCount;
+  int _maxRetries;
+  double _retryDelay;
+  NSTimer *_retryTimer;
 }
 @end
 
@@ -55,6 +59,11 @@
 
   // Default: auto-update metadata from stream
   _autoUpdateMetadata = YES;
+
+  // Reconnection defaults
+  _retryCount = 0;
+  _maxRetries = 5;
+  _retryDelay = 3.0;
 
 #if TARGET_OS_IOS
   AVAudioSession *session = [AVAudioSession sharedInstance];
@@ -109,6 +118,7 @@
 - (void)setStream:(id)args
 {
   ENSURE_SINGLE_ARG(args, NSDictionary);
+  [self resetRetryLogic];
   _artworkGeneration++;
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
@@ -160,6 +170,8 @@
   if (!_player)
     return;
 
+  [self resetRetryLogic];
+
   // Guard clause: If already playing, don't re-prepare or interrupt
   if (_player.rate > 0 && _currentItem.status == AVPlayerItemStatusReadyToPlay) {
     return;
@@ -202,6 +214,7 @@
     return;
   }
 
+  [self resetRetryLogic];
   _artworkGeneration++;
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
@@ -221,6 +234,7 @@
 
 - (void)hardStop:(id)unused
 {
+  [self resetRetryLogic];
   _artworkGeneration++;
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
@@ -728,6 +742,7 @@
       if (self->_player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate) {
         [self fireState:@"buffering"];
       } else if (self->_player.timeControlStatus == AVPlayerTimeControlStatusPlaying) {
+        self->_retryCount = 0;
         [self fireState:@"playing"];
         [self updateNowPlaying];
       } else if (self->_player.timeControlStatus == AVPlayerTimeControlStatusPaused) {
@@ -742,12 +757,53 @@
       [self parseMetadataItems:item.asset.commonMetadata];
     } else if (item.status == AVPlayerItemStatusFailed) {
       NSError *error = item.error;
-      NSLog(@"[ti.audiostream] Playback Failed: %@", error.localizedDescription);
+      NSLog(@"[ti.audiostream] Playback Failed: %@ (domain=%@, code=%ld)", error.localizedDescription, error.domain, (long)error.code);
+
+      // Classify the error: retryable (transient network) vs terminal (permanent)
+      BOOL isRetryable = NO;
+      if ([error.domain isEqualToString:NSURLErrorDomain]) {
+        switch (error.code) {
+          case NSURLErrorNetworkConnectionLost:
+          case NSURLErrorNotConnectedToInternet:
+          case NSURLErrorTimedOut:
+          case NSURLErrorDataNotAllowed:
+          case NSURLErrorInternationalRoamingOff:
+          case NSURLErrorCallIsActive:
+            // Transient network issues — worth retrying
+            isRetryable = YES;
+            break;
+          case NSURLErrorCannotFindHost:
+          case NSURLErrorDNSLookupFailed:
+          case NSURLErrorSecureConnectionFailed:
+          case NSURLErrorServerCertificateHasBadDate:
+          case NSURLErrorServerCertificateUntrusted:
+          case NSURLErrorServerCertificateHasUnknownRoot:
+          case NSURLErrorServerCertificateNotYetValid:
+          case NSURLErrorClientCertificateRejected:
+            // Permanent — bad DNS or bad SSL, won't change on retry
+            isRetryable = NO;
+            break;
+          default:
+            // Other NSURLErrorDomain errors — attempt retry
+            isRetryable = YES;
+            break;
+        }
+      }
+      // Non-URL errors (e.g. AVFoundation decoding errors) are terminal
 
       [self fireState:@"error"];
       [self fireError:error.localizedDescription];
 
-      [self stop:nil];
+      if (isRetryable && _retryCount < _maxRetries) {
+        [self attemptReconnect];
+      } else {
+        if (!isRetryable) {
+          NSLog(@"[ti.audiostream] Permanent error — no retry");
+        } else {
+          NSLog(@"[ti.audiostream] Max retries (%d) exhausted", _maxRetries);
+        }
+        [self stop:nil];
+      }
     }
   }
 }
@@ -785,6 +841,36 @@
   }
 }
 #endif
+
+- (void)attemptReconnect
+{
+  _retryCount++;
+  NSLog(@"[ti.audiostream] Reconnect attempt %d/%d in %.0fs...", _retryCount, _maxRetries, _retryDelay);
+  [self fireState:@"buffering"];
+  _retryTimer = [NSTimer scheduledTimerWithTimeInterval:_retryDelay
+                                                 target:self
+                                               selector:@selector(reconnect)
+                                               userInfo:nil
+                                                repeats:NO];
+}
+
+- (void)reconnect
+{
+  _retryTimer = nil;
+  if (_currentURL) {
+    [self prepareCurrentStreamItem];
+    [_player play];
+  }
+}
+
+- (void)resetRetryLogic
+{
+  _retryCount = 0;
+  if (_retryTimer) {
+    [_retryTimer invalidate];
+    _retryTimer = nil;
+  }
+}
 
 - (void)fireState:(NSString *)state
 {
