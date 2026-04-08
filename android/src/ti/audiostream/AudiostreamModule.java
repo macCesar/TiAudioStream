@@ -228,7 +228,13 @@ public class AudiostreamModule extends KrollModule
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_PLAY);
 
-		startForegroundServiceSafely(intent);
+		if (serviceStarted) {
+			// Service already in foreground — just deliver the play intent.
+			// Avoids Android 12+ background startForegroundService() restriction.
+			startServiceSafely(intent);
+		} else {
+			startForegroundServiceSafely(intent);
+		}
 	}
 
 	/**
@@ -400,6 +406,7 @@ public class AudiostreamModule extends KrollModule
 			serviceStarted = true;
 		} catch (Exception e) {
 			Log.e(LCAT, "Failed to start foreground service: " + e.getMessage());
+			fireError("Cannot start playback from background: " + e.getMessage());
 		}
 	}
 
