@@ -42,6 +42,7 @@ public class AudiostreamModule extends KrollModule
 	private static final String ACTION_NEXT = "ti.audiostream.NEXT";
 	private static final String ACTION_PREV = "ti.audiostream.PREV";
 	private static final String ACTION_MEDIA_BUTTON = "android.intent.action.MEDIA_BUTTON";
+	private static final String AUTOMOTIVE_SOURCE_ANDROID_AUTO = "androidauto";
 
 	// Remote control constants
 	@Kroll.constant public static final int REMOTE_CONTROL_PLAY = 100;
@@ -126,6 +127,90 @@ public class AudiostreamModule extends KrollModule
 		return result;
 	}
 
+	private Object serializeJsonValue(Object value) throws Exception
+	{
+		if (value == null) {
+			return JSONObject.NULL;
+		}
+
+		if (value instanceof KrollDict) {
+			JSONObject json = new JSONObject();
+			KrollDict dict = (KrollDict) value;
+			for (String key : dict.keySet()) {
+				json.put(key, serializeJsonValue(dict.get(key)));
+			}
+			return json;
+		}
+
+		if (value instanceof Map) {
+			JSONObject json = new JSONObject();
+			Map<?, ?> map = (Map<?, ?>) value;
+			for (Map.Entry<?, ?> entry : map.entrySet()) {
+				if (entry.getKey() == null) {
+					continue;
+				}
+				json.put(String.valueOf(entry.getKey()), serializeJsonValue(entry.getValue()));
+			}
+			return json;
+		}
+
+		if (value instanceof Object[]) {
+			JSONArray array = new JSONArray();
+			for (Object item : (Object[]) value) {
+				array.put(serializeJsonValue(item));
+			}
+			return array;
+		}
+
+		if (value instanceof List) {
+			JSONArray array = new JSONArray();
+			for (Object item : (List<?>) value) {
+				array.put(serializeJsonValue(item));
+			}
+			return array;
+		}
+
+		if (value instanceof Boolean || value instanceof Number || value instanceof String) {
+			return value;
+		}
+
+		return JSONObject.wrap(value);
+	}
+
+	private JSONArray serializeAutomotiveStationsArray(Object value) throws Exception
+	{
+		JSONArray result = new JSONArray();
+		if (value == null) {
+			return result;
+		}
+
+		if (value instanceof Object[]) {
+			for (Object item : (Object[]) value) {
+				Object serialized = serializeJsonValue(item);
+				if (serialized instanceof JSONObject) {
+					result.put(serialized);
+				}
+			}
+			return result;
+		}
+
+		if (value instanceof List) {
+			for (Object item : (List<?>) value) {
+				Object serialized = serializeJsonValue(item);
+				if (serialized instanceof JSONObject) {
+					result.put(serialized);
+				}
+			}
+			return result;
+		}
+
+		Object serialized = serializeJsonValue(value);
+		if (serialized instanceof JSONObject) {
+			result.put(serialized);
+		}
+		return result;
+	}
+
 	@Kroll.onAppCreate
 	public static void onAppCreate(TiApplication app)
 	{
@@ -165,15 +250,17 @@ public class AudiostreamModule extends KrollModule
 		intent.putExtra(MediaPlaybackService.EXTRA_IS_LIVE, isLive);
 		intent.putExtra(MediaPlaybackService.EXTRA_AUTO_UPDATE_METADATA, autoUpdateMetadata);
 
-		// Always send metadata (clears previous when changing streams)
-		String title = TiConvert.toString(args.get("title"), "");
-		String artist = TiConvert.toString(args.get("artist"), "");
-		// Default to empty string to clear artwork when changing streams
-		String artwork = TiConvert.toString(args.get("artwork"), "");
+		if (args.containsKey("title")) {
+			intent.putExtra(MediaPlaybackService.EXTRA_TITLE, TiConvert.toString(args.get("title"), ""));
+		}
 
-		intent.putExtra(MediaPlaybackService.EXTRA_TITLE, title);
-		intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
-		intent.putExtra(MediaPlaybackService.EXTRA_ARTWORK_URL, artwork);
+		if (args.containsKey("artist")) {
+			intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, TiConvert.toString(args.get("artist"), ""));
+		}
+
+		if (args.containsKey("artwork")) {
+			intent.putExtra(MediaPlaybackService.EXTRA_ARTWORK_URL, TiConvert.toString(args.get("artwork"), ""));
+		}
 
 		// Handle metadataRules: present + KrollDict → serialize, present + null → clear, absent → preserve
 		if (args.containsKey("metadataRules")) {
@@ -374,6 +461,55 @@ public class AudiostreamModule extends KrollModule
 		startServiceSafely(intent);
 	}
 
+	@Kroll.method
+	public void setAutomotiveStations(@Kroll.argument(optional = true) Object stations)
+	{
+		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
+		intent.setAction(MediaPlaybackService.ACTION_SET_AUTOMOTIVE_STATIONS);
+
+		if (stations == null) {
+			Log.d(LCAT, "setAutomotiveStations: clearing stations");
+			intent.putExtra(MediaPlaybackService.EXTRA_AUTOMOTIVE_STATIONS, "");
+			startServiceSafely(intent);
+			return;
+		}
+
+		try {
+			JSONArray json = serializeAutomotiveStationsArray(stations);
+			Log.d(LCAT, "setAutomotiveStations: " + json.length() + " stations");
+			intent.putExtra(MediaPlaybackService.EXTRA_AUTOMOTIVE_STATIONS, json.toString());
+			startServiceSafely(intent);
+		} catch (Exception e) {
+			Log.e(LCAT, "setAutomotiveStations: failed to serialize stations: " + e.getMessage());
+		}
+	}
+
+	@Kroll.method
+	public void setCurrentAutomotiveStation(@Kroll.argument(optional = true) Object station)
+	{
+		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
+		intent.setAction(MediaPlaybackService.ACTION_SET_CURRENT_AUTOMOTIVE_STATION);
+
+		if (station == null) {
+			Log.d(LCAT, "setCurrentAutomotiveStation: clearing current station");
+			intent.putExtra(MediaPlaybackService.EXTRA_CURRENT_AUTOMOTIVE_STATION, "");
+			startServiceSafely(intent);
+			return;
+		}
+
+		try {
+			Object serialized = serializeJsonValue(station);
+			if (!(serialized instanceof JSONObject)) {
+				Log.e(LCAT, "setCurrentAutomotiveStation: station must serialize to an object");
+				return;
+			}
+			intent.putExtra(MediaPlaybackService.EXTRA_CURRENT_AUTOMOTIVE_STATION, serialized.toString());
+			startServiceSafely(intent);
+		} catch (Exception e) {
+			Log.e(LCAT, "setCurrentAutomotiveStation: failed to serialize station: " + e.getMessage());
+		}
+	}
+
 	/**
 	 * Get current playing state
 	 */
@@ -534,6 +670,24 @@ public class AudiostreamModule extends KrollModule
 
 		if (DBG) {
 			Log.d(LCAT, "Metadata event fired: " + title + " - " + artist);
+		}
+	}
+
+	public static void fireAutomotiveStationSelected(Map<String, Object> station)
+	{
+		if (activeModule == null || !activeModule.hasListeners("automotivestationselected")) {
+			return;
+		}
+
+		KrollDict event = new KrollDict();
+		event.put("source", AUTOMOTIVE_SOURCE_ANDROID_AUTO);
+		if (station != null) {
+			event.put("station", new KrollDict(station));
+		}
+		activeModule.fireEvent("automotivestationselected", event);
+
+		if (DBG) {
+			Log.d(LCAT, "Automotive station selected event fired");
 		}
 	}
 

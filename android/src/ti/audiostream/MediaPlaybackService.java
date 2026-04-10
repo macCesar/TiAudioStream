@@ -14,6 +14,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -55,8 +56,10 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -81,6 +84,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	public static final String ACTION_SET_METADATA = "ti.audiostream.SET_METADATA";
 	public static final String ACTION_SET_AUTO_UPDATE_METADATA = "ti.audiostream.SET_AUTO_UPDATE_METADATA";
 	public static final String ACTION_SET_METADATA_RULES = "ti.audiostream.SET_METADATA_RULES";
+	public static final String ACTION_SET_AUTOMOTIVE_STATIONS = "ti.audiostream.SET_AUTOMOTIVE_STATIONS";
+	public static final String ACTION_SET_CURRENT_AUTOMOTIVE_STATION = "ti.audiostream.SET_CURRENT_AUTOMOTIVE_STATION";
 	public static final String ACTION_NEXT = "ti.audiostream.NEXT";
 	public static final String ACTION_PREV = "ti.audiostream.PREV";
 
@@ -92,7 +97,14 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	public static final String EXTRA_ARTWORK_URL = "artworkUrl";
 	public static final String EXTRA_AUTO_UPDATE_METADATA = "autoUpdateMetadata";
 	public static final String EXTRA_METADATA_RULES = "metadataRules";
+	public static final String EXTRA_AUTOMOTIVE_STATIONS = "automotiveStations";
+	public static final String EXTRA_CURRENT_AUTOMOTIVE_STATION = "currentAutomotiveStation";
 	public static final String EXTRA_HARD_STOP = "hardStop";
+	private static final String PREFS_NAME = "ti.audiostream.automotive";
+	private static final String PREF_AUTOMOTIVE_STATIONS = "stations";
+	private static final String PREF_CURRENT_AUTOMOTIVE_STATION = "currentStation";
+	private static final String ROOT_ID = "ROOT";
+	private static final String RESUME_MEDIA_ID = "__resume__";
 
 	        // Media3 ExoPlayer
 	        private ExoPlayer player;
@@ -146,6 +158,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	}
 	private List<MetadataRule> titleRules;
 	private List<MetadataRule> artistRules;
+	private final List<JSONObject> automotiveStations = new ArrayList<>();
+	private JSONObject currentAutomotiveStation;
 
 	        // Audio focus listener
 	        private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
@@ -527,6 +541,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		ensureNotificationChannel();
 		initializePlayer();
 		initializeMediaSession();
+		loadPersistedAutomotiveData();
 
 		// Android Auto: expose session token so browser clients can control playback
 		setSessionToken(mediaSession.getSessionToken());
@@ -591,6 +606,17 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onPlayFromMediaId(String mediaId, Bundle extras)
 			{
+				if (RESUME_MEDIA_ID.equals(mediaId)) {
+					if (currentAutomotiveStation != null && playAutomotiveStation(currentAutomotiveStation, true)) {
+						return;
+					}
+				}
+
+				JSONObject station = findAutomotiveStation(mediaId);
+				if (station != null && playAutomotiveStation(station, true)) {
+					return;
+				}
+
 				if ("CURRENT_STREAM".equals(mediaId)) {
 					play();
 				}
@@ -642,6 +668,14 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 			case ACTION_SET_METADATA_RULES:
 				handleSetMetadataRules(intent);
+				break;
+
+			case ACTION_SET_AUTOMOTIVE_STATIONS:
+				handleSetAutomotiveStations(intent);
+				break;
+
+			case ACTION_SET_CURRENT_AUTOMOTIVE_STATION:
+				handleSetCurrentAutomotiveStation(intent);
 				break;
 
 			case ACTION_NEXT:
@@ -787,6 +821,193 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			titleRules = null;
 			artistRules = null;
 		}
+	}
+
+	private SharedPreferences getAutomotivePreferences()
+	{
+		return getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+	}
+
+	private void loadPersistedAutomotiveData()
+	{
+		SharedPreferences prefs = getAutomotivePreferences();
+		restoreAutomotiveStations(prefs.getString(PREF_AUTOMOTIVE_STATIONS, ""));
+		restoreCurrentAutomotiveStation(prefs.getString(PREF_CURRENT_AUTOMOTIVE_STATION, ""));
+	}
+
+	private void persistAutomotiveStations()
+	{
+		SharedPreferences prefs = getAutomotivePreferences();
+		JSONArray array = new JSONArray();
+		for (JSONObject station : automotiveStations) {
+			array.put(station);
+		}
+		prefs.edit().putString(PREF_AUTOMOTIVE_STATIONS, array.toString()).apply();
+	}
+
+	private void persistCurrentAutomotiveStation()
+	{
+		SharedPreferences prefs = getAutomotivePreferences();
+		prefs.edit().putString(PREF_CURRENT_AUTOMOTIVE_STATION,
+			currentAutomotiveStation != null ? currentAutomotiveStation.toString() : "").apply();
+	}
+
+	private void restoreAutomotiveStations(String json)
+	{
+		automotiveStations.clear();
+		if (json == null || json.isEmpty()) {
+			return;
+		}
+
+		try {
+			JSONArray array = new JSONArray(json);
+			for (int i = 0; i < array.length(); i++) {
+				JSONObject station = array.optJSONObject(i);
+				if (station != null) {
+					automotiveStations.add(station);
+				}
+			}
+		} catch (Exception e) {
+			Log.e(LCAT, "Failed to restore automotive stations: " + e.getMessage());
+		}
+	}
+
+	private void restoreCurrentAutomotiveStation(String json)
+	{
+		currentAutomotiveStation = null;
+		if (json == null || json.isEmpty()) {
+			return;
+		}
+
+		try {
+			currentAutomotiveStation = new JSONObject(json);
+		} catch (Exception e) {
+			Log.e(LCAT, "Failed to restore current automotive station: " + e.getMessage());
+		}
+	}
+
+	private void handleSetAutomotiveStations(Intent intent)
+	{
+		String json = intent.getStringExtra(EXTRA_AUTOMOTIVE_STATIONS);
+		restoreAutomotiveStations(json);
+		persistAutomotiveStations();
+		notifyChildrenChanged(ROOT_ID);
+		Log.d(LCAT, "Automotive stations updated: " + automotiveStations.size());
+	}
+
+	private void handleSetCurrentAutomotiveStation(Intent intent)
+	{
+		String json = intent.getStringExtra(EXTRA_CURRENT_AUTOMOTIVE_STATION);
+		restoreCurrentAutomotiveStation(json);
+		persistCurrentAutomotiveStation();
+		notifyChildrenChanged(ROOT_ID);
+		Log.d(LCAT, "Current automotive station updated: " + (currentAutomotiveStation != null));
+	}
+
+	private String getStationString(JSONObject station, String key, String fallback)
+	{
+		if (station == null || !station.has(key)) {
+			return fallback;
+		}
+		String value = station.optString(key, fallback);
+		return value != null && !value.isEmpty() ? value : fallback;
+	}
+
+	private boolean getStationBoolean(JSONObject station, String key, boolean fallback)
+	{
+		if (station == null || !station.has(key)) {
+			return fallback;
+		}
+		return station.optBoolean(key, fallback);
+	}
+
+	private JSONObject findAutomotiveStation(String mediaId)
+	{
+		if (mediaId == null || mediaId.isEmpty()) {
+			return null;
+		}
+
+		for (JSONObject station : automotiveStations) {
+			if (mediaId.equals(station.optString("id"))) {
+				return station;
+			}
+		}
+
+		if (currentAutomotiveStation != null && mediaId.equals(currentAutomotiveStation.optString("id"))) {
+			return currentAutomotiveStation;
+		}
+
+		return null;
+	}
+
+	private Map<String, Object> jsonToMap(JSONObject json)
+	{
+		Map<String, Object> map = new HashMap<>();
+		if (json == null) {
+			return map;
+		}
+
+		JSONArray names = json.names();
+		if (names == null) {
+			return map;
+		}
+
+		for (int i = 0; i < names.length(); i++) {
+			String key = names.optString(i, null);
+			if (key == null) {
+				continue;
+			}
+
+			Object value = json.opt(key);
+			if (value == JSONObject.NULL) {
+				map.put(key, null);
+			} else {
+				map.put(key, value);
+			}
+		}
+		return map;
+	}
+
+	private boolean playAutomotiveStation(JSONObject station, boolean emitEvent)
+	{
+		if (station == null) {
+			return false;
+		}
+
+		String streamUrl = getStationString(station, "streamUrl", null);
+		if (streamUrl == null || streamUrl.isEmpty()) {
+			return false;
+		}
+
+		currentAutomotiveStation = station;
+		persistCurrentAutomotiveStation();
+
+		currentUrl = streamUrl;
+		isLive = getStationBoolean(station, "isLive", true);
+		currentTitle = getStationString(station, "title", getStationString(station, "programName", "Live Stream"));
+		currentArtist = getStationString(station, "artist", getStationString(station, "stationName", getStationString(station, "subtitle", "")));
+
+		long generation = artworkGeneration.incrementAndGet();
+		currentArtwork = null;
+
+		String artworkUrl = normalizeArtworkUrl(getStationString(station, "artwork", null));
+		if (artworkUrl != null) {
+			loadArtworkAsync(artworkUrl, generation);
+		}
+
+		updateMediaSessionMetadata();
+		updateNotification();
+		resetRetryLogic();
+
+		MediaItem mediaItem = MediaItem.fromUri(currentUrl);
+		player.setMediaItem(mediaItem);
+		player.prepare();
+		play();
+
+		if (emitEvent) {
+			AudiostreamModule.fireAutomotiveStationSelected(jsonToMap(station));
+		}
+		return true;
 	}
 
 	private String applyRules(List<MetadataRule> rules, String input)
@@ -1429,7 +1650,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	@Override
 	public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints)
 	{
-		return new BrowserRoot("ROOT", null);
+		return new BrowserRoot(ROOT_ID, null);
 	}
 
 	@Override
@@ -1437,7 +1658,40 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	{
 		List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
 
-		if ("ROOT".equals(parentId) && currentUrl != null && !currentUrl.isEmpty()) {
+		if (ROOT_ID.equals(parentId) && currentAutomotiveStation != null) {
+			MediaDescriptionCompat.Builder resume = new MediaDescriptionCompat.Builder()
+				.setMediaId(RESUME_MEDIA_ID)
+				.setTitle("Resume last station")
+				.setSubtitle(getStationString(currentAutomotiveStation, "title",
+					getStationString(currentAutomotiveStation, "stationName", "Last station")));
+
+			items.add(new MediaBrowserCompat.MediaItem(resume.build(),
+				MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+		}
+
+		if (ROOT_ID.equals(parentId) && !automotiveStations.isEmpty()) {
+			for (JSONObject station : automotiveStations) {
+				String stationId = getStationString(station, "id", null);
+				String title = getStationString(station, "title",
+					getStationString(station, "programName", getStationString(station, "stationName", "Live Stream")));
+				String subtitle = getStationString(station, "subtitle",
+					getStationString(station, "stationName", getStationString(station, "artist", "")));
+
+				if (stationId == null || stationId.isEmpty()) {
+					continue;
+				}
+
+				MediaDescriptionCompat.Builder desc = new MediaDescriptionCompat.Builder()
+					.setMediaId(stationId)
+					.setTitle(title)
+					.setSubtitle(subtitle);
+
+				items.add(new MediaBrowserCompat.MediaItem(desc.build(),
+					MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+			}
+		}
+
+		if (ROOT_ID.equals(parentId) && items.isEmpty() && currentUrl != null && !currentUrl.isEmpty()) {
 			MediaDescriptionCompat.Builder desc = new MediaDescriptionCompat.Builder()
 				.setMediaId("CURRENT_STREAM")
 				.setTitle(currentTitle != null && !currentTitle.isEmpty() ? currentTitle : "Live Stream")

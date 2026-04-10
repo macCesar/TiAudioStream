@@ -2,4 +2,4 @@
 // ti.audiostream xcconfig
 //
 
-OTHER_LDFLAGS=$(inherited) -framework AVFoundation -framework MediaPlayer -framework AudioToolbox -framework CoreMedia -framework UIKit -framework Foundation
+OTHER_LDFLAGS=$(inherited) -framework AVFoundation -framework MediaPlayer -framework AudioToolbox -framework CoreMedia -framework UIKit -framework Foundation -framework CarPlay

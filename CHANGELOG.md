@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-04-10
+
+### Fixed
+- **iOS: CarPlay now consistently recognizes Titanium apps as active audio source**: Removed `MPNowPlayingSession` (iOS 16+) which was preventing CarPlay from adopting the app as the active audio source. The session-based API added an async activation layer (`becomeActiveIfPossible`) that could silently fail, leaving metadata published to an inactive session center invisible to CarPlay. The module now uses `MPNowPlayingInfoCenter.defaultCenter` and `MPRemoteCommandCenter.sharedCommandCenter` exclusively — the same direct approach that native CarPlay audio apps use — ensuring the system always sees the app's now-playing info immediately.
+- **iOS: CarPlay sidebar adoption when audio is already playing**: Connected three wires that were left disconnected: (1) `TiAudiostreamCarPlayDidConnectNotification` was defined but never posted from the scene delegate, (2) `handleCarPlaySceneDidConnect:` was never registered as an observer, (3) the handler was an empty stub. Now, when CarPlay connects while audio is playing, the module reasserts the audio session, re-publishes Now Playing info, re-registers remote commands, and calls `becomeActiveIfPossible`. The scene delegate also conditionally auto-pushes Now Playing with a 0.5s delay to allow the reassertion to complete first.
+- **iOS: `reassertNowPlayingContextForReason:` now functional**: Was a logging-only stub. Now re-activates the audio session, re-publishes metadata, promotes the Now Playing session, and supports retries with 1s delay between attempts.
+- **iOS: CarPlay play/pause toggle button now works**: Added `togglePlayPauseCommand` registration. CarPlay's Now Playing screen uses this command for the main play/pause button. Without it, CarPlay could not toggle playback from the car display.
+- **iOS: Titanium scene lifecycle compatibility for CarPlay**: Added dedicated CarPlay and window scene delegates so Titanium apps can participate in the `UIScene` lifecycle required by CarPlay without breaking the main app window.
+
+### Changed
+- **Version alignment (Android/iOS)**: Both platform manifests now move to `1.2.1` so the release stays aligned across Android and iOS even though the runtime fix is iOS-focused.
+
+### Documentation
+- **CarPlay setup guide refreshed**: Updated the README and iOS-specific guide to document the real Titanium setup for CarPlay, including entitlements, `UIApplicationSceneManifest`, built-in scene delegates, simulator testing, and current limitations.
+- **Platform comparison updated**: Clarified the Android Auto vs CarPlay behavior and technical implementation tables to match the current runtime behavior.
+
+---
+
 ## [1.2.0] - 2026-04-08
 
 ### Added

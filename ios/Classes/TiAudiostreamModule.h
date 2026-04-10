@@ -16,6 +16,8 @@
 - (void)stop:(id)unused;
 - (void)setMetadata:(id)args;
 - (void)setMetadataRules:(id)args;
+- (void)setAutomotiveStations:(id)args;
+- (void)setCurrentAutomotiveStation:(id)args;
 
 // Properties
 @property (nonatomic, readonly) NSNumber *playing;

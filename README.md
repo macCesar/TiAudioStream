@@ -472,6 +472,7 @@ On Android, the engine retries failed connections automatically (5 attempts, 3 s
 - The notification has compact (lock screen), expanded (drawer), and system media player (Quick Settings) views
 - Uses MediaSession for Bluetooth devices and the system output switcher
 - Android Auto support via MediaBrowserService: the module registers as a media source so Android Auto can discover, display, and control the stream (see [Android Auto](#android-auto))
+- CarPlay support via Titanium scene delegates plus MediaPlayer integration: once the entitlement and scene manifest are in place, CarPlay can show the active stream with metadata, artwork, and controls (see [CarPlay](#carplay))
 - If the stream drops, the engine retries 5 times with a 3-second delay before reporting an error
 - All permissions are declared in the module's `timodule.xml` and merged automatically. No manual manifest editing needed
 
@@ -483,7 +484,7 @@ For setup details, testing with Desktop Head Unit, and troubleshooting, see the 
 
 ## CarPlay
 
-The module uses `MPNowPlayingInfoCenter` and `MPRemoteCommandCenter`, which CarPlay reads from automatically. Once Apple approves the CarPlay Audio entitlement for your app, CarPlay shows the Now Playing screen with metadata and controls. No code changes needed.
+The module uses MediaPlayer integration that CarPlay reads from, including `MPNowPlayingSession` on iOS 16+ and the shared Now Playing centers on older versions. In Titanium apps, CarPlay also requires the proper entitlement and `UIApplicationSceneManifest` entries in `tiapp.xml`.
 
 For the step-by-step entitlement setup, testing with CarPlay Simulator, and troubleshooting, see the [iOS-specific documentation](ios/README.md#carplay).
 
@@ -493,7 +494,7 @@ For the step-by-step entitlement setup, testing with CarPlay Simulator, and trou
 | :--- | :--- | :--- | :--- |
 | Title / Artist | Yes (AVRCP 1.3+) | Always | Always |
 | Artwork | Depends on AVRCP version | Always | Always |
-| App icon on head unit | No | Yes | No |
+| App icon on head unit | No | Yes | Yes |
 | Playback controls | Basic (play/pause/next/prev) | Full | Full |
 | Content browsing | No | Yes | No (Now Playing only) |
 | Setup required | None | None | Apple entitlement approval |
@@ -527,10 +528,10 @@ When a stream sends `Artist - Title` as a single string, which is common with IC
 | :------------------ | :-------------------------- | :----------------------------------- |
 | **Engine**          | Media3 ExoPlayer (1.5+)     | AVFoundation (AVPlayer)              |
 | **Background**      | Foreground Service          | AVAudioSession (Playback)            |
-| **System controls** | MediaSessionCompat          | MPRemoteCommandCenter                |
+| **System controls** | MediaSessionCompat          | MPRemoteCommandCenter + MPNowPlayingSession |
 | **Metadata**        | ID3 / ICY / Deep JSON       | TimedMetadata / CommonMetadata       |
 | **Audio focus**     | AudioManager + MediaSession | AVAudioSession interruption handling |
-| **Reconnect**       | 5 retries, 3s delay         | Managed by AVPlayer                  |
+| **Reconnect**       | 5 retries, 3s delay         | 5 retries, 3s delay                  |
 
 ## License
 

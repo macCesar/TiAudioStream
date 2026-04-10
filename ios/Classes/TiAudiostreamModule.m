@@ -6,14 +6,105 @@
  */
 
 #import "TiAudiostreamModule.h"
+#import "TiAudiostreamCarPlaySceneDelegate.h"
+#import "TiAudiostreamWindowSceneDelegate.h"
 #import "TiBase.h"
 #import "TiHost.h"
 #import "TiUtils.h"
 #import <AVFoundation/AVFoundation.h>
+#import <CarPlay/CarPlay.h>
 #import <ImageIO/ImageIO.h>
 #import <MediaPlayer/MediaPlayer.h>
+#import <objc/runtime.h>
 
-@interface TiAudiostreamModule () <AVPlayerItemMetadataOutputPushDelegate> {
+// Original IMP for TiApp's application:configurationForConnectingSceneSession:options:
+static IMP _originalConfigurationForConnecting = NULL;
+
+// Swizzled implementation: dispatch CarPlay scene to our delegate
+static UISceneConfiguration *TiAudiostream_configurationForConnecting(id self, SEL _cmd,
+    UIApplication *application,
+    UISceneSession *connectingSceneSession,
+    UISceneConnectionOptions *options) API_AVAILABLE(ios(13.0))
+{
+  NSString *role = connectingSceneSession.role;
+  NSLog(@"[ti.audiostream] configurationForConnecting role=%@", role);
+
+  // CarPlay scene: dispatch to our CarPlay delegate with explicit scene class
+  if ([role isEqualToString:@"CPTemplateApplicationSceneSessionRoleApplication"]) {
+    UISceneConfiguration *config = [[UISceneConfiguration alloc] initWithName:@"CarPlay Configuration"
+                                                                  sessionRole:connectingSceneSession.role];
+    config.delegateClass = [TiAudiostreamCarPlaySceneDelegate class];
+    config.sceneClass = [CPTemplateApplicationScene class];
+    NSLog(@"[ti.audiostream] Dispatching CarPlay scene to TiAudiostreamCarPlaySceneDelegate");
+    return config;
+  }
+
+  // Window scene: dispatch to our bridge delegate that attaches Titanium's window
+  if ([role isEqualToString:UIWindowSceneSessionRoleApplication]) {
+    UISceneConfiguration *config = [[UISceneConfiguration alloc] initWithName:@"Default Configuration"
+                                                                  sessionRole:connectingSceneSession.role];
+    config.delegateClass = [TiAudiostreamWindowSceneDelegate class];
+    config.sceneClass = [UIWindowScene class];
+    NSLog(@"[ti.audiostream] Dispatching window scene to TiAudiostreamWindowSceneDelegate");
+    return config;
+  }
+
+  // Other roles: call original TiApp implementation
+  if (_originalConfigurationForConnecting) {
+    return ((UISceneConfiguration *(*)(id, SEL, UIApplication *, UISceneSession *, UISceneConnectionOptions *))
+        _originalConfigurationForConnecting)(self, _cmd, application, connectingSceneSession, options);
+  }
+
+  // Fallback: generic config
+  return [[UISceneConfiguration alloc] initWithName:connectingSceneSession.configuration.name
+                                        sessionRole:connectingSceneSession.role];
+}
+
+// Force linker to keep scene delegate classes + swizzle TiApp's scene dispatch
+__attribute__((used)) static Class _cpClassRef;
+__attribute__((used)) static Class _wsClassRef;
+__attribute__((constructor))
+static void TiAudiostreamRegisterSceneClasses(void)
+{
+  _cpClassRef = [TiAudiostreamCarPlaySceneDelegate class];
+  _wsClassRef = [TiAudiostreamWindowSceneDelegate class];
+
+  // Swizzle TiApp's application:configurationForConnectingSceneSession:options:
+  // TiApp returns a bare UISceneConfiguration with no delegateClass or sceneClass,
+  // which prevents CarPlay from reaching our TiAudiostreamCarPlaySceneDelegate.
+  // This swizzle adds explicit dispatch for CarPlay and window scene roles.
+  Class tiAppClass = NSClassFromString(@"TiApp");
+  if (!tiAppClass) {
+    return;
+  }
+
+  SEL selector = @selector(application:configurationForConnectingSceneSession:options:);
+  Method original = class_getInstanceMethod(tiAppClass, selector);
+
+  if (original) {
+    _originalConfigurationForConnecting = method_getImplementation(original);
+    method_setImplementation(original, (IMP)TiAudiostream_configurationForConnecting);
+    NSLog(@"[ti.audiostream] Swizzled TiApp scene configuration dispatch");
+  } else {
+    class_addMethod(tiAppClass, selector, (IMP)TiAudiostream_configurationForConnecting, "@@:@@@");
+    NSLog(@"[ti.audiostream] Added scene configuration dispatch to TiApp");
+  }
+}
+
+static NSString *const TiAudiostreamCarPlayDidConnectNotification = @"TiAudiostreamCarPlayDidConnectNotification";
+static NSString *const TiAudiostreamCarPlayDidPresentNowPlayingNotification = @"TiAudiostreamCarPlayDidPresentNowPlayingNotification";
+static NSString *const TiAudiostreamAutomotiveStationSelectedNotification = @"TiAudiostreamAutomotiveStationSelectedNotification";
+static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"TiAudiostreamAutomotiveStationsDidChangeNotification";
+static NSString *const TiAudiostreamDefaultsAutomotiveStationsKey = @"ti.audiostream.automotive.stations";
+static NSString *const TiAudiostreamDefaultsCurrentAutomotiveStationKey = @"ti.audiostream.automotive.currentStation";
+static NSString *const TiAudiostreamAutomotiveSourceCarPlay = @"carplay";
+static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
+
+@interface TiAudiostreamModule () <AVPlayerItemMetadataOutputPushDelegate
+#if TARGET_OS_IOS
+, MPNowPlayingSessionDelegate
+#endif
+> {
   AVPlayer *_player;
   AVPlayerItem *_currentItem;
   AVPlayerItemMetadataOutput *_metadataOutput;
@@ -24,6 +115,7 @@
   UIImage *_currentArtwork;
   BOOL _resumeOnInterruption;
   BOOL _autoUpdateMetadata;
+  BOOL _playRequested;
   NSArray *_titleRules;
   NSArray *_artistRules;
   NSString *_lastEmittedState;
@@ -37,6 +129,11 @@
   int _maxRetries;
   double _retryDelay;
   NSTimer *_retryTimer;
+#if TARGET_OS_IOS
+  MPNowPlayingSession *_nowPlayingSession API_AVAILABLE(ios(16.0));
+  MPRemoteCommandCenter *_registeredSessionRemoteCommandCenter;
+  MPRemoteCommandCenter *_registeredSharedRemoteCommandCenter;
+#endif
 }
 @end
 
@@ -56,6 +153,7 @@
 - (void)startup
 {
   [super startup];
+  TiAudiostreamActiveModule = self;
 
   // Default: auto-update metadata from stream
   _autoUpdateMetadata = YES;
@@ -69,47 +167,23 @@
   AVAudioSession *session = [AVAudioSession sharedInstance];
   [session setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault options:0 error:nil];
   [session setActive:YES error:nil];
-
-  MPRemoteCommandCenter *cc = [MPRemoteCommandCenter sharedCommandCenter];
-  [cc.playCommand setEnabled:YES];
-  [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    [self start:nil];
-    [self fireRemoteControl:100];
-    return MPRemoteCommandHandlerStatusSuccess;
-  }];
-
-  [cc.pauseCommand setEnabled:YES];
-  [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    [self pause:nil];
-    [self fireRemoteControl:101];
-    return MPRemoteCommandHandlerStatusSuccess;
-  }];
-
-  [cc.stopCommand setEnabled:YES];
-  [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    [self stop:nil];
-    [self fireRemoteControl:102];
-    return MPRemoteCommandHandlerStatusSuccess;
-  }];
-
-  [cc.nextTrackCommand setEnabled:YES];
-  [cc.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    [self fireRemoteControl:104];
-    return MPRemoteCommandHandlerStatusSuccess;
-  }];
-
-  [cc.previousTrackCommand setEnabled:YES];
-  [cc.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    [self fireRemoteControl:105];
-    return MPRemoteCommandHandlerStatusSuccess;
-  }];
-
+  [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+  [self ensurePlayerInitialized];
+  [self configureRemoteCommandHandlingIfNeeded];
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
 #endif
 
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleErrorLogEntry:)
                                                name:AVPlayerItemNewErrorLogEntryNotification
+                                             object:nil];
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(handleAutomotiveStationSelectedNotification:)
+                                               name:TiAudiostreamAutomotiveStationSelectedNotification
+                                             object:nil];
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(handleCarPlaySceneDidConnect:)
+                                               name:TiAudiostreamCarPlayDidConnectNotification
                                              object:nil];
 }
 
@@ -130,34 +204,40 @@
   // Check if title, artist, artwork are provided
   NSString *title = [TiUtils stringValue:@"title" properties:args];
   NSString *artist = [TiUtils stringValue:@"artist" properties:args];
-  id artworkValue = [args objectForKey:@"artwork"]; // Check if key exists (can be null)
+  id artworkValue = [args objectForKey:@"artwork"];
+  BOOL hasTitleKey = [args objectForKey:@"title"] != nil;
+  BOOL hasArtistKey = [args objectForKey:@"artist"] != nil;
+  BOOL hasArtworkKey = [args objectForKey:@"artwork"] != nil;
 
-  // Always set metadata when changing streams (clears previous)
-  NSMutableDictionary *metaDict = [NSMutableDictionary dictionary];
-  if (title)
-    [metaDict setObject:title forKey:@"title"];
-  if (artist)
-    [metaDict setObject:artist forKey:@"artist"];
+  // Preserve existing metadata unless the caller explicitly passes new values.
+  // NotiGAPE sets metadata first and then calls setStream() with only URL/isLive,
+  // so clearing here wipes Now Playing just before CarPlay reads it.
+  if (hasTitleKey || hasArtistKey || hasArtworkKey) {
+    NSMutableDictionary *metaDict = [NSMutableDictionary dictionary];
+    if (hasTitleKey) {
+      [metaDict setObject:(title ?: @"") forKey:@"title"];
+    }
+    if (hasArtistKey) {
+      [metaDict setObject:(artist ?: @"") forKey:@"artist"];
+    }
+    if (hasArtworkKey) {
+      if (artworkValue != [NSNull null]) {
+        NSString *artwork = [TiUtils stringValue:@"artwork" properties:args];
+        [metaDict setObject:(artwork ?: @"") forKey:@"artwork"];
+      } else {
+        [metaDict setObject:@"" forKey:@"artwork"];
+      }
+    }
 
-  // Handle artwork: null/"" → clear, string → load, not provided → clear (new stream behavior)
-  if (artworkValue != nil && artworkValue != [NSNull null]) {
-    NSString *artwork = [TiUtils stringValue:@"artwork" properties:args];
-    // null or empty string → clear, valid url → load
-    [metaDict setObject:(artwork ?: @"") forKey:@"artwork"];
-  } else {
-    // Key not provided → clear artwork for new stream
-    [metaDict setObject:@"" forKey:@"artwork"];
+    [self setMetadata:metaDict];
   }
 
-  [self setMetadata:metaDict];
-
-  // Handle metadataRules: present + dict → set, present + null → clear, absent → preserve
+  // Handle metadataRules: present + dict -> set, present + null -> clear, absent -> preserve
   if ([args objectForKey:@"metadataRules"] != nil) {
     id rulesValue = [args objectForKey:@"metadataRules"];
     if ([rulesValue isKindOfClass:[NSDictionary class]]) {
       [self setMetadataRules:rulesValue];
     } else {
-      // NSNull or any non-dict → clear rules
       [self setMetadataRules:nil];
     }
   }
@@ -171,6 +251,7 @@
     return;
 
   [self resetRetryLogic];
+  _playRequested = YES;
 
   // Guard clause: If already playing, don't re-prepare or interrupt
   if (_player.rate > 0 && _currentItem.status == AVPlayerItemStatusReadyToPlay) {
@@ -189,7 +270,7 @@
     }
   }
 
-  // Si el item aún no está conectado (async en progreso), diferir el play
+  // Si el item aun no esta conectado (async en progreso), diferir el play
   if (!_currentItem || !_player.currentItem) {
     _pendingPlay = YES;
     return;
@@ -197,11 +278,13 @@
 
   [_player play];
   [self updateNowPlaying];
+  [self activateNowPlayingSessionIfPossible];
 }
 
 - (void)pause:(id)unused
 {
   if (_player && _player.rate > 0) {
+    _playRequested = NO;
     [_player pause];
     [self updateNowPlaying];
   }
@@ -219,13 +302,17 @@
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
   _lastEmittedMetadataArtwork = nil;
+  _playRequested = NO;
   _pendingPlay = NO;
   if (_player) {
     [_player pause];
   }
   [self fireState:@"stopped"];
 #if TARGET_OS_IOS
-  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+  [self setPlaybackState:MPNowPlayingPlaybackStateStopped];
+  for (MPNowPlayingInfoCenter *center in [self activeNowPlayingInfoCenters]) {
+    center.nowPlayingInfo = nil;
+  }
   [[AVAudioSession sharedInstance] setActive:NO
                                  withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
                                        error:nil];
@@ -239,6 +326,7 @@
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
   _lastEmittedMetadataArtwork = nil;
+  _playRequested = NO;
   _pendingPlay = NO;
   if (_player) {
     [_player pause];
@@ -260,7 +348,10 @@
   }
   [self fireState:@"stopped"];
 #if TARGET_OS_IOS
-  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nil;
+  [self setPlaybackState:MPNowPlayingPlaybackStateStopped];
+  for (MPNowPlayingInfoCenter *center in [self activeNowPlayingInfoCenters]) {
+    center.nowPlayingInfo = nil;
+  }
   [[AVAudioSession sharedInstance] setActive:NO
                                  withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
                                        error:nil];
@@ -281,12 +372,12 @@
   if (artworkValue != nil && artworkValue != [NSNull null]) {
     NSString *artworkURL = [TiUtils stringValue:@"artwork" properties:args];
 
-    // If null, empty string, or just whitespace → clear artwork
+    // If null, empty string, or just whitespace -> clear artwork
     if (artworkURL == nil || [artworkURL length] == 0 || [[artworkURL stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] length] == 0) {
       _currentArtwork = nil;
       [self updateNowPlaying];
     } else {
-      // Valid URL → load it
+      // Valid URL -> load it
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
         UIImage *img = [UIImage imageWithData:data];
@@ -297,7 +388,6 @@
           if (img) {
             self->_currentArtwork = img;
           } else {
-            // Failed to load → clear artwork
             self->_currentArtwork = nil;
           }
           [self updateNowPlaying];
@@ -305,7 +395,7 @@
       });
     }
   } else {
-    // Key not provided → clear artwork (new stream behavior)
+    // Key not provided -> clear artwork (new stream behavior)
     _currentArtwork = nil;
     [self updateNowPlaying];
   }
@@ -372,6 +462,74 @@
     (unsigned long)(_artistRules ? _artistRules.count : 0));
 }
 
+- (void)setAutomotiveStations:(id)args
+{
+  id stations = args;
+  if ([args isKindOfClass:[NSArray class]]) {
+    NSArray *argArray = (NSArray *)args;
+    if (argArray.count == 1) {
+      stations = [argArray objectAtIndex:0];
+    }
+  }
+
+  if (stations == nil || stations == [NSNull null]) {
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:TiAudiostreamDefaultsAutomotiveStationsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
+    return;
+  }
+
+  if (![stations isKindOfClass:[NSArray class]]) {
+    NSLog(@"[ti.audiostream] setAutomotiveStations expected array payload, got %@", NSStringFromClass([stations class]));
+    return;
+  }
+
+  NSData *data = [NSJSONSerialization dataWithJSONObject:stations options:0 error:nil];
+  if (!data) {
+    NSLog(@"[ti.audiostream] Failed to serialize automotive stations");
+    return;
+  }
+
+  NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+  [[NSUserDefaults standardUserDefaults] setObject:json forKey:TiAudiostreamDefaultsAutomotiveStationsKey];
+  [[NSUserDefaults standardUserDefaults] synchronize];
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
+}
+
+- (void)setCurrentAutomotiveStation:(id)args
+{
+  id station = args;
+  if ([args isKindOfClass:[NSArray class]]) {
+    NSArray *argArray = (NSArray *)args;
+    if (argArray.count == 1) {
+      station = [argArray objectAtIndex:0];
+    }
+  }
+
+  if (station == nil || station == [NSNull null]) {
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:TiAudiostreamDefaultsCurrentAutomotiveStationKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
+    return;
+  }
+
+  if (![station isKindOfClass:[NSDictionary class]]) {
+    NSLog(@"[ti.audiostream] setCurrentAutomotiveStation expected dictionary payload, got %@", NSStringFromClass([station class]));
+    return;
+  }
+
+  NSData *data = [NSJSONSerialization dataWithJSONObject:station options:0 error:nil];
+  if (!data) {
+    NSLog(@"[ti.audiostream] Failed to serialize current automotive station");
+    return;
+  }
+
+  NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+  [[NSUserDefaults standardUserDefaults] setObject:json forKey:TiAudiostreamDefaultsCurrentAutomotiveStationKey];
+  [[NSUserDefaults standardUserDefaults] synchronize];
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
+}
+
 - (NSString *)applyRules:(NSArray *)rules toString:(NSString *)input
 {
   if (!rules || rules.count == 0 || !input) return input;
@@ -394,6 +552,8 @@
 {
   _pendingPlay = NO;
 
+  [self ensurePlayerInitialized];
+
   if (_player) {
     [_player pause];
     @try {
@@ -412,11 +572,6 @@
       _metadataOutput = nil;
     }
     _currentItem = nil;
-  }
-
-  if (!_player) {
-    _player = [AVPlayer playerWithPlayerItem:nil];
-    _player.automaticallyWaitsToMinimizeStalling = YES;
   }
 
   [self fireState:@"buffering"];
@@ -443,6 +598,8 @@
       if (self->_pendingPlay) {
         self->_pendingPlay = NO;
         [self->_player play];
+        [self updateNowPlaying];
+        [self activateNowPlayingSessionIfPossible];
       }
     });
   });
@@ -477,6 +634,101 @@
 
 #pragma mark - Internal
 
++ (TiAudiostreamModule *)activeModule
+{
+  return TiAudiostreamActiveModule;
+}
+
++ (NSArray<NSDictionary *> *)persistedAutomotiveStations
+{
+  NSString *json = [[NSUserDefaults standardUserDefaults] stringForKey:TiAudiostreamDefaultsAutomotiveStationsKey];
+  if (json.length == 0) {
+    return @[];
+  }
+
+  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+  NSArray *stations = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+  return [stations isKindOfClass:[NSArray class]] ? stations : @[];
+}
+
++ (NSDictionary *)persistedCurrentAutomotiveStation
+{
+  NSString *json = [[NSUserDefaults standardUserDefaults] stringForKey:TiAudiostreamDefaultsCurrentAutomotiveStationKey];
+  if (json.length == 0) {
+    return nil;
+  }
+
+  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+  NSDictionary *station = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+  return [station isKindOfClass:[NSDictionary class]] ? station : nil;
+}
+
+- (BOOL)carPlayNowPlayingReady
+{
+#if TARGET_OS_IOS
+  BOOL hasMetadata = _currentTitle.length > 0 || _currentArtist.length > 0 || _currentArtwork != nil;
+  BOOL isPlaying = _player != nil && _player.rate > 0;
+  BOOL isStable = _player != nil && _player.timeControlStatus == AVPlayerTimeControlStatusPlaying;
+  return hasMetadata && isPlaying && isStable;
+#else
+  return NO;
+#endif
+}
+
+- (void)emitAutomotiveStationSelected:(NSDictionary *)station source:(NSString *)source
+{
+  if (![self _hasListeners:@"automotivestationselected"]) {
+    return;
+  }
+
+  NSMutableDictionary *event = [NSMutableDictionary dictionary];
+  event[@"source"] = source ?: TiAudiostreamAutomotiveSourceCarPlay;
+  if (station) {
+    event[@"station"] = station;
+  }
+  [self fireEvent:@"automotivestationselected" withObject:event];
+}
+
+- (void)playAutomotiveStation:(NSDictionary *)station emitEvent:(BOOL)emitEvent
+{
+  if (![station isKindOfClass:[NSDictionary class]]) {
+    return;
+  }
+
+  NSString *streamURL = [TiUtils stringValue:@"streamUrl" properties:station];
+  if (streamURL.length == 0) {
+    return;
+  }
+
+  [self setCurrentAutomotiveStation:station];
+
+  NSString *title = [TiUtils stringValue:@"title" properties:station def:[TiUtils stringValue:@"programName" properties:station def:@"Live Stream"]];
+  NSString *artist = [TiUtils stringValue:@"artist" properties:station def:[TiUtils stringValue:@"stationName" properties:station def:[TiUtils stringValue:@"subtitle" properties:station def:@""]]];
+  NSString *artwork = [TiUtils stringValue:@"artwork" properties:station];
+  BOOL isLive = [TiUtils boolValue:@"isLive" properties:station def:YES];
+
+  NSMutableDictionary *stream = [NSMutableDictionary dictionary];
+  stream[@"url"] = streamURL;
+  stream[@"isLive"] = @(isLive);
+  stream[@"autoUpdateMetadata"] = @NO;
+  if (title) {
+    stream[@"title"] = title;
+  }
+  if (artist) {
+    stream[@"artist"] = artist;
+  }
+  if (artwork) {
+    stream[@"artwork"] = artwork;
+  }
+
+  [self setStream:stream];
+  [self start:nil];
+
+  if (emitEvent) {
+    [self emitAutomotiveStationSelected:station source:TiAudiostreamAutomotiveSourceCarPlay];
+  }
+}
+
 - (UIImage *)appIconImage
 {
   if (!_appIconImage) {
@@ -496,7 +748,7 @@
       }
     }
 
-    // Method 2: CFBundleIcons → imageNamed
+    // Method 2: CFBundleIcons -> imageNamed
     if (!_appIconImage) {
       NSArray *iconFiles = [[NSBundle mainBundle] infoDictionary][@"CFBundleIcons"][@"CFBundlePrimaryIcon"][@"CFBundleIconFiles"];
       if (iconFiles.count > 0) {
@@ -557,16 +809,246 @@
   return _appIconImage;
 }
 
+#if TARGET_OS_IOS
+- (void)ensurePlayerInitialized
+{
+  if (_player) {
+    return;
+  }
+
+  _player = [AVPlayer playerWithPlayerItem:nil];
+  _player.automaticallyWaitsToMinimizeStalling = YES;
+
+  if (@available(iOS 16.0, *)) {
+    _nowPlayingSession = [[MPNowPlayingSession alloc] initWithPlayers:@[ _player ]];
+    _nowPlayingSession.delegate = self;
+    _nowPlayingSession.automaticallyPublishesNowPlayingInfo = NO;
+  }
+}
+
+- (void)logNowPlayingSnapshot:(NSString *)reason
+{
+  NSDictionary *info = [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo ?: @{};
+  id rawTitle = info[MPMediaItemPropertyTitle];
+  id rawArtist = info[MPMediaItemPropertyArtist];
+  NSString *title = [rawTitle isKindOfClass:[NSString class]] ? rawTitle : @"";
+  NSString *artist = [rawArtist isKindOfClass:[NSString class]] ? rawArtist : @"";
+  NSNumber *rate = info[MPNowPlayingInfoPropertyPlaybackRate];
+  NSNumber *isLive = info[MPNowPlayingInfoPropertyIsLiveStream];
+  BOOL hasArtwork = info[MPMediaItemPropertyArtwork] != nil;
+
+  if (@available(iOS 16.0, *)) {
+    NSLog(@"[ti.audiostream] Snapshot(%@) session=%@ active=%@ canBecomeActive=%@ playerRate=%.2f title='%@' artist='%@' infoRate=%@ live=%@ artwork=%@ playbackState=%ld",
+      reason,
+      _nowPlayingSession ? @"YES" : @"NO",
+      _nowPlayingSession && _nowPlayingSession.isActive ? @"YES" : @"NO",
+      _nowPlayingSession && _nowPlayingSession.canBecomeActive ? @"YES" : @"NO",
+      _player.rate,
+      title,
+      artist,
+      rate ?: @(-1),
+      isLive ?: @(NO),
+      hasArtwork ? @"YES" : @"NO",
+      (long)[MPNowPlayingInfoCenter defaultCenter].playbackState);
+  } else {
+    NSLog(@"[ti.audiostream] Snapshot(%@) playerRate=%.2f title='%@' artist='%@' infoRate=%@ live=%@ artwork=%@ playbackState=%ld",
+      reason,
+      _player.rate,
+      title,
+      artist,
+      rate ?: @(-1),
+      isLive ?: @(NO),
+      hasArtwork ? @"YES" : @"NO",
+      (long)[MPNowPlayingInfoCenter defaultCenter].playbackState);
+  }
+}
+
+// Matches probe pattern: publish to BOTH session center AND shared center
+- (NSArray<MPNowPlayingInfoCenter *> *)activeNowPlayingInfoCenters
+{
+  NSMutableArray<MPNowPlayingInfoCenter *> *centers = [NSMutableArray array];
+
+  if (@available(iOS 16.0, *)) {
+    if (_nowPlayingSession) {
+      [centers addObject:_nowPlayingSession.nowPlayingInfoCenter];
+    }
+  }
+
+  MPNowPlayingInfoCenter *sharedCenter = [MPNowPlayingInfoCenter defaultCenter];
+  if (![centers containsObject:sharedCenter]) {
+    [centers addObject:sharedCenter];
+  }
+
+  return centers;
+}
+
+// Matches probe pattern: register commands on BOTH session center AND shared center
+- (void)registerRemoteCommandHandlersOnCenter:(MPRemoteCommandCenter *)commandCenter
+{
+  if (!commandCenter) {
+    return;
+  }
+
+  [commandCenter.playCommand setEnabled:YES];
+  [commandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+    [self start:nil];
+    [self fireRemoteControl:100];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+
+  [commandCenter.pauseCommand setEnabled:YES];
+  [commandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+    [self pause:nil];
+    [self fireRemoteControl:101];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+
+  [commandCenter.togglePlayPauseCommand setEnabled:YES];
+  [commandCenter.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+    if (self->_player && self->_player.rate > 0) {
+      [self pause:nil];
+      [self fireRemoteControl:101];
+    } else {
+      [self start:nil];
+      [self fireRemoteControl:100];
+    }
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+
+  [commandCenter.stopCommand setEnabled:YES];
+  [commandCenter.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+    [self stop:nil];
+    [self fireRemoteControl:102];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+
+  [commandCenter.nextTrackCommand setEnabled:YES];
+  [commandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+    [self fireRemoteControl:104];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+
+  [commandCenter.previousTrackCommand setEnabled:YES];
+  [commandCenter.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
+    [self fireRemoteControl:105];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+}
+
+- (void)configureRemoteCommandHandlingIfNeeded
+{
+  // Matches probe: register on session center if available
+  if (@available(iOS 16.0, *)) {
+    if (!_nowPlayingSession) {
+      [self ensurePlayerInitialized];
+    }
+
+    MPRemoteCommandCenter *sessionCommandCenter = _nowPlayingSession.remoteCommandCenter;
+    if (sessionCommandCenter && _registeredSessionRemoteCommandCenter != sessionCommandCenter) {
+      _registeredSessionRemoteCommandCenter = sessionCommandCenter;
+      [self registerRemoteCommandHandlersOnCenter:sessionCommandCenter];
+      NSLog(@"[ti.audiostream] Registered remote commands on session command center");
+    }
+  }
+
+  // Matches probe: ALSO register on shared center
+  MPRemoteCommandCenter *sharedCommandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+  if (sharedCommandCenter && _registeredSharedRemoteCommandCenter != sharedCommandCenter) {
+    _registeredSharedRemoteCommandCenter = sharedCommandCenter;
+    [self registerRemoteCommandHandlersOnCenter:sharedCommandCenter];
+    NSLog(@"[ti.audiostream] Registered remote commands on shared command center");
+  }
+}
+
+- (void)activateNowPlayingSessionIfPossible
+{
+  if (@available(iOS 16.0, *)) {
+    if (_nowPlayingSession && !_nowPlayingSession.isActive) {
+      NSLog(@"[ti.audiostream] Requesting now playing session activation");
+      [_nowPlayingSession becomeActiveIfPossibleWithCompletion:^(BOOL isActive) {
+        NSLog(@"[ti.audiostream] Now playing session activation completed: %@", isActive ? @"YES" : @"NO");
+        [self logNowPlayingSnapshot:@"session-activation-completion"];
+      }];
+    }
+  }
+}
+
+- (void)setPlaybackState:(MPNowPlayingPlaybackState)playbackState
+{
+  for (MPNowPlayingInfoCenter *center in [self activeNowPlayingInfoCenters]) {
+    center.playbackState = playbackState;
+  }
+}
+
+- (void)handleCarPlaySceneDidConnect:(NSNotification *)notification
+{
+  NSLog(@"[ti.audiostream] Received CarPlay scene connect notification");
+
+#if TARGET_OS_IOS
+  if (!_playRequested || !_player || _player.rate <= 0) {
+    NSLog(@"[ti.audiostream] CarPlay connected but no active playback — skipping reassertion");
+    return;
+  }
+
+  NSLog(@"[ti.audiostream] CarPlay connected with active playback — reasserting Now Playing");
+
+  // Re-activate audio session
+  [[AVAudioSession sharedInstance] setActive:YES error:nil];
+
+  // Re-publish Now Playing info to both centers
+  [self updateNowPlaying];
+
+  // Re-register remote commands
+  [self configureRemoteCommandHandlingIfNeeded];
+
+  // Promote our session as the active Now Playing source
+  [self activateNowPlayingSessionIfPossible];
+#endif
+}
+
+- (void)handleCarPlayNowPlayingDidPresent:(NSNotification *)notification
+{
+  NSLog(@"[ti.audiostream] Received CarPlay Now Playing presentation notification");
+}
+
+- (void)handleAutomotiveStationSelectedNotification:(NSNotification *)notification
+{
+  NSDictionary *station = [notification.object isKindOfClass:[NSDictionary class]] ? notification.object : notification.userInfo[@"station"];
+  if (!station) {
+    return;
+  }
+
+  [self playAutomotiveStation:station emitEvent:YES];
+}
+
+- (void)nowPlayingSessionDidChangeActive:(MPNowPlayingSession *)nowPlayingSession API_AVAILABLE(ios(16.0))
+{
+  NSLog(@"[ti.audiostream] Now playing session active=%@", nowPlayingSession.isActive ? @"YES" : @"NO");
+}
+
+- (void)nowPlayingSessionDidChangeCanBecomeActive:(MPNowPlayingSession *)nowPlayingSession API_AVAILABLE(ios(16.0))
+{
+  NSLog(@"[ti.audiostream] Now playing session canBecomeActive=%@", nowPlayingSession.canBecomeActive ? @"YES" : @"NO");
+}
+#endif
+
 - (void)updateNowPlaying
 {
   if (!_player)
     return;
 
 #if TARGET_OS_IOS
+  BOOL shouldAdvertisePlaying = _playRequested && (_isLive || _pendingPlay ||
+    _player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate ||
+    _player.timeControlStatus == AVPlayerTimeControlStatusPlaying || _player.rate > 0);
+  float effectiveRate = shouldAdvertisePlaying ? 1.0f : _player.rate;
+  MPNowPlayingPlaybackState playbackState = shouldAdvertisePlaying ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
+
   NSMutableDictionary *info = [NSMutableDictionary dictionary];
   info[MPMediaItemPropertyTitle] = _currentTitle ?: @"";
   info[MPMediaItemPropertyArtist] = _currentArtist ?: @"";
-  info[MPNowPlayingInfoPropertyPlaybackRate] = @(_player.rate);
+  info[MPNowPlayingInfoPropertyMediaType] = @(MPNowPlayingInfoMediaTypeAudio);
+  info[MPNowPlayingInfoPropertyPlaybackRate] = @(effectiveRate);
   if (_isLive)
     info[MPNowPlayingInfoPropertyIsLiveStream] = @YES;
   UIImage *artworkToShow = _currentArtwork ?: [self appIconImage];
@@ -576,11 +1058,44 @@
                                                                          return artworkToShow;
                                                                        }];
   }
-  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
+  for (MPNowPlayingInfoCenter *center in [self activeNowPlayingInfoCenters]) {
+    center.nowPlayingInfo = info;
+    center.playbackState = playbackState;
+  }
+  [self activateNowPlayingSessionIfPossible];
+  [self logNowPlayingSnapshot:@"update-now-playing"];
 #endif
+}
 
-  // Note: Mac Catalyst does not support MPNowPlayingInfoCenter
-  // The metadata is still available via the 'metadata' event and module properties
+- (void)reassertNowPlayingContextForReason:(NSString *)reason attemptsRemaining:(NSUInteger)attemptsRemaining
+{
+#if TARGET_OS_IOS
+  if (!_player || _player.rate <= 0) {
+    NSLog(@"[ti.audiostream] reassert(%@) skipped — no active playback", reason);
+    return;
+  }
+
+  NSLog(@"[ti.audiostream] reassert(%@) attempts=%lu", reason, (unsigned long)attemptsRemaining);
+
+  // Re-activate audio session
+  [[AVAudioSession sharedInstance] setActive:YES error:nil];
+
+  // Re-publish Now Playing info
+  [self updateNowPlaying];
+
+  // Promote session
+  [self activateNowPlayingSessionIfPossible];
+
+  [self logNowPlayingSnapshot:reason];
+
+  // Retry if needed — the system may not pick up the first attempt
+  if (attemptsRemaining > 0) {
+    __weak __typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      [weakSelf reassertNowPlayingContextForReason:reason attemptsRemaining:attemptsRemaining - 1];
+    });
+  }
+#endif
 }
 
 - (void)parseMetadataItems:(NSArray<AVMetadataItem *> *)items
@@ -621,7 +1136,6 @@
     }
     // Artwork URL from StreamUrl (Radio Paradise, etc.)
     else if ([keyString isEqualToString:@"StreamUrl"] && stringValue) {
-      // Check if it's an image URL
       if ([stringValue hasSuffix:@".jpg"] || [stringValue hasSuffix:@".jpeg"] ||
           [stringValue hasSuffix:@".png"] || [stringValue hasSuffix:@".gif"] ||
           [stringValue containsString:@".jpg?"] || [stringValue containsString:@".png?"]) {
@@ -633,7 +1147,6 @@
     // Deep Inspection for Embedded Metadata (Global Player / ID3 COMM frames)
     if (stringValue && !title) {
       if ([stringValue containsString:@"StreamTitle='"]) {
-        // Extract content between StreamTitle=' and ';
         NSRange startRange = [stringValue rangeOfString:@"StreamTitle='"];
         if (startRange.location != NSNotFound) {
           NSUInteger startPos = startRange.location + startRange.length;
@@ -685,7 +1198,7 @@
       }
     }
 
-    // Fetch artwork bitmap from URL for lock screen (no JS event — emitted below)
+    // Fetch artwork bitmap from URL for lock screen
     if (artworkURL) {
       NSUInteger expectedGeneration = _artworkGeneration;
       NSString *expectedURL = [_currentURL copy];
@@ -741,12 +1254,15 @@
     dispatch_async(dispatch_get_main_queue(), ^{
       if (self->_player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate) {
         [self fireState:@"buffering"];
+        [self setPlaybackState:MPNowPlayingPlaybackStatePlaying];
       } else if (self->_player.timeControlStatus == AVPlayerTimeControlStatusPlaying) {
         self->_retryCount = 0;
         [self fireState:@"playing"];
+        [self setPlaybackState:MPNowPlayingPlaybackStatePlaying];
         [self updateNowPlaying];
       } else if (self->_player.timeControlStatus == AVPlayerTimeControlStatusPaused) {
         [self fireState:@"paused"];
+        [self setPlaybackState:MPNowPlayingPlaybackStatePaused];
         [self updateNowPlaying];
       }
     });
@@ -769,7 +1285,7 @@
           case NSURLErrorDataNotAllowed:
           case NSURLErrorInternationalRoamingOff:
           case NSURLErrorCallIsActive:
-            // Transient network issues — worth retrying
+            // Transient network issues -- worth retrying
             isRetryable = YES;
             break;
           case NSURLErrorCannotFindHost:
@@ -780,16 +1296,15 @@
           case NSURLErrorServerCertificateHasUnknownRoot:
           case NSURLErrorServerCertificateNotYetValid:
           case NSURLErrorClientCertificateRejected:
-            // Permanent — bad DNS or bad SSL, won't change on retry
+            // Permanent -- bad DNS or bad SSL, won't change on retry
             isRetryable = NO;
             break;
           default:
-            // Other NSURLErrorDomain errors — attempt retry
+            // Other NSURLErrorDomain errors -- attempt retry
             isRetryable = YES;
             break;
         }
       }
-      // Non-URL errors (e.g. AVFoundation decoding errors) are terminal
 
       [self fireState:@"error"];
       [self fireError:error.localizedDescription];
@@ -798,7 +1313,7 @@
         [self attemptReconnect];
       } else {
         if (!isRetryable) {
-          NSLog(@"[ti.audiostream] Permanent error — no retry");
+          NSLog(@"[ti.audiostream] Permanent error -- no retry");
         } else {
           NSLog(@"[ti.audiostream] Max retries (%d) exhausted", _maxRetries);
         }
@@ -818,7 +1333,6 @@
     [self fireState:@"error"];
     [self fireError:[NSString stringWithFormat:@"HTTP Error: %ld", (long)lastEvent.errorStatusCode]];
 
-    // Error HTTP (404, 500, etc) = Detener inmediatamente
     [self stop:nil];
   }
 }
@@ -840,6 +1354,21 @@
     _resumeOnInterruption = NO;
   }
 }
+
+- (void)handleAudioRouteChange:(NSNotification *)notification
+{
+  NSNumber *reasonNumber = notification.userInfo[AVAudioSessionRouteChangeReasonKey];
+  AVAudioSessionRouteChangeReason reason = (AVAudioSessionRouteChangeReason)[reasonNumber integerValue];
+  NSLog(@"[ti.audiostream] Audio route changed reason=%ld currentRoute=%@", (long)reason, [AVAudioSession sharedInstance].currentRoute);
+
+  if (!_player) {
+    return;
+  }
+
+  if (_player.rate > 0 || _player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate) {
+    [self reassertNowPlayingContextForReason:@"audio-route-change" attemptsRemaining:2];
+  }
+}
 #endif
 
 - (void)attemptReconnect
@@ -858,6 +1387,7 @@
 {
   _retryTimer = nil;
   if (_currentURL) {
+    _playRequested = YES;
     [self prepareCurrentStreamItem];
     [_player play];
   }

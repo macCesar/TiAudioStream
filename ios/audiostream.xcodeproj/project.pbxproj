@@ -26,6 +26,10 @@
 		24DD6CFA1134B3F500162E58 /* TiAudiostreamModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 24DD6CF81134B3F500162E58 /* TiAudiostreamModule.m */; };
 		24DE9E1111C5FE74003F90F6 /* TiAudiostreamModuleAssets.h in Headers */ = {isa = PBXBuildFile; fileRef = 24DE9E0F11C5FE74003F90F6 /* TiAudiostreamModuleAssets.h */; };
 		24DE9E1211C5FE74003F90F6 /* TiAudiostreamModuleAssets.m in Sources */ = {isa = PBXBuildFile; fileRef = 24DE9E1011C5FE74003F90F6 /* TiAudiostreamModuleAssets.m */; };
+		CP001001000000000000001A /* TiAudiostreamCarPlaySceneDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = CP001001000000000000001B /* TiAudiostreamCarPlaySceneDelegate.h */; };
+		CP001001000000000000001C /* TiAudiostreamCarPlaySceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = CP001001000000000000001D /* TiAudiostreamCarPlaySceneDelegate.m */; };
+		CP001001000000000000002A /* TiAudiostreamWindowSceneDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = CP001001000000000000002B /* TiAudiostreamWindowSceneDelegate.h */; };
+		CP001001000000000000002C /* TiAudiostreamWindowSceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = CP001001000000000000002D /* TiAudiostreamWindowSceneDelegate.m */; };
 		AA747D9F0F9514B9006C5449 /* TiAudiostream_Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = AA747D9E0F9514B9006C5449 /* TiAudiostream_Prefix.pch */; };
 		AACBBE4A0F95108600F1A2B1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AACBBE490F95108600F1A2B1 /* Foundation.framework */; };
 		B11E042C241AC5C100EFA7DC /* TitaniumKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = B11E042B241AC5C100EFA7DC /* TitaniumKit.xcframework */; };
@@ -47,6 +51,10 @@
 		24DD6D1B1134B66800162E58 /* titanium.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = titanium.xcconfig; sourceTree = "<group>"; };
 		24DE9E0F11C5FE74003F90F6 /* TiAudiostreamModuleAssets.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "TiAudiostreamModuleAssets.h"; path = "Classes/TiAudiostreamModuleAssets.h"; sourceTree = "<group>"; };
 		24DE9E1011C5FE74003F90F6 /* TiAudiostreamModuleAssets.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "TiAudiostreamModuleAssets.m"; path = "Classes/TiAudiostreamModuleAssets.m"; sourceTree = "<group>"; };
+		CP001001000000000000001B /* TiAudiostreamCarPlaySceneDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "TiAudiostreamCarPlaySceneDelegate.h"; path = "Classes/TiAudiostreamCarPlaySceneDelegate.h"; sourceTree = "<group>"; };
+		CP001001000000000000001D /* TiAudiostreamCarPlaySceneDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "TiAudiostreamCarPlaySceneDelegate.m"; path = "Classes/TiAudiostreamCarPlaySceneDelegate.m"; sourceTree = "<group>"; };
+		CP001001000000000000002B /* TiAudiostreamWindowSceneDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "TiAudiostreamWindowSceneDelegate.h"; path = "Classes/TiAudiostreamWindowSceneDelegate.h"; sourceTree = "<group>"; };
+		CP001001000000000000002D /* TiAudiostreamWindowSceneDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "TiAudiostreamWindowSceneDelegate.m"; path = "Classes/TiAudiostreamWindowSceneDelegate.m"; sourceTree = "<group>"; };
 		AA747D9E0F9514B9006C5449 /* TiAudiostream_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "TiAudiostream_Prefix.pch"; sourceTree = SOURCE_ROOT; };
 		AACBBE490F95108600F1A2B1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		B11E042B241AC5C100EFA7DC /* TitaniumKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TitaniumKit.xcframework; path = "$(TITANIUM_SDK)/iphone/Frameworks/TitaniumKit.xcframework"; sourceTree = "<group>"; };
@@ -101,6 +109,10 @@
 				24DE9E1011C5FE74003F90F6 /* TiAudiostreamModuleAssets.m */,
 				24DD6CF71134B3F500162E58 /* TiAudiostreamModule.h */,
 				24DD6CF81134B3F500162E58 /* TiAudiostreamModule.m */,
+				CP001001000000000000001B /* TiAudiostreamCarPlaySceneDelegate.h */,
+				CP001001000000000000001D /* TiAudiostreamCarPlaySceneDelegate.m */,
+				CP001001000000000000002B /* TiAudiostreamWindowSceneDelegate.h */,
+				CP001001000000000000002D /* TiAudiostreamWindowSceneDelegate.m */,
 			);
 			name = Classes;
 			sourceTree = "<group>";
@@ -124,6 +136,8 @@
 				AA747D9F0F9514B9006C5449 /* TiAudiostream_Prefix.pch in Headers */,
 				24DD6CF91134B3F500162E58 /* TiAudiostreamModule.h in Headers */,
 				24DE9E1111C5FE74003F90F6 /* TiAudiostreamModuleAssets.h in Headers */,
+				CP001001000000000000001A /* TiAudiostreamCarPlaySceneDelegate.h in Headers */,
+				CP001001000000000000002A /* TiAudiostreamWindowSceneDelegate.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -197,6 +211,8 @@
 			files = (
 				24DD6CFA1134B3F500162E58 /* TiAudiostreamModule.m in Sources */,
 				24DE9E1211C5FE74003F90F6 /* TiAudiostreamModuleAssets.m in Sources */,
+				CP001001000000000000001C /* TiAudiostreamCarPlaySceneDelegate.m in Sources */,
+				CP001001000000000000002C /* TiAudiostreamWindowSceneDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
