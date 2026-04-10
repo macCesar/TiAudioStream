@@ -12,6 +12,20 @@ La integración de CarPlay en `ti.audiostream` avanzó bastante, pero sigue sin 
 
 Ese último punto sigue bloqueando que `Now Playing` funcione “desde la primera” como sí lo hace la app nativa.
 
+### Cierre de la jornada
+
+Al final de esta tanda quedaron dos conclusiones claras:
+
+- **El problema principal sigue siendo el `cold start ownership`**: CarPlay sigue sin adoptar de forma consistente a `NotiGAPE` o `AudiostreamTest` como fuente activa al abrir el display por primera vez.
+- **La regresión de artwork sí quedó corregida**: `NotiGAPE` volvió a cambiar la imagen del programa actual al cambiar de estación, igual que su mini-player. Eso confirma que el problema de carátula ya quedó separado del problema de ownership de CarPlay.
+
+En otras palabras:
+
+- `Now Playing` desde `cold start`: **todavía pendiente**
+- cambio de carátula del programa actual en `NotiGAPE`: **corregido**
+- lista/browsing de estaciones: **funcionando**
+- fallback lista-only en CarPlay Titanium: **habilitado en 1.2.5**
+
 ## Hallazgo importante de hoy
 
 Durante varias pruebas, Titanium estaba reutilizando una build vieja del host app.
@@ -227,6 +241,54 @@ Objetivo:
 Nota:
 
 - este ajuste es reciente y se introdujo para mejorar UX mientras sigue pendiente la adopción real del sidebar
+
+### 7. Corrección de metadata parcial / artwork persistente
+
+Se detectó otro bug real separado del ownership:
+
+- `setMetadata()` estaba borrando `title`, `artist` y `artwork` cuando el payload no incluía explícitamente todos los campos.
+
+Se corrigió para:
+
+- preservar metadata existente cuando el caller solo actualiza un subconjunto
+- evitar que cambios parciales vacíen la carátula actual
+
+Resultado confirmado:
+
+- `AudiostreamTest` siguió cambiando artwork dinámico correctamente
+- `NotiGAPE` recuperó el cambio de imagen del programa actual al cambiar de estación
+
+### 8. Ajuste JS en NotiGAPE para fijar artwork inicial del stream
+
+Se ajustó `audioService.js` para que `controlStreamer()` mande también al módulo:
+
+- `title`
+- `artist`
+- `artwork`
+
+dentro del `setStream(...)` inicial, en lugar de depender solo de un `setMetadata(...)` separado.
+
+Objetivo:
+
+- arrancar el item nuevo ya con su imagen correcta
+- evitar la carrera entre `setMetadata()` y `setStream()`
+- alinear mejor el mini-player de la app con el `Now Playing` del sistema
+
+### 9. Fallback lista-only en CarPlay
+
+Se removió del `CPListTemplate` el renglón:
+
+- `Now Playing`
+- `Open current playback`
+
+Motivo:
+
+- en Titanium seguía llevando con frecuencia a una pantalla vacía
+- el browse/listado de estaciones sí es confiable
+- la estación actual y el catálogo siguen funcionando sin obligar al usuario a entrar a un `Now Playing` inconsistente
+
+Este cambio **no arregla** el ownership inicial de CarPlay.
+Solo cambia la UX para que la integración quede usable mientras ese bug sigue pendiente.
 
 ## Cambios realizados en NotiGAPE
 

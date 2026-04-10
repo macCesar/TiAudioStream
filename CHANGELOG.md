@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2026-04-10
+
+### Changed
+- **iOS: experimental CarPlay source-ownership refresh**: The module now re-runs the same audio-session ownership steps not only at startup, but also when playback starts, when the app returns to foreground, and when CarPlay connects. This mirrors the behavior observed when opening a second Titanium app caused CarPlay to finally adopt the active source.
+- **iOS: CarPlay station list refresh no longer reinstalls the root template**: The delegate now updates list sections in place, which removes the visible flicker in `AudiostreamTest` when stations or metadata refresh.
+- **iOS: current-station row no longer prefixes `Resume` while playback is active**: The CarPlay list now labels the current station directly instead of showing a stale `Resume ...` prefix during active playback.
+
+### Notes
+- This patch is intentionally for ongoing CarPlay ownership experiments so the build can be identified unambiguously in host apps as `1.2.2`.
+
+## [1.2.3] - 2026-04-10
+
+### Changed
+- **iOS: delayed CarPlay refresh after scene connect/presentation**: When CarPlay connects or `Now Playing` is presented, the module now republishes the active item after a short delay instead of relying only on the initial publish path.
+- **iOS: explicit external content identifier for live items**: `updateNowPlaying()` now sets `MPNowPlayingInfoPropertyExternalContentIdentifier` plus a single-item playback queue so MediaRemote sees a clearer item identity during CarPlay adoption experiments.
+
+### Notes
+- This patch is still experimental and focused only on reproducing and narrowing the CarPlay cold-start adoption bug.
+
+## [1.2.4] - 2026-04-10
+
+### Fixed
+- **iOS: partial `setMetadata()` calls no longer wipe existing title, artist, or artwork**: The module now preserves existing now-playing fields unless the caller explicitly provides replacement values. This restores artwork updates that were being lost after ownership experiments and prevents incomplete metadata payloads from blanking the current item.
+
+### Notes
+- This patch is separate from the unresolved CarPlay cold-start ownership issue.
+
+## [1.2.5] - 2026-04-10
+
+### Changed
+- **iOS: CarPlay list-only fallback**: Removed the `Now Playing` row from the CarPlay browse list so Titanium host apps stay on the station list instead of navigating into an empty `Now Playing` screen.
+
+### Notes
+- This does not resolve the underlying CarPlay cold-start ownership bug. It is an explicit list-only fallback for Titanium host apps while ownership remains under investigation.
+
 ## [1.2.1] - 2026-04-10
 
 ### Fixed

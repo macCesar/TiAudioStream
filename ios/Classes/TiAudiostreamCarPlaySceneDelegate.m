@@ -25,7 +25,6 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 @implementation TiAudiostreamCarPlaySceneDelegate {
   CPInterfaceController *_interfaceController;
   CPListTemplate *_rootTemplate;
-  CPListItem *_nowPlayingItem;
   NSUInteger _pendingNowPlayingRequestID;
 }
 
@@ -72,24 +71,6 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
   NSMutableArray<CPListItem *> *items = [NSMutableArray array];
   NSDictionary *currentStation = [TiAudiostreamModule persistedCurrentAutomotiveStation];
   NSArray<NSDictionary *> *stations = [TiAudiostreamModule persistedAutomotiveStations];
-  BOOL playbackActive = [self isPlaybackActive] || [self isNowPlayingReady];
-
-  _nowPlayingItem = nil;
-  if (playbackActive) {
-    _nowPlayingItem = [[CPListItem alloc] initWithText:@"Now Playing"
-                                            detailText:@"Open current playback"];
-    _nowPlayingItem.handler = ^(id<CPSelectableListItem> item, dispatch_block_t completionBlock) {
-      if ([weakSelf isNowPlayingReady]) {
-        [weakSelf presentNowPlayingTemplateAnimated:YES reason:@"user-selection"];
-      } else {
-        NSLog(@"[ti.audiostream] Skipping Now Playing push (user-selection): playback source not adopted yet");
-      }
-      if (completionBlock) {
-        completionBlock();
-      }
-    };
-    [items addObject:_nowPlayingItem];
-  }
 
   if ([currentStation isKindOfClass:[NSDictionary class]]) {
     NSString *currentTitle = [currentStation objectForKey:@"title"] ?: [currentStation objectForKey:@"stationName"] ?: @"Last station";
