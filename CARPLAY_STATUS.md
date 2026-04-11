@@ -2,29 +2,37 @@
 
 ## Estado real al 2026-04-10
 
-La integración de CarPlay en `ti.audiostream` avanzó bastante, pero sigue sin cerrarse el punto más importante en apps Titanium:
+La integración de CarPlay en `ti.audiostream` quedó en un estado usable pero no completamente resuelto para apps Titanium.
 
-- `NotiGAPE` y `AudiostreamTest` ya muestran lista de estaciones en CarPlay.
-- La selección de estaciones desde CarPlay ya llega a JS y sí cambia la reproducción en la app host.
+### Qué quedó funcionando
+
+- `NotiGAPE` y `AudiostreamTest` muestran la lista de estaciones en CarPlay.
+- La selección de estaciones desde CarPlay sí llega a JS y sí cambia la reproducción en la app host.
 - La metadata manual, artwork y `playbackState` sí se publican al sistema.
-- La app nativa de comparación `CarPlayNowPlayingProbe` sí es adoptada por CarPlay como fuente activa de audio.
-- Las apps Titanium todavía no son adoptadas de forma consistente como fuente activa en el sidebar de CarPlay.
+- `NotiGAPE` volvió a cambiar correctamente la carátula del programa actual al cambiar de estación.
+- `AudiostreamTest` sigue mostrando metadata/artwork dinámicos del stream.
 
-Ese último punto sigue bloqueando que `Now Playing` funcione “desde la primera” como sí lo hace la app nativa.
+### Qué sigue pendiente
 
-### Cierre de la jornada
+- Las apps Titanium **no son adoptadas de forma consistente** como fuente activa en el sidebar de CarPlay desde `cold start`.
+- La vista de reproducción del sistema (`Now Playing`) **no es confiable** desde la primera apertura en apps Titanium.
+- La app nativa de comparación `CarPlayNowPlayingProbe` sí es adoptada correctamente y sigue siendo la referencia funcional.
 
-Al final de esta tanda quedaron dos conclusiones claras:
+## Cierre real de esta tanda
+
+Quedaron tres conclusiones claras:
 
 - **El problema principal sigue siendo el `cold start ownership`**: CarPlay sigue sin adoptar de forma consistente a `NotiGAPE` o `AudiostreamTest` como fuente activa al abrir el display por primera vez.
-- **La regresión de artwork sí quedó corregida**: `NotiGAPE` volvió a cambiar la imagen del programa actual al cambiar de estación, igual que su mini-player. Eso confirma que el problema de carátula ya quedó separado del problema de ownership de CarPlay.
+- **La regresión de artwork sí quedó corregida**: `NotiGAPE` ya vuelve a cambiar la imagen del programa actual al cambiar de estación, igual que su mini-player.
+- **Se dejó un fallback de navegación más limpio**: la lista de CarPlay ya no depende del row manual `Now Playing`, y el browse quedó más usable aunque el ownership siga pendiente.
 
-En otras palabras:
+En corto:
 
-- `Now Playing` desde `cold start`: **todavía pendiente**
+- `Now Playing` desde `cold start`: **pendiente**
 - cambio de carátula del programa actual en `NotiGAPE`: **corregido**
 - lista/browsing de estaciones: **funcionando**
-- fallback lista-only en CarPlay Titanium: **habilitado en 1.2.5**
+- modo lista-only en CarPlay Titanium: **habilitado**
+- marcador de estación activa en browse: **ajustado en 1.2.7**
 
 ## Hallazgo importante de hoy
 
@@ -65,6 +73,8 @@ ti build -p ios -F iphone -T simulator --force
 - estación actual persistida y lista de estaciones persistida
 - selección de estación desde CarPlay hacia JS con `automotivestationselected`
 - logs/snapshots detallados de sesión, metadata, artwork, playback rate y conexión de CarPlay
+- browse list en modo lista-only, sin row manual `Now Playing`
+- actualización in-place de items en la lista para evitar reconstruir toda la plantilla al cambiar de estación
 
 ### Módulo Android
 
@@ -92,7 +102,7 @@ ti build -p ios -F iphone -T simulator --force
 
 CarPlay no adoptaba a la app Titanium como fuente activa de audio en el sidebar.
 
-### Root cause identificado
+### Hipótesis corregida
 
 Tres cables desconectados entre el scene delegate y el módulo:
 
@@ -100,11 +110,11 @@ Tres cables desconectados entre el scene delegate y el módulo:
 2. `handleCarPlaySceneDidConnect:` existía en el módulo pero **NUNCA se registraba** como observer
 3. `handleCarPlaySceneDidConnect:` era un **stub vacío** — solo hacía log
 
-Resultado: cuando CarPlay conectaba mientras el audio ya estaba reproduciéndose, el módulo **nunca se enteraba** y no reassertaba la sesión Now Playing.
+Resultado esperado: cuando CarPlay conectaba mientras el audio ya estaba reproduciéndose, el módulo debía enterarse y reassertar la sesión Now Playing.
 
 Un ajuste UX previo (remover auto-push de Now Playing en `scene-connect`) empeoró el síntoma porque el push condicional que lo reemplazó dependía de que el módulo primero hiciera la reasserción... que nunca ocurría.
 
-### Fix aplicado
+### Fix aplicado, pero insuficiente
 
 - Scene delegate ahora postea la notificación después de `setRootTemplate` exitoso
 - Módulo registra el observer en `startup`
@@ -112,9 +122,9 @@ Un ajuste UX previo (remover auto-push de Now Playing en `scene-connect`) empeor
 - Auto-push condicional de Now Playing con 0.5s delay (solo si hay playback activo)
 - `reassertNowPlayingContextForReason:` convertido de stub a funcional con reintentos
 
-### Estado: PENDIENTE DE VALIDACIÓN
+### Estado validado
 
-Aún no se confirma si este fix resuelve la adopción del sidebar. Requiere build + test en simulador
+El fix sí mejoró los logs internos y confirmó que el módulo tiene metadata válida al conectar CarPlay, pero **no resolvió** la adopción inicial del sidebar ni el `Now Playing` vacío desde `cold start`.
 
 ## Comparación contra la app nativa
 
@@ -228,19 +238,15 @@ Se detectó un mal comportamiento:
 
 Se ajustó `TiAudiostreamCarPlaySceneDelegate.m` para:
 
-- dejar de empujar automáticamente `Now Playing` en:
-  - `scene-connect`
-  - selección de estación
-  - `stations-refresh`
+- dejar de empujar automáticamente `Now Playing`
+- quitar el row manual `Now Playing` / `Open current playback`
+- dejar la raíz en modo lista
 
 Objetivo:
 
 - mantener estable la lista
-- evitar el salto tonto a un `Now Playing` vacío
-
-Nota:
-
-- este ajuste es reciente y se introdujo para mejorar UX mientras sigue pendiente la adopción real del sidebar
+- evitar el salto a un `Now Playing` vacío
+- dejar una UX honesta mientras el ownership siga pendiente
 
 ### 7. Corrección de metadata parcial / artwork persistente
 
@@ -258,7 +264,53 @@ Resultado confirmado:
 - `AudiostreamTest` siguió cambiando artwork dinámico correctamente
 - `NotiGAPE` recuperó el cambio de imagen del programa actual al cambiar de estación
 
-### 8. Ajuste JS en NotiGAPE para fijar artwork inicial del stream
+### 8. Ajuste de browse en 1.2.6 y 1.2.7
+
+Se detectó otro problema de UX en la lista de CarPlay:
+
+- la estación seleccionada no parecía quedarse marcada
+- CarPlay terminaba resaltando el primer renglón visible
+- esto ocurría porque el delegate reconstruía toda la lista y perdía el foco del item tocado
+
+Se corrigió en `1.2.6`:
+
+- se eliminó la fila fija superior de “estación actual”
+- la lista ya no se reconstruye completa al cambiar estación
+- los `CPListItem` se actualizan in-place
+
+Después se detectó que `CPListItem.playing = YES` causaba otro efecto visual confuso:
+
+- CarPlay podía mostrar doble resaltado gris
+- el foco visual podía quedarse en un renglón distinto al activo
+- al tocar una estación, el estado `playing` peleaba contra la selección temporal del sistema
+
+Se ajustó en `1.2.7`:
+
+- ya no se usa `CPListItem.playing` para marcar la estación activa
+- la estación activa se indica con el subtítulo `On Air • ...`
+- la lista conserva actualización in-place
+- no se fuerza selección ni scroll porque `CPListTemplate` no expone una API pública para eso
+
+Resultado esperado:
+
+- el browse debe ser más legible y estable
+- el usuario puede identificar la estación activa sin depender del highlight gris del sistema
+
+## Estado del documento
+
+Este archivo ya quedó alineado con:
+
+- fallback lista-only
+- corrección de artwork en `NotiGAPE`
+- eliminación del row manual `Now Playing`
+- marcador estable de estación activa en browse (`1.2.7`)
+
+Lo que **no** está marcado como resuelto, porque no lo está, es:
+
+- adopción inicial de fuente activa en el sidebar
+- confiabilidad total de la vista del sistema `Now Playing` en apps Titanium
+
+### 9. Ajuste JS en NotiGAPE para fijar artwork inicial del stream
 
 Se ajustó `audioService.js` para que `controlStreamer()` mande también al módulo:
 
@@ -274,7 +326,7 @@ Objetivo:
 - evitar la carrera entre `setMetadata()` y `setStream()`
 - alinear mejor el mini-player de la app con el `Now Playing` del sistema
 
-### 9. Fallback lista-only en CarPlay
+### 10. Fallback lista-only en CarPlay
 
 Se removió del `CPListTemplate` el renglón:
 

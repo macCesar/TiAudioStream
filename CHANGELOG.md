@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.7] - 2026-04-10
+
+### Changed
+- **iOS: CarPlay browse no longer uses the system `playing` selection state for the active station**: The active station is now marked with a stable `On Air` subtitle instead of CarPlay's own playing highlight, avoiding the double-gray / wrong-row selection effect during browse updates.
+
+### Notes
+- This patch is focused only on making the CarPlay station list easier to read while the system `Now Playing` ownership issue remains unresolved.
+
+## [1.2.6] - 2026-04-10
+
+### Changed
+- **iOS: CarPlay browse list no longer duplicates the current station in a pinned first row**: The active station now stays in its own position in the list and is marked with CarPlay's playing indicator instead of jumping to the first row.
+- **iOS: CarPlay root template is forced into list-only mode more aggressively**: The module now clears navigation bar buttons on the root list and suppresses all app-driven pushes to `CPNowPlayingTemplate`.
+
+### Notes
+- This patch is intended to remove the confusing "selection jumps to the first row" behavior while keeping CarPlay on the station list.
+
 ## [1.2.2] - 2026-04-10
 
 ### Changed

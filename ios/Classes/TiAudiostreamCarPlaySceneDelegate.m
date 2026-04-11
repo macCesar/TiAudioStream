@@ -26,6 +26,72 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
   CPInterfaceController *_interfaceController;
   CPListTemplate *_rootTemplate;
   NSUInteger _pendingNowPlayingRequestID;
+  NSMutableArray<CPListItem *> *_stationItems;
+  NSArray<NSString *> *_stationItemIdentifiers;
+}
+
+- (NSString *)stationIdentifier:(NSDictionary *)station
+{
+  if (![station isKindOfClass:[NSDictionary class]]) {
+    return @"";
+  }
+
+  NSString *streamURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
+  if (streamURL.length > 0) {
+    return [@"url:" stringByAppendingString:streamURL];
+  }
+
+  NSString *title = [station objectForKey:@"stationName"] ?: [station objectForKey:@"title"] ?: @"";
+  NSString *subtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"artist"] ?: @"";
+  return [NSString stringWithFormat:@"meta:%@|%@", title, subtitle];
+}
+
+- (NSArray<NSString *> *)stationIdentifiersFromStations:(NSArray<NSDictionary *> *)stations
+{
+  NSMutableArray<NSString *> *identifiers = [NSMutableArray array];
+  for (NSDictionary *station in stations) {
+    if (![station isKindOfClass:[NSDictionary class]]) {
+      continue;
+    }
+    [identifiers addObject:[self stationIdentifier:station]];
+  }
+  return identifiers;
+}
+
+- (NSString *)displaySubtitleForStation:(NSDictionary *)station currentStation:(NSDictionary *)currentStation
+{
+  NSString *subtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"stationName"] ?: [station objectForKey:@"artist"] ?: @"";
+  if ([self station:station matchesCurrentStation:currentStation]) {
+    if (subtitle.length > 0) {
+      return [NSString stringWithFormat:@"On Air • %@", subtitle];
+    }
+    return @"On Air";
+  }
+  return subtitle;
+}
+
+- (BOOL)station:(NSDictionary *)station matchesCurrentStation:(NSDictionary *)currentStation
+{
+  if (![station isKindOfClass:[NSDictionary class]] || ![currentStation isKindOfClass:[NSDictionary class]]) {
+    return NO;
+  }
+
+  NSString *stationStreamURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
+  NSString *currentStreamURL = [currentStation objectForKey:@"streamUrl"] ?: [currentStation objectForKey:@"url"];
+  if (stationStreamURL.length > 0 && currentStreamURL.length > 0 && [stationStreamURL isEqualToString:currentStreamURL]) {
+    return YES;
+  }
+
+  NSString *stationTitle = [station objectForKey:@"stationName"] ?: [station objectForKey:@"title"];
+  NSString *currentTitle = [currentStation objectForKey:@"stationName"] ?: [currentStation objectForKey:@"title"];
+  NSString *stationSubtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"artist"];
+  NSString *currentSubtitle = [currentStation objectForKey:@"subtitle"] ?: [currentStation objectForKey:@"artist"];
+
+  return stationTitle.length > 0 &&
+         currentTitle.length > 0 &&
+         [stationTitle isEqualToString:currentTitle] &&
+         ((stationSubtitle.length == 0 && currentSubtitle.length == 0) ||
+          [stationSubtitle isEqualToString:currentSubtitle]);
 }
 
 - (BOOL)isPlaybackActive
@@ -60,6 +126,9 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 {
   CPListTemplate *listTemplate = [[CPListTemplate alloc] initWithTitle:[self hostApplicationName]
                                                               sections:[self buildRootSections]];
+  listTemplate.leadingNavigationBarButtons = @[];
+  listTemplate.trailingNavigationBarButtons = @[];
+  listTemplate.backButton = nil;
   listTemplate.emptyViewTitleVariants = @[ @"No playback options" ];
   listTemplate.emptyViewSubtitleVariants = @[ @"Open the app on iPhone to refresh playback." ];
   return listTemplate;
@@ -71,19 +140,7 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
   NSMutableArray<CPListItem *> *items = [NSMutableArray array];
   NSDictionary *currentStation = [TiAudiostreamModule persistedCurrentAutomotiveStation];
   NSArray<NSDictionary *> *stations = [TiAudiostreamModule persistedAutomotiveStations];
-
-  if ([currentStation isKindOfClass:[NSDictionary class]]) {
-    NSString *currentTitle = [currentStation objectForKey:@"title"] ?: [currentStation objectForKey:@"stationName"] ?: @"Last station";
-    NSString *currentSubtitle = [currentStation objectForKey:@"subtitle"] ?: [currentStation objectForKey:@"stationName"] ?: @"";
-    CPListItem *currentItem = [[CPListItem alloc] initWithText:currentTitle detailText:currentSubtitle];
-    currentItem.handler = ^(id<CPSelectableListItem> item, dispatch_block_t completionBlock) {
-      [weakSelf handleStationSelection:currentStation reason:@"current-selection"];
-      if (completionBlock) {
-        completionBlock();
-      }
-    };
-    [items addObject:currentItem];
-  }
+  NSMutableArray<NSString *> *identifiers = [NSMutableArray array];
 
   for (NSDictionary *station in stations) {
     if (![station isKindOfClass:[NSDictionary class]]) {
@@ -91,18 +148,58 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
     }
 
     NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
-    NSString *subtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"stationName"] ?: [station objectForKey:@"artist"] ?: @"";
+    NSString *subtitle = [self displaySubtitleForStation:station currentStation:currentStation];
     CPListItem *stationItem = [[CPListItem alloc] initWithText:title detailText:subtitle];
+    stationItem.userInfo = station;
     stationItem.handler = ^(id<CPSelectableListItem> item, dispatch_block_t completionBlock) {
-      [weakSelf handleStationSelection:station reason:@"station-selection"];
+      NSDictionary *selectedStation = nil;
+      if ([item isKindOfClass:[CPListItem class]]) {
+        id userInfo = ((CPListItem *)item).userInfo;
+        if ([userInfo isKindOfClass:[NSDictionary class]]) {
+          selectedStation = (NSDictionary *)userInfo;
+        }
+      }
+      [weakSelf handleStationSelection:selectedStation ?: station reason:@"station-selection"];
       if (completionBlock) {
         completionBlock();
       }
     };
     [items addObject:stationItem];
+    [identifiers addObject:[self stationIdentifier:station]];
   }
 
+  _stationItems = [items mutableCopy];
+  _stationItemIdentifiers = [identifiers copy];
+
   return @[ [[CPListSection alloc] initWithItems:items] ];
+}
+
+- (void)refreshStationItemsInPlace API_AVAILABLE(ios(14.0))
+{
+  NSArray<NSDictionary *> *stations = [TiAudiostreamModule persistedAutomotiveStations];
+  NSDictionary *currentStation = [TiAudiostreamModule persistedCurrentAutomotiveStation];
+  NSArray<NSString *> *identifiers = [self stationIdentifiersFromStations:stations];
+
+  if (_stationItems.count == 0 || ![_stationItemIdentifiers isEqualToArray:identifiers] || _stationItems.count != stations.count) {
+    if (_rootTemplate) {
+      [_rootTemplate updateSections:[self buildRootSections]];
+    }
+    return;
+  }
+
+  [_stationItems enumerateObjectsUsingBlock:^(CPListItem *item, NSUInteger idx, BOOL *stop) {
+    NSDictionary *station = idx < stations.count ? stations[idx] : nil;
+    if (![station isKindOfClass:[NSDictionary class]]) {
+      return;
+    }
+
+    NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
+    NSString *subtitle = [self displaySubtitleForStation:station currentStation:currentStation];
+    [item setText:title];
+    [item setDetailText:subtitle];
+    item.userInfo = station;
+    item.playing = NO;
+  }];
 }
 
 - (void)handleStationSelection:(NSDictionary *)station reason:(NSString *)reason API_AVAILABLE(ios(14.0))
@@ -118,32 +215,7 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 
 - (void)presentNowPlayingTemplateAnimated:(BOOL)animated reason:(NSString *)reason API_AVAILABLE(ios(14.0))
 {
-  if (!_interfaceController) {
-    NSLog(@"[ti.audiostream] Skipping Now Playing push (%@): interface controller missing", reason);
-    return;
-  }
-
-  CPTemplate *topTemplate = _interfaceController.topTemplate;
-  if ([topTemplate isKindOfClass:[CPNowPlayingTemplate class]]) {
-    NSLog(@"[ti.audiostream] Now Playing already visible (%@)", reason);
-    return;
-  }
-
-  CPNowPlayingTemplate *nowPlaying = [CPNowPlayingTemplate sharedTemplate];
-  nowPlaying.upNextButtonEnabled = NO;
-  nowPlaying.albumArtistButtonEnabled = NO;
-
-  [_interfaceController pushTemplate:nowPlaying
-                            animated:animated
-                          completion:^(BOOL success, NSError *error) {
-                            if (success) {
-                              NSLog(@"[ti.audiostream] CarPlay pushed Now Playing template (%@)", reason);
-                              [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidPresentNowPlayingNotification
-                                                                                  object:nil];
-                            } else {
-                              NSLog(@"[ti.audiostream] Failed to push Now Playing template (%@): %@", reason, error.localizedDescription ?: error);
-                            }
-                          }];
+  NSLog(@"[ti.audiostream] Suppressing Now Playing template push (%@) in list-only mode", reason);
 }
 
 - (void)presentNowPlayingWhenPlaybackIsReadyAnimated:(BOOL)animated
@@ -214,17 +286,6 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
                                    // Notify the module so it can reassert the Now Playing session
                                    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidConnectNotification object:nil];
 
-                                   // Auto-push Now Playing if audio is already playing
-                                   if ([strongSelf isPlaybackActive]) {
-                                     strongSelf->_pendingNowPlayingRequestID++;
-                                     NSUInteger requestID = strongSelf->_pendingNowPlayingRequestID;
-                                     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                                       [weakSelf presentNowPlayingWhenPlaybackIsReadyAnimated:YES
-                                                                                       reason:@"scene-connect-auto"
-                                                                                      attempt:0
-                                                                                    requestID:requestID];
-                                     });
-                                   }
                                  } else {
                                    NSLog(@"[ti.audiostream] Failed to set CarPlay root template: %@", error.localizedDescription ?: error);
                                  }
@@ -241,7 +302,7 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
   }
 
   if (_rootTemplate) {
-    [_rootTemplate updateSections:[self buildRootSections]];
+    [self refreshStationItemsInPlace];
     return;
   }
 
