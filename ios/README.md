@@ -54,6 +54,7 @@ CarPlay support is built into the module, but Titanium apps still need the CarPl
 At runtime, the module provides:
 
 - CarPlay and window scene delegates for Titanium apps
+- A station browsing list backed by `setAutomotiveStations(...)`
 - Now-playing info published directly to `MPNowPlayingInfoCenter.defaultCenter` so CarPlay and the system always see the app as the active audio source
 - `remotecontrol` events from CarPlay with the same `PLAY`, `PAUSE`, `STOP`, `NEXT`, and `PREV` actions used on the lock screen
 
@@ -145,14 +146,13 @@ Once configured, CarPlay reads the same active stream metadata and playback stat
 
 ### What appears on CarPlay
 
+- **Station list** with station/program rows published from the app
 - **Now Playing screen** with title, artist, and artwork
 - **Transport controls**: play/pause, next, previous, stop
 - The `remotecontrol` event fires normally from CarPlay interactions, with the same `action` values (`PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV`) as from the lock screen or Control Center
 
 ### Limitations
 
-- Currently supports the **Now Playing screen only** (no station browsing list)
-- Cold launch into CarPlay does **not** automatically resume the last station or show a cached station list yet
 - Apple must approve the entitlement before CarPlay works
 - The entitlement is **per-app**, not per-module
 
