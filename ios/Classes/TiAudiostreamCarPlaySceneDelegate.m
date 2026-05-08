@@ -20,7 +20,11 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 + (NSDictionary *)persistedCurrentAutomotiveStation;
 + (TiAudiostreamModule *)activeModule;
 - (BOOL)carPlayNowPlayingReady;
+- (NSString *)carPlayCurrentStreamURL;
+- (void)refreshCarPlayNowPlayingItemForReason:(NSString *)reason;
 @end
+
+typedef void (^TiAudiostreamCarPlayCompletion)(void);
 
 @implementation TiAudiostreamCarPlaySceneDelegate {
   CPInterfaceController *_interfaceController;
@@ -79,6 +83,11 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
   NSString *stationStreamURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
   NSString *currentStreamURL = [currentStation objectForKey:@"streamUrl"] ?: [currentStation objectForKey:@"url"];
   if (stationStreamURL.length > 0 && currentStreamURL.length > 0 && [stationStreamURL isEqualToString:currentStreamURL]) {
+    return YES;
+  }
+
+  NSString *moduleStreamURL = [[TiAudiostreamModule activeModule] carPlayCurrentStreamURL];
+  if (stationStreamURL.length > 0 && moduleStreamURL.length > 0 && [stationStreamURL isEqualToString:moduleStreamURL]) {
     return YES;
   }
 
@@ -150,6 +159,8 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
     NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
     NSString *subtitle = [self displaySubtitleForStation:station currentStation:currentStation];
     CPListItem *stationItem = [[CPListItem alloc] initWithText:title detailText:subtitle];
+    stationItem.playing = [self station:station matchesCurrentStation:currentStation] && [self isPlaybackActive];
+    stationItem.playingIndicatorLocation = CPListItemPlayingIndicatorLocationTrailing;
     stationItem.userInfo = station;
     stationItem.handler = ^(id<CPSelectableListItem> item, dispatch_block_t completionBlock) {
       NSDictionary *selectedStation = nil;
@@ -159,10 +170,17 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
           selectedStation = (NSDictionary *)userInfo;
         }
       }
-      [weakSelf handleStationSelection:selectedStation ?: station reason:@"station-selection"];
-      if (completionBlock) {
-        completionBlock();
+      TiAudiostreamCarPlaySceneDelegate *strongSelf = weakSelf;
+      if (!strongSelf) {
+        if (completionBlock) {
+          completionBlock();
+        }
+        return;
       }
+
+      [strongSelf handleStationSelection:selectedStation ?: station
+                                  reason:@"station-selection"
+                              completion:completionBlock];
     };
     [items addObject:stationItem];
     [identifiers addObject:[self stationIdentifier:station]];
@@ -198,42 +216,158 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
     [item setText:title];
     [item setDetailText:subtitle];
     item.userInfo = station;
-    item.playing = NO;
+    item.playing = [self station:station matchesCurrentStation:currentStation] && [self isPlaybackActive];
+    item.playingIndicatorLocation = CPListItemPlayingIndicatorLocationTrailing;
   }];
 }
 
-- (void)handleStationSelection:(NSDictionary *)station reason:(NSString *)reason API_AVAILABLE(ios(14.0))
+- (void)handleStationSelection:(NSDictionary *)station
+                        reason:(NSString *)reason
+                    completion:(TiAudiostreamCarPlayCompletion)completion API_AVAILABLE(ios(14.0))
 {
   TiAudiostreamModule *module = [TiAudiostreamModule activeModule];
-  if (module) {
-    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationSelectedNotification
-                                                        object:station];
-  } else {
+  if (!module) {
     NSLog(@"[ti.audiostream] No active module available for station selection (%@)", reason);
+    if (completion) {
+      completion();
+    }
+    return;
   }
+
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationSelectedNotification
+                                                      object:station];
+  if (completion) {
+    completion();
+  }
+
+  NSArray<NSNumber *> *refreshDelays = @[ @0.15, @0.60, @1.20 ];
+  for (NSNumber *delay in refreshDelays) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      [self refreshStationItemsInPlace];
+    });
+  }
+  _pendingNowPlayingRequestID += 1;
+  [self presentNowPlayingWhenPlaybackIsReadyAnimated:NO
+                                              reason:reason
+                                             attempt:0
+                                           requestID:_pendingNowPlayingRequestID
+                                          completion:nil];
 }
 
-- (void)presentNowPlayingTemplateAnimated:(BOOL)animated reason:(NSString *)reason API_AVAILABLE(ios(14.0))
+- (void)presentNowPlayingTemplateAnimated:(BOOL)animated
+                                    reason:(NSString *)reason
+                                completion:(TiAudiostreamCarPlayCompletion)completion API_AVAILABLE(ios(14.0))
 {
-  NSLog(@"[ti.audiostream] Suppressing Now Playing template push (%@) in list-only mode", reason);
+  if (!_interfaceController) {
+    NSLog(@"[ti.audiostream] Cannot push Now Playing (%@): no CarPlay interface controller", reason);
+    if (completion) {
+      completion();
+    }
+    return;
+  }
+
+  CPNowPlayingTemplate *template = [CPNowPlayingTemplate sharedTemplate];
+  template.upNextButtonEnabled = NO;
+  template.albumArtistButtonEnabled = NO;
+
+  if (_interfaceController.topTemplate == template) {
+    NSLog(@"[ti.audiostream] Now Playing template already visible (%@)", reason);
+    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidPresentNowPlayingNotification object:nil];
+    if (completion) {
+      completion();
+    }
+    return;
+  }
+
+  if ([_interfaceController.templates containsObject:template]) {
+    NSLog(@"[ti.audiostream] Returning to existing Now Playing template (%@)", reason);
+    [_interfaceController popToTemplate:template
+                               animated:animated
+                             completion:^(BOOL success, NSError *error) {
+                               if (success) {
+                                 [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidPresentNowPlayingNotification object:nil];
+                                 if (completion) {
+                                   completion();
+                                 }
+                                 return;
+                               }
+
+                               NSLog(@"[ti.audiostream] Failed to return to Now Playing template (%@): %@",
+                                 reason,
+                                 error.localizedDescription ?: error);
+                               if (completion) {
+                                 completion();
+                               }
+                             }];
+    return;
+  }
+
+  NSLog(@"[ti.audiostream] Pushing Now Playing template (%@)", reason);
+  [_interfaceController pushTemplate:template
+                             animated:animated
+                           completion:^(BOOL success, NSError *error) {
+                             if (success) {
+                               [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidPresentNowPlayingNotification object:nil];
+                               if (completion) {
+                                 completion();
+                               }
+                               return;
+                             }
+
+                             NSLog(@"[ti.audiostream] Failed to push Now Playing template (%@): %@",
+                               reason,
+                               error.localizedDescription ?: error);
+                             if (completion) {
+                               completion();
+                             }
+                           }];
 }
 
 - (void)presentNowPlayingWhenPlaybackIsReadyAnimated:(BOOL)animated
                                               reason:(NSString *)reason
                                              attempt:(NSUInteger)attempt
-                                           requestID:(NSUInteger)requestID API_AVAILABLE(ios(14.0))
+                                           requestID:(NSUInteger)requestID
+                                          completion:(TiAudiostreamCarPlayCompletion)completion API_AVAILABLE(ios(14.0))
 {
   if (requestID != _pendingNowPlayingRequestID) {
+    if (completion) {
+      completion();
+    }
     return;
   }
 
   if ([self isNowPlayingReady]) {
-    [self presentNowPlayingTemplateAnimated:animated reason:reason];
+    TiAudiostreamModule *module = [TiAudiostreamModule activeModule];
+    [module refreshCarPlayNowPlayingItemForReason:[NSString stringWithFormat:@"%@-preflight", reason ?: @"unknown"]];
+
+    NSLog(@"[ti.audiostream] Delaying Now Playing push (%@): waiting for MediaRemote propagation", reason);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.10 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      if (requestID != self->_pendingNowPlayingRequestID) {
+        if (completion) {
+          completion();
+        }
+        return;
+      }
+
+      if (![self isNowPlayingReady]) {
+        [self presentNowPlayingWhenPlaybackIsReadyAnimated:animated
+                                                   reason:reason
+                                                  attempt:attempt + 1
+                                                requestID:requestID
+                                               completion:completion];
+        return;
+      }
+
+      [self presentNowPlayingTemplateAnimated:animated reason:reason completion:completion];
+    });
     return;
   }
 
   if (attempt >= 24) {
     NSLog(@"[ti.audiostream] Skipping delayed Now Playing push (%@): playback never became ready", reason);
+    if (completion) {
+      completion();
+    }
     return;
   }
 
@@ -241,7 +375,8 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
     [self presentNowPlayingWhenPlaybackIsReadyAnimated:animated
                                                reason:reason
                                               attempt:attempt + 1
-                                            requestID:requestID];
+                                            requestID:requestID
+                                           completion:completion];
   });
 }
 
@@ -297,6 +432,13 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 
 - (void)handleAutomotiveStationsDidChange:(NSNotification *)notification API_AVAILABLE(ios(14.0))
 {
+  if (![NSThread isMainThread]) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [self handleAutomotiveStationsDidChange:notification];
+    });
+    return;
+  }
+
   if (!_interfaceController) {
     return;
   }
