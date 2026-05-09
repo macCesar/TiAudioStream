@@ -339,27 +339,8 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   if ([self isNowPlayingReady]) {
     TiAudiostreamModule *module = [TiAudiostreamModule activeModule];
     [module refreshCarPlayNowPlayingItemForReason:[NSString stringWithFormat:@"%@-preflight", reason ?: @"unknown"]];
-
-    NSLog(@"[ti.audiostream] Delaying Now Playing push (%@): waiting for MediaRemote propagation", reason);
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.10 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-      if (requestID != self->_pendingNowPlayingRequestID) {
-        if (completion) {
-          completion();
-        }
-        return;
-      }
-
-      if (![self isNowPlayingReady]) {
-        [self presentNowPlayingWhenPlaybackIsReadyAnimated:animated
-                                                   reason:reason
-                                                  attempt:attempt + 1
-                                                requestID:requestID
-                                               completion:completion];
-        return;
-      }
-
-      [self presentNowPlayingTemplateAnimated:animated reason:reason completion:completion];
-    });
+    NSLog(@"[ti.audiostream] Presenting Now Playing immediately (%@)", reason);
+    [self presentNowPlayingTemplateAnimated:animated reason:reason completion:completion];
     return;
   }
 
@@ -420,6 +401,13 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 
                                    // Notify the module so it can reassert the Now Playing session
                                    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidConnectNotification object:nil];
+
+                                   if ([strongSelf isNowPlayingReady]) {
+                                     strongSelf->_pendingNowPlayingRequestID += 1;
+                                     [strongSelf presentNowPlayingTemplateAnimated:NO
+                                                                            reason:@"scene-connect-eager"
+                                                                        completion:nil];
+                                   }
 
                                  } else {
                                    NSLog(@"[ti.audiostream] Failed to set CarPlay root template: %@", error.localizedDescription ?: error);
