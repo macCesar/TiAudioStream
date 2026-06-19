@@ -11,6 +11,7 @@
 #import <MediaPlayer/MediaPlayer.h>
 
 static NSString *const TiAudiostreamCarPlayDidConnectNotification = @"TiAudiostreamCarPlayDidConnectNotification";
+static NSString *const TiAudiostreamCarPlayDidDisconnectNotification = @"TiAudiostreamCarPlayDidDisconnectNotification";
 static NSString *const TiAudiostreamCarPlayDidPresentNowPlayingNotification = @"TiAudiostreamCarPlayDidPresentNowPlayingNotification";
 static NSString *const TiAudiostreamAutomotiveStationSelectedNotification = @"TiAudiostreamAutomotiveStationSelectedNotification";
 static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"TiAudiostreamAutomotiveStationsDidChangeNotification";
@@ -246,12 +247,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
       [self refreshStationItemsInPlace];
     });
   }
-  _pendingNowPlayingRequestID += 1;
-  [self presentNowPlayingWhenPlaybackIsReadyAnimated:NO
-                                              reason:reason
-                                             attempt:0
-                                           requestID:_pendingNowPlayingRequestID
-                                          completion:nil];
+  NSLog(@"[ti.audiostream] Staying on CarPlay station list after selection (%@)", reason ?: @"unknown");
 }
 
 - (void)presentNowPlayingTemplateAnimated:(BOOL)animated
@@ -381,6 +377,12 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 {
   _interfaceController = interfaceController;
   NSLog(@"[ti.audiostream] CarPlay didConnectInterfaceController scenes=%lu", (unsigned long)[UIApplication sharedApplication].connectedScenes.count);
+
+  // CarPlay asks MediaRemote for the active player almost immediately during
+  // scene setup. Reassert before setRootTemplate so that first lookup resolves
+  // to this app instead of caching an empty player path.
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidConnectNotification object:nil];
+
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleAutomotiveStationsDidChange:)
                                                name:TiAudiostreamAutomotiveStationsDidChangeNotification
@@ -398,16 +400,6 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                                      return;
                                    }
                                    NSLog(@"[ti.audiostream] CarPlay root template set");
-
-                                   // Notify the module so it can reassert the Now Playing session
-                                   [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidConnectNotification object:nil];
-
-                                   if ([strongSelf isNowPlayingReady]) {
-                                     strongSelf->_pendingNowPlayingRequestID += 1;
-                                     [strongSelf presentNowPlayingTemplateAnimated:NO
-                                                                            reason:@"scene-connect-eager"
-                                                                        completion:nil];
-                                   }
 
                                  } else {
                                    NSLog(@"[ti.audiostream] Failed to set CarPlay root template: %@", error.localizedDescription ?: error);
@@ -459,6 +451,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 {
   _interfaceController = nil;
   NSLog(@"[ti.audiostream] CarPlay disconnected");
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidDisconnectNotification object:nil];
 }
 
 - (void)templateApplicationScene:(CPTemplateApplicationScene *)templateApplicationScene
@@ -466,6 +459,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                          fromWindow:(CPWindow *)window
 {
   NSLog(@"[ti.audiostream] CarPlay disconnected from window");
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidDisconnectNotification object:nil];
 }
 
 @end
