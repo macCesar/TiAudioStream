@@ -126,6 +126,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	private Bitmap appIconBitmap = null;
 	private boolean sessionHadArtwork = false;
 	private final AtomicLong artworkGeneration = new AtomicLong(0);
+	// Bumped on every stream change so a late playlist resolution can't clobber a newer stream
+	private final AtomicLong streamGeneration = new AtomicLong(0);
 	private String lastEmittedTitle = null;
 	private String lastEmittedArtist = null;
 	private String lastEmittedArtwork = null;
@@ -738,9 +740,172 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 		resetRetryLogic();
 
-		MediaItem mediaItem = MediaItem.fromUri(currentUrl);
+		preparePlayback();
+	}
+
+	/**
+	 * Prepare playback for the current URL. SHOUTcast/Icecast playlist files (.pls/.m3u)
+	 * are resolved to the underlying audio URL on a background thread, because ExoPlayer
+	 * only parses .m3u8 (HLS) natively — it treats .pls/.m3u as raw audio and fails.
+	 * Non-playlist URLs are normalized synchronously.
+	 */
+	private void preparePlayback()
+	{
+		final String requested = currentUrl;
+		if (requested == null || requested.isEmpty()) {
+			return;
+		}
+		final long generation = streamGeneration.incrementAndGet();
+
+		if (isPlaylistUrl(requested)) {
+			Log.d(LCAT, "Resolving playlist URL: " + requested);
+			executor.execute(() -> {
+				String resolved = resolvePlaylist(requested);
+				final boolean ok = resolved != null;
+				final String playUrl = normalizeStreamUrl(ok ? resolved : requested);
+				mainHandler.post(() -> {
+					if (streamGeneration.get() != generation) {
+						Log.d(LCAT, "Ignoring stale playlist resolution for: " + requested);
+						return;
+					}
+					if (ok) {
+						Log.i(LCAT, "Playlist resolved to: " + playUrl);
+					} else {
+						Log.e(LCAT, "Could not resolve playlist, trying original URL: " + requested);
+					}
+					currentUrl = playUrl;
+					setMediaItemAndPrepare(playUrl);
+				});
+			});
+		} else {
+			currentUrl = normalizeStreamUrl(requested);
+			setMediaItemAndPrepare(currentUrl);
+		}
+	}
+
+	private void setMediaItemAndPrepare(String url)
+	{
+		if (player == null || url == null || url.isEmpty()) {
+			return;
+		}
+		MediaItem mediaItem = MediaItem.fromUri(url);
 		player.setMediaItem(mediaItem);
 		player.prepare();
+	}
+
+	/**
+	 * True when the URL points to a .pls or .m3u playlist file. .m3u8 is deliberately
+	 * excluded — it is HLS and handled natively by ExoPlayer. Query strings are ignored.
+	 */
+	private boolean isPlaylistUrl(String url)
+	{
+		if (url == null) {
+			return false;
+		}
+		String lower = url.toLowerCase();
+		int q = lower.indexOf('?');
+		if (q >= 0) {
+			lower = lower.substring(0, q);
+		}
+		return lower.endsWith(".pls") || lower.endsWith(".m3u");
+	}
+
+	/**
+	 * Append the SHOUTcast "/;" stream hint to bare-root URLs (scheme://host:port with no
+	 * path/query). SHOUTcast DNAS otherwise redirects browser-style User-Agents to its HTML
+	 * status page, which ExoPlayer cannot decode. URLs that already have a path are unchanged.
+	 */
+	private String normalizeStreamUrl(String url)
+	{
+		if (url == null) {
+			return null;
+		}
+		try {
+			java.net.URI uri = new java.net.URI(url);
+			String scheme = uri.getScheme();
+			boolean isHttp = scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"));
+			String path = uri.getPath();
+			boolean noPath = path == null || path.isEmpty() || path.equals("/");
+			if (isHttp && noPath && uri.getQuery() == null && uri.getFragment() == null) {
+				String base = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+				return base + "/;";
+			}
+		} catch (Exception e) {
+			Log.w(LCAT, "Could not normalize stream URL: " + e.getMessage());
+		}
+		return url;
+	}
+
+	/**
+	 * Download a .pls/.m3u playlist and return the first audio stream URL it references,
+	 * or null if it could not be fetched or parsed. Runs on a background thread.
+	 */
+	private String resolvePlaylist(String urlString)
+	{
+		HttpURLConnection connection = null;
+		try {
+			URL url = new URL(urlString);
+			connection = (HttpURLConnection) url.openConnection();
+			connection.setConnectTimeout(5000);
+			connection.setReadTimeout(8000);
+			connection.setInstanceFollowRedirects(true);
+			connection.connect();
+
+			java.io.BufferedReader reader =
+				new java.io.BufferedReader(new java.io.InputStreamReader(connection.getInputStream()));
+			StringBuilder body = new StringBuilder();
+			String line;
+			int count = 0;
+			while ((line = reader.readLine()) != null && count < 200) {
+				body.append(line).append('\n');
+				count++;
+			}
+			reader.close();
+			return parsePlaylist(body.toString());
+		} catch (Exception e) {
+			Log.e(LCAT, "Error resolving playlist: " + e.getMessage());
+			return null;
+		} finally {
+			if (connection != null) {
+				connection.disconnect();
+			}
+		}
+	}
+
+	/**
+	 * Extract the first stream URL from playlist text. Supports PLS ("FileN=URL") and
+	 * M3U (first non-comment URL line).
+	 */
+	private String parsePlaylist(String body)
+	{
+		if (body == null) {
+			return null;
+		}
+		String[] lines = body.split("\\r?\\n");
+		// PLS: FileN=http://...
+		for (String raw : lines) {
+			String line = raw.trim();
+			if (line.regionMatches(true, 0, "File", 0, 4)) {
+				int eq = line.indexOf('=');
+				if (eq > 0) {
+					String value = line.substring(eq + 1).trim();
+					if (value.startsWith("http://") || value.startsWith("https://")) {
+						return value;
+					}
+				}
+			}
+		}
+		// M3U: first non-comment URL line
+		for (String raw : lines) {
+			String line = raw.trim();
+			if (line.isEmpty() || line.startsWith("#")) {
+				continue;
+			}
+			if (line.startsWith("http://") || line.startsWith("https://")) {
+				return line;
+			}
+		}
+		return null;
 	}
 
 	private void handleSetMetadata(Intent intent)
@@ -999,9 +1164,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		updateNotification();
 		resetRetryLogic();
 
-		MediaItem mediaItem = MediaItem.fromUri(currentUrl);
-		player.setMediaItem(mediaItem);
-		player.prepare();
+		preparePlayback();
 		play();
 
 		if (emitEvent) {
@@ -1096,9 +1259,14 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		if (state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
 			Log.i(LCAT, "Player is IDLE/ENDED, preparing source.");
 			if (currentUrl != null && !currentUrl.isEmpty()) {
-				MediaItem mediaItem = MediaItem.fromUri(currentUrl);
-				player.setMediaItem(mediaItem);
-				player.prepare();
+				if (isPlaylistUrl(currentUrl)) {
+					// Playlist resolution is already in flight (kicked off by setStream/station
+					// selection). player.play() below sets playWhenReady, so playback auto-starts
+					// once the resolved source is prepared — no second network fetch.
+					Log.d(LCAT, "Playlist resolution pending; will auto-start when ready.");
+				} else {
+					setMediaItemAndPrepare(currentUrl);
+				}
 			}
 		}
 		// For live streams that are PAUSED/BUFFERING, just resume without re-preparing
