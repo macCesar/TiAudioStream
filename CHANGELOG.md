@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-06-19
+
+### Added
+- **Android: SHOUTcast/Icecast playlist resolution**: `.pls` and `.m3u` stream URLs are now resolved to the underlying audio stream on a background thread before playback, matching iOS. ExoPlayer only parses `.m3u8` (HLS) natively, so these formats previously failed with `UnrecognizedInputFormatException`.
+
+### Fixed
+- **Android: SHOUTcast bare-root URLs no longer fail**: Root URLs such as `http://host:8000` now get the SHOUTcast `/;` stream hint appended, so the server returns the audio stream instead of its HTML status page. The browser User-Agent kept for strict servers (that 403 non-browser clients) was not enough on its own.
+- **iOS: CarPlay reasserts audio source ownership across the playback lifecycle**: Ownership is refreshed on scene connect, playback start, and prepare-resume, with connect/disconnect tracking and deferred stream-item preparation, so CarPlay reliably adopts the app as the active Now Playing source.
+
 ## [1.2.7] - 2026-04-10
 
 ### Changed
