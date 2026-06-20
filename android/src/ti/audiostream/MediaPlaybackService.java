@@ -279,7 +279,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			boolean isTerminalError =
 				error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
 				error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
-				error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE;
+				error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE ||
+				// Unparseable content (e.g. a SHOUTcast/Icecast "Stream is Offline" HTML page, or any
+				// non-audio response): retrying the same URL just returns the same bytes. Treat as
+				// terminal so we stop cleanly with a single error, matching iOS's AVPlayer behavior.
+				error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ||
+				error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED;
 
 			// For generic network errors (code 2001), inspect the cause chain
 			// to distinguish permanent failures from transient ones
@@ -551,8 +556,13 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void initializePlayer()
 	{
+		// Identify as a media player — NOT a browser, and NOT the bare Android/Dalvik default.
+		// SHOUTcast DNAS serves its HTML status page to browser-style User-Agents (Mozilla/...),
+		// and some CDNs (e.g. Live365) reject the default "Dalvik/..." UA with HTTP 403. A
+		// media-player UA satisfies both — this is what lets iOS "just work" with AVPlayer and
+		// removes any need for "/;" URL rewriting on our side.
 		DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
-			.setUserAgent("Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36");
+			.setUserAgent("ti.audiostream (Android) ExoPlayerLib/1.5.1");
 		DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(this)
 			.setDataSourceFactory(httpFactory);
 		player = new ExoPlayer.Builder(this)
@@ -762,7 +772,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			executor.execute(() -> {
 				String resolved = resolvePlaylist(requested);
 				final boolean ok = resolved != null;
-				final String playUrl = normalizeStreamUrl(ok ? resolved : requested);
+				final String playUrl = ok ? resolved : requested;
 				mainHandler.post(() -> {
 					if (streamGeneration.get() != generation) {
 						Log.d(LCAT, "Ignoring stale playlist resolution for: " + requested);
@@ -778,8 +788,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				});
 			});
 		} else {
-			currentUrl = normalizeStreamUrl(requested);
-			setMediaItemAndPrepare(currentUrl);
+			setMediaItemAndPrepare(requested);
 		}
 	}
 
@@ -808,35 +817,6 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			lower = lower.substring(0, q);
 		}
 		return lower.endsWith(".pls") || lower.endsWith(".m3u");
-	}
-
-	/**
-	 * Append the SHOUTcast "/;" stream hint to bare-root URLs (scheme://host:port with no
-	 * path/query) and to directory-style mount points whose path ends in "/" (e.g.
-	 * ".../north/"). SHOUTcast DNAS otherwise redirects browser-style User-Agents to its HTML
-	 * status page, which ExoPlayer cannot decode. URLs whose path names a file (no trailing
-	 * slash) are left unchanged.
-	 */
-	private String normalizeStreamUrl(String url)
-	{
-		if (url == null) {
-			return null;
-		}
-		try {
-			java.net.URI uri = new java.net.URI(url);
-			String scheme = uri.getScheme();
-			boolean isHttp = scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"));
-			String path = uri.getPath();
-			boolean noPath = path == null || path.isEmpty() || path.equals("/");
-			boolean dirLikePath = path != null && path.endsWith("/");
-			if (isHttp && (noPath || dirLikePath) && uri.getQuery() == null && uri.getFragment() == null) {
-				String base = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-				return base + "/;";
-			}
-		} catch (Exception e) {
-			Log.w(LCAT, "Could not normalize stream URL: " + e.getMessage());
-		}
-		return url;
 	}
 
 	/**
