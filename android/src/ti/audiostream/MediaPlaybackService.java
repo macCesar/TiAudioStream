@@ -812,8 +812,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	/**
 	 * Append the SHOUTcast "/;" stream hint to bare-root URLs (scheme://host:port with no
-	 * path/query). SHOUTcast DNAS otherwise redirects browser-style User-Agents to its HTML
-	 * status page, which ExoPlayer cannot decode. URLs that already have a path are unchanged.
+	 * path/query) and to directory-style mount points whose path ends in "/" (e.g.
+	 * ".../north/"). SHOUTcast DNAS otherwise redirects browser-style User-Agents to its HTML
+	 * status page, which ExoPlayer cannot decode. URLs whose path names a file (no trailing
+	 * slash) are left unchanged.
 	 */
 	private String normalizeStreamUrl(String url)
 	{
@@ -826,7 +828,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			boolean isHttp = scheme != null && (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"));
 			String path = uri.getPath();
 			boolean noPath = path == null || path.isEmpty() || path.equals("/");
-			if (isHttp && noPath && uri.getQuery() == null && uri.getFragment() == null) {
+			boolean dirLikePath = path != null && path.endsWith("/");
+			if (isHttp && (noPath || dirLikePath) && uri.getQuery() == null && uri.getFragment() == null) {
 				String base = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
 				return base + "/;";
 			}
