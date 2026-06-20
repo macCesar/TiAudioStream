@@ -19,6 +19,7 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 ## Features
 
 - Same JavaScript API for Android (Media3 ExoPlayer) and iOS (AVPlayer)
+- Broad stream support out of the box: direct audio (MP3/AAC), HLS (`.m3u8`), `.pls`/`.m3u` playlists (resolved automatically), and SHOUTcast/Icecast servers (including bare-root URLs like `http://host:8000` and directory mounts), with no per-URL workarounds
 - Metadata parsing from ICY headers, ID3 tags, and non-standard payloads (for example embedded JSON used by some stations)
 - Artwork updates for lock screen and notification/control surfaces, with automatic app icon fallback when no artwork is available
 - Audio focus and interruption handling (calls, Siri, other apps) with resume logic that respects manual pauses
@@ -36,11 +37,7 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 
 ### Mac Catalyst note
 
-The iOS module includes Mac Catalyst support (`mac: true` in manifest). Running Mac Catalyst **apps** is supported since Titanium SDK `13.1.1.GA`. However, building the **module from source** with `mac: true` requires additional CLI fixes that are not yet in a GA release (currently provided by a local SDK build).
-
-The required fixes are in an open Titanium SDK PR: [tidev/titanium-sdk#14391](https://github.com/tidev/titanium-sdk/pull/14391)
-
-Once that PR lands in a GA release, building from source should work without any custom SDK. The pre-built module zip already works on `13.1.1.GA+`.
+The iOS module includes Mac Catalyst support (`mac: true` in manifest). Running Mac Catalyst **apps** is supported since Titanium SDK `13.1.1.GA`. Building the **module from source** with `mac: true` needs the CLI fix from [tidev/titanium-sdk#14391](https://github.com/tidev/titanium-sdk/pull/14391), which merged in February 2026 and ships in `13.2.0.GA+`. The pre-built module zip works on `13.1.1.GA+`.
 
 ## Installation
 
@@ -117,7 +114,7 @@ Initializes the audio source. Call this before `start()` or when switching strea
 
 | Parameter            | Type          | Required | Description                                                                                                             |
 | :------------------- | :------------ | :------- | :---------------------------------------------------------------------------------------------------------------------- |
-| `url`                | String        | Yes      | HLS (`.m3u8`) or direct audio stream URL                                                                                |
+| `url`                | String        | Yes      | Direct audio stream, HLS (`.m3u8`), or a `.pls`/`.m3u` playlist (resolved automatically). SHOUTcast/Icecast URLs work as-is. |
 | `isLive`             | Boolean       | No       | Hides seek bar and shows live indicator on system controls. Default: `true`.                                            |
 | `autoUpdateMetadata` | Boolean       | No       | Auto-update lock screen from stream metadata. Default: `true`.                                                          |
 | `title`              | String        | No       | Initial title for lock screen / notification                                                                            |
@@ -284,7 +281,7 @@ Fires on playback errors.
 | :-------- | :----- | :---------------- |
 | `message` | String | Error description |
 
-On Android, the module retries failed connections up to **5 times** with a **3-second delay** between attempts before firing this event.
+On Android, transient connection failures are retried up to **5 times** with a **3-second delay** before this event fires. Unplayable responses, such as an offline station's HTML page or any non-audio content, fail immediately with a single event (the same as iOS).
 
 #### `remotecontrol`
 
@@ -455,7 +452,7 @@ audioStream.addEventListener('state', (e) => {
 })
 ```
 
-On Android, the engine retries failed connections automatically (5 attempts, 3 seconds apart) before firing the error event.
+On Android, transient connection failures are retried automatically (5 attempts, 3 seconds apart) before the error event fires. Content that cannot be played, such as an offline station's HTML page, fails immediately instead of retrying.
 
 ### Platform-specific behavior
 
@@ -473,7 +470,7 @@ On Android, the engine retries failed connections automatically (5 attempts, 3 s
 - Uses MediaSession for Bluetooth devices and the system output switcher
 - Android Auto support via MediaBrowserService: the module registers as a media source so Android Auto can discover, display, and control the stream (see [Android Auto](#android-auto))
 - CarPlay support via Titanium scene delegates plus MediaPlayer integration: once the entitlement and scene manifest are in place, CarPlay can show the active stream with metadata, artwork, and controls (see [CarPlay](#carplay))
-- If the stream drops, the engine retries 5 times with a 3-second delay before reporting an error
+- If the connection drops, the engine retries 5 times with a 3-second delay before reporting an error; unplayable content (such as an offline station page) is reported immediately
 - All permissions are declared in the module's `timodule.xml` and merged automatically. No manual manifest editing needed
 
 ## Android Auto

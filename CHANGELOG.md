@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-06-20
+
+### Changed
+- **Android: use a media-player User-Agent instead of a browser one**: The HTTP data source now identifies as `ti.audiostream (Android) ExoPlayerLib/1.5.1`. SHOUTcast/Icecast servers serve their HTML status page to browser-style User-Agents (which then fail to decode) but stream audio to media players, and some CDNs (e.g. Live365) reject the default `Dalvik/...` User-Agent with HTTP 403. A media-player User-Agent satisfies all of them — the same reason iOS/AVPlayer "just works". This **supersedes and removes** the `/;` URL rewriting added in 1.3.0/1.3.1, which is no longer needed: SHOUTcast bare-root and directory-style mount URLs now play as-is.
+
+### Fixed
+- **Android: unplayable streams fail fast instead of retrying 5×**: Unparseable content — e.g. a SHOUTcast/Icecast "Stream is Offline" page, or any non-audio response — is now treated as a terminal error (`ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED` / `_MANIFEST_UNSUPPORTED`). The player stops and fires a single `error` event, matching iOS. Previously these were retried 5 times (~15s), firing a repeated error/alert on each attempt.
+
+### Notes
+- `.pls`/`.m3u` playlist resolution (added in 1.3.0) is retained.
+- iOS is unchanged — it already used a media-player User-Agent (AVPlayer) and treated decode failures as terminal.
+
 ## [1.3.1] - 2026-06-20
 
 ### Fixed
