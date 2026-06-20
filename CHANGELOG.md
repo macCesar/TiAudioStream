@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-06-20
+
+### Fixed
+- **Android: SHOUTcast directory-style mount points now play**: Stream URLs whose path ends in `/` (e.g. `https://stream.radiocaroline.net/north/`) now get the SHOUTcast `/;` stream hint appended, just like bare-root URLs. Previously only path-less roots were normalized, so these mounts returned the HTML status page and failed to play.
+
 ## [1.3.0] - 2026-06-19
 
 ### Added
