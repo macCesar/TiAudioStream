@@ -108,6 +108,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	        // Media3 ExoPlayer
 	        private ExoPlayer player;
+	        // Whether the HTTP data source follows cross-protocol redirects (HTTPS<->HTTP).
+	        // Default true for parity with iOS/AVPlayer and browsers (needed by CDNs like
+	        // radiojar that redirect an HTTPS entry URL to an HTTP edge node). Apps that want
+	        // strict transport can set it false via the module's allowCrossProtocolRedirects
+	        // property; read when the player is built, so set it before the first play.
+	        static volatile boolean sAllowCrossProtocolRedirects = true;
 	        private String currentUrl;
 	        private boolean isLive = true;
 	        private boolean autoUpdateMetadata = true;
@@ -567,7 +573,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		// is what browsers and iOS/AVPlayer do — so this brings Android to parity.
 		DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
 			.setUserAgent("ti.audiostream (Android) ExoPlayerLib/1.5.1")
-			.setAllowCrossProtocolRedirects(true);
+			.setAllowCrossProtocolRedirects(sAllowCrossProtocolRedirects);
 		DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(this)
 			.setDataSourceFactory(httpFactory);
 		player = new ExoPlayer.Builder(this)

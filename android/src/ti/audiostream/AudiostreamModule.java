@@ -519,6 +519,26 @@ public class AudiostreamModule extends KrollModule
 		return isPlaying;
 	}
 
+	/**
+	 * Whether the HTTP data source follows cross-protocol redirects (HTTPS<->HTTP).
+	 * Default true: parity with iOS/AVPlayer and browsers, and required by CDNs that redirect
+	 * an HTTPS entry URL to an HTTP edge node (e.g. radiojar). Set false for strict transport
+	 * (an https:// URL will then never be downgraded to http://). Read when the player is
+	 * built, so set it before the first play().
+	 */
+	@Kroll.getProperty
+	public boolean getAllowCrossProtocolRedirects()
+	{
+		return MediaPlaybackService.sAllowCrossProtocolRedirects;
+	}
+
+	@Kroll.setProperty
+	public void setAllowCrossProtocolRedirects(boolean value)
+	{
+		MediaPlaybackService.sAllowCrossProtocolRedirects = value;
+		Log.d(LCAT, "allowCrossProtocolRedirects set to " + value);
+	}
+
 	// ========== Service Helpers ==========
 
 	private void startServiceSafely(Intent intent)
