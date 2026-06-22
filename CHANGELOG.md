@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3] - 2026-06-22
+
+### Fixed
+- **Android: follow cross-protocol redirects (HTTPS↔HTTP)**: Streams that redirect an HTTPS entry URL to a tokenized HTTP edge node (e.g. radiojar: `https://stream.radiojar.com/…` → `http://nNN.radiojar.com/…?rj-tok=…`) failed with a fatal `Response code: 302`. ExoPlayer's `DefaultHttpDataSource` rejects cross-protocol redirects by default; `setAllowCrossProtocolRedirects(true)` makes it follow them, matching iOS/AVPlayer and browsers.
+
 ## [1.3.2] - 2026-06-20
 
 ### Changed
