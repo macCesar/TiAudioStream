@@ -561,8 +561,13 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		// and some CDNs (e.g. Live365) reject the default "Dalvik/..." UA with HTTP 403. A
 		// media-player UA satisfies both — this is what lets iOS "just work" with AVPlayer and
 		// removes any need for "/;" URL rewriting on our side.
+		// Follow cross-protocol redirects (HTTPS<->HTTP). ExoPlayer rejects them by default and
+		// reports the 3xx as a fatal "Response code: 302" error. Many radio CDNs (e.g. radiojar,
+		// which redirects an HTTPS entry URL to a tokenized HTTP edge node) rely on this, and it
+		// is what browsers and iOS/AVPlayer do — so this brings Android to parity.
 		DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
-			.setUserAgent("ti.audiostream (Android) ExoPlayerLib/1.5.1");
+			.setUserAgent("ti.audiostream (Android) ExoPlayerLib/1.5.1")
+			.setAllowCrossProtocolRedirects(true);
 		DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(this)
 			.setDataSourceFactory(httpFactory);
 		player = new ExoPlayer.Builder(this)
