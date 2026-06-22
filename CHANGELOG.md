@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-06-22
+
+### Added
+- **Android: `allowCrossProtocolRedirects` property**: Exposes the cross-protocol redirect behavior (added in 1.3.3) as a module property. Defaults to `true` (parity with iOS/AVPlayer and browsers; required by CDNs like radiojar). Set `audioStream.allowCrossProtocolRedirects = false` before `start()` to forbid HTTPS→HTTP downgrades when you want strict transport. Read when the player is built. Android-only; no-op on iOS.
+
+### Security
+- Documented the transport-security tradeoff of cross-protocol redirects in the README: with the default on, an `https://` entry URL may be downgraded to `http://` by a server redirect, so it no longer guarantees encrypted transport. The data is public radio audio, so the risk is low; the new property lets security-conscious apps opt out.
+
 ## [1.3.3] - 2026-06-22
 
 ### Fixed

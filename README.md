@@ -248,9 +248,22 @@ audioStream.setMetadataRules(null)
 
 ### Properties
 
-| Property  | Type                | Description                          |
-| :-------- | :------------------ | :----------------------------------- |
-| `playing` | Boolean (read-only) | `true` if audio is currently playing |
+| Property                       | Type                | Description                                                                                       |
+| :----------------------------- | :------------------ | :------------------------------------------------------------------------------------------------ |
+| `playing`                      | Boolean (read-only) | `true` if audio is currently playing                                                              |
+| `allowCrossProtocolRedirects`  | Boolean (Android)   | Follow cross-protocol redirects (HTTPS↔HTTP). Default `true`. Set before `start()`. See note below. |
+
+#### Transport security note (`allowCrossProtocolRedirects`)
+
+Many radio CDNs answer an `https://` entry URL with a redirect to an `http://` edge node (for example radiojar: `https://stream.radiojar.com/…` → `http://nNN.radiojar.com/…?rj-tok=…`). ExoPlayer rejects such cross-protocol redirects by default and fails with `Response code: 302`, so on Android the module follows them — matching what iOS/AVPlayer and browsers already do.
+
+The tradeoff: with this enabled (the default), an `https://` URL **may be downgraded to `http://`** by a redirect, so it no longer guarantees encrypted transport. The data here is public radio audio, so the risk is low, but if you only stream from CDNs that keep HTTPS end-to-end and want to forbid downgrades, set it off before playback:
+
+```javascript
+audioStream.allowCrossProtocolRedirects = false // Android only; iOS/AVPlayer is unaffected
+```
+
+This is Android-only; on iOS it is a no-op (AVPlayer follows these redirects natively).
 
 ### Events
 
