@@ -6,6 +6,7 @@
  * - Matrix-style Terminal Console (Auto-scrolling)
  * - Error handling for dead streams
  * - Real-time metadata and station synchronization
+ * - Android Auto & CarPlay station list (browse + now-playing)
  */
 
 const audioStream = require('ti.audiostream')
@@ -319,6 +320,9 @@ function loadStream(key, shouldStart) {
 
   audioStream.setStream(streamOpts)
 
+  // Keep the car head unit's "now playing" / resume target in sync.
+  if (supportsAutomotive) audioStream.setCurrentAutomotiveStation(toAutomotiveStation(key))
+
   if (shouldStart) audioStream.start()
 }
 
@@ -331,6 +335,32 @@ function getPrevKey() {
   const keys = Object.keys(STREAMS)
   const idx = keys.indexOf(currentStreamKey)
   return keys[(idx - 1 + keys.length) % keys.length]
+}
+
+// =============================================================================
+// ANDROID AUTO / CARPLAY
+// =============================================================================
+// Feature-detect: these methods only exist on module builds with car support.
+const supportsAutomotive = typeof audioStream.setAutomotiveStations === 'function'
+
+// Map a STREAMS entry to the payload the car head unit expects.
+// NOTE: the URL field must be `streamUrl` (not `url`), and each station needs a
+// stable `id` so the module can match taps back to a station.
+function toAutomotiveStation(key) {
+  const s = STREAMS[key]
+  return {
+    id: key,
+    isLive: s.isLive !== false,
+    streamUrl: s.url,
+    title: s.title,
+    subtitle: s.artist || '',
+    artist: s.artist || '',
+    artwork: s.artwork || null
+  }
+}
+
+function buildAutomotiveStations() {
+  return Object.keys(STREAMS).map(toAutomotiveStation)
 }
 
 // =============================================================================
@@ -373,6 +403,22 @@ audioStream.addEventListener('remotecontrol', (e) => {
   if (e.action === 'PREV') loadStream(getPrevKey(), true)
 })
 
+audioStream.addEventListener('automotivestationselected', (e) => {
+  // User tapped a station in the car's browse list. The module ALREADY started
+  // playback natively — here we only sync the phone UI to match.
+  const station = e.station || {}
+  const key = station.id
+  if (!key || !STREAMS[key]) return
+
+  log('Car selected station: ' + STREAMS[key].title)
+  currentStreamKey = key
+  currentStream = STREAMS[key]
+  updateButtonStyles(key)
+  trackTitleLabel.applyProperties({ text: currentStream.title })
+  trackArtistLabel.applyProperties({ text: currentStream.artist })
+  artworkImage.applyProperties({ image: currentStream.artwork || null })
+})
+
 btnPlayPause.addEventListener('click', () => {
   if (audioStream.playing) audioStream.pause()
   else audioStream.start()
@@ -385,4 +431,10 @@ win.addEventListener('close', () => audioStream.stop())
 
 // Initialize
 win.open()
+
+// Register the station list so it shows up in the Android Auto / CarPlay browse
+// list — even when the app is launched cold from the car. The module persists
+// this natively, so the list survives the app being killed.
+if (supportsAutomotive) audioStream.setAutomotiveStations(buildAutomotiveStations())
+
 loadStream('radioParadise', true)

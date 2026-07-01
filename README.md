@@ -246,6 +246,45 @@ audioStream.setMetadataRules({
 audioStream.setMetadataRules(null)
 ```
 
+#### `setAutomotiveStations(stations)`
+
+Registers a list of stations for the Android Auto / CarPlay **browse list** — what the car shows when the app is opened from the head unit. Without this, the car only shows a single "now playing" item while something is already streaming (and nothing at all when opened cold from the car). The module persists the list natively, so it survives the app being killed.
+
+Pass an array of station objects, or `null` to clear:
+
+| Field       | Type    | Description                                                     |
+| :---------- | :------ | :------------------------------------------------------------- |
+| `id`        | String  | Stable, unique id — echoed back in `automotivestationselected` |
+| `streamUrl` | String  | Stream URL to play when the station is tapped                  |
+| `title`     | String  | Station title shown in the list                                |
+| `subtitle`  | String  | Secondary line (e.g. frequency or slogan)                      |
+| `artist`    | String  | Optional; used for now-playing metadata                        |
+| `artwork`   | String  | Optional artwork URL                                           |
+| `isLive`    | Boolean | Optional; default `true`                                       |
+
+#### `setCurrentAutomotiveStation(station)`
+
+Marks which station is currently playing (same object shape as above, or `null`). The car uses it for the "Resume last station" shortcut and the now-playing screen. Call it whenever you switch stations.
+
+```javascript
+const stations = [
+  { id: 'rp', title: 'Radio Paradise', subtitle: 'Eclectic Rock', streamUrl: 'https://stream.radioparadise.com/aac-320', artwork: 'https://example.com/rp.png' },
+  { id: 'gs', title: 'Groove Salad', subtitle: 'Ambient Beats', streamUrl: 'http://ice1.somafm.com/groovesalad-128-mp3' }
+]
+
+audioStream.setAutomotiveStations(stations)
+audioStream.setCurrentAutomotiveStation(stations[0])
+
+// When the driver taps a station in the car, the module starts it natively
+// and fires this so you can sync your phone UI:
+audioStream.addEventListener('automotivestationselected', (e) => {
+  const key = e.station.id
+  // update your UI to reflect `key`
+})
+```
+
+Both methods are cross-platform (Android Auto + CarPlay). On builds without car support they are simply absent, so feature-detect with `typeof audioStream.setAutomotiveStations === 'function'`.
+
 ### Properties
 
 | Property                       | Type                | Description                                                                                       |
@@ -321,6 +360,17 @@ The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fir
 | `REMOTE_CONTROL_END_SEEK_BACK`      | 107   | Android  |
 | `REMOTE_CONTROL_START_SEEK_FORWARD` | 108   | Android  |
 | `REMOTE_CONTROL_END_SEEK_FORWARD`   | 109   | Android  |
+
+#### `automotivestationselected`
+
+Fires when the driver taps a station in the Android Auto / CarPlay browse list. The module starts that station **natively** before firing, so your handler only needs to sync the phone UI — don't call `setStream()`/`start()` again.
+
+| Property  | Type   | Description                                                    |
+| :-------- | :----- | :------------------------------------------------------------ |
+| `station` | Object | The selected station object (same shape you registered, incl. `id`) |
+| `source`  | String | Which car surface triggered it (e.g. `androidAuto`)           |
+
+Requires registering stations first with [`setAutomotiveStations()`](#setautomotivestationsstations).
 
 ## Guides
 
@@ -488,7 +538,10 @@ On Android, transient connection failures are retried automatically (5 attempts,
 
 ## Android Auto
 
-The module registers as a `MediaBrowserService` so Android Auto discovers it as a media source automatically. No extra app code is needed. When connected to a head unit, the car display shows the stream title, artist, artwork, and playback controls.
+The module registers as a `MediaBrowserService` so Android Auto discovers it as a media source automatically. There are two levels of integration:
+
+- **Now playing (zero code):** while a stream is playing, the car shows its title, artist, artwork, and playback controls automatically.
+- **Browsable station list:** to show a list of stations the driver can pick from — including when the app is opened cold from the car — register them with [`setAutomotiveStations()`](#setautomotivestationsstations) and mark the active one with [`setCurrentAutomotiveStation()`](#setcurrentautomotivestationstation). Handle taps via the [`automotivestationselected`](#automotivestationselected) event. See `example/app.js` for a complete implementation.
 
 For setup details, testing with Desktop Head Unit, and troubleshooting, see the [Android-specific documentation](android/README.md#android-auto).
 
