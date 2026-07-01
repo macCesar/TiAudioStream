@@ -671,6 +671,15 @@ public class AudiostreamModule extends KrollModule
 	}
 
 	/**
+	 * Whether the app's JS is alive and listening for remote-control events. When false
+	 * (e.g. launched cold from the car), the service handles next/prev natively.
+	 */
+	public static boolean hasRemoteControlListeners()
+	{
+		return activeModule != null && activeModule.hasListeners("remotecontrol");
+	}
+
+	/**
 	 * Called by MediaPlaybackService when stream metadata changes
 	 */
 	public static void fireMetadata(String title, String artist, String artwork, java.util.Map<String, Object> raw)

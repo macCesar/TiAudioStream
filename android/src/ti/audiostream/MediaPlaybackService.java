@@ -624,12 +624,19 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			public void onSkipToNext()
 			{
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_NEXT);
+				// App JS not running (e.g. launched from the car)? Advance natively.
+				if (!AudiostreamModule.hasRemoteControlListeners()) {
+					playAdjacentAutomotiveStation(1);
+				}
 			}
 
 			@Override
 			public void onSkipToPrevious()
 			{
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PREV);
+				if (!AudiostreamModule.hasRemoteControlListeners()) {
+					playAdjacentAutomotiveStation(-1);
+				}
 			}
 
 			@Override
@@ -1173,6 +1180,38 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		return true;
 	}
 
+	/**
+	 * Advance to the next/previous station in the persisted Android Auto list and play it.
+	 * Used when the car sends skip-next/prev but the app's JS isn't running to handle it.
+	 */
+	private void playAdjacentAutomotiveStation(int direction)
+	{
+		if (automotiveStations == null || automotiveStations.isEmpty()) {
+			return;
+		}
+
+		int currentIndex = -1;
+		if (currentAutomotiveStation != null) {
+			String currentId = getStationString(currentAutomotiveStation, "id", null);
+			if (currentId != null) {
+				for (int i = 0; i < automotiveStations.size(); i++) {
+					String id = getStationString(automotiveStations.get(i), "id", null);
+					if (currentId.equals(id)) {
+						currentIndex = i;
+						break;
+					}
+				}
+			}
+		}
+
+		int size = automotiveStations.size();
+		int nextIndex = (currentIndex < 0)
+			? (direction > 0 ? 0 : size - 1)
+			: (((currentIndex + direction) % size) + size) % size;
+
+		playAutomotiveStation(automotiveStations.get(nextIndex), true);
+	}
+
 	private String applyRules(List<MetadataRule> rules, String input)
 	{
 		if (rules == null || rules.isEmpty() || input == null) return input;
@@ -1555,19 +1594,22 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			if (!dir.exists()) {
 				dir.mkdirs();
 			}
-			java.io.File file = new java.io.File(dir, "art_" + artworkFileCounter.incrementAndGet() + ".jpg");
+			// Unique filename (never reused across sessions) so Android Auto — which caches
+			// artwork by URI — always sees a new URI and re-fetches, instead of serving a
+			// stale cached image for a name reused after a restart.
+			java.io.File file = new java.io.File(dir, "art_" + System.currentTimeMillis() + "_" + artworkFileCounter.incrementAndGet() + ".jpg");
 			java.io.FileOutputStream out = new java.io.FileOutputStream(file);
 			bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
 			out.flush();
 			out.close();
 
-			// Keep only the file we just wrote.
+			// Keep the few most recent files; deleting one Android Auto may still be reading
+			// makes it fall back to a stale render. Older ones are safe to remove.
 			java.io.File[] existing = dir.listFiles();
-			if (existing != null) {
-				for (java.io.File old : existing) {
-					if (!old.equals(file)) {
-						old.delete();
-					}
+			if (existing != null && existing.length > 5) {
+				java.util.Arrays.sort(existing, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+				for (int i = 0; i < existing.length - 5; i++) {
+					existing[i].delete();
 				}
 			}
 
