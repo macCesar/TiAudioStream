@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-07-01
+
+### Fixed
+- **Android: per-song artwork now updates in Android Auto**: The now-playing screen kept showing the first cover (usually the station logo) while the phone notification and lock screen updated correctly. Android Auto ignores `http(s)` artwork URIs and caches embedded bitmaps, so it never re-rendered later covers. The module now also writes each cover to a private cache file and exposes it through a `FileProvider` `content://` URI (`METADATA_KEY_ALBUM_ART_URI`), granting read access to the connected media browser clients, so Android Auto re-fetches and shows the current song's art. The embedded bitmap is kept, so the notification, lock screen, and Bluetooth AVRCP are unchanged.
+
+### Documentation
+- Documented the Android Auto / CarPlay station-list API — `setAutomotiveStations()`, `setCurrentAutomotiveStation()`, and the `automotivestationselected` event — and wired it into the example app (`example/app.js`). The README now distinguishes the zero-code "now playing" integration from the browsable station list.
+
 ## [1.4.0] - 2026-06-22
 
 ### Added
