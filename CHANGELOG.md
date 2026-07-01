@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.2] - 2026-07-01
+
+### Fixed
+- **Android: next/previous stations now work in the car when the app isn't running.** Skip-next/prev from the head unit only forwarded a `remotecontrol` event to the app's JS, which isn't alive when playback is launched cold from the car, so the buttons did nothing. The service now advances through the persisted Android Auto station list natively — still firing the event first, so an app that IS running handles it as before.
+- **Android: Android Auto no longer shows a stale cover from a previous session.** Cached artwork files used a per-process counter (`art_1.jpg`, `art_2.jpg`, …) that reset on each launch, so a reused `content://` URI made Android Auto — which caches artwork by URI — serve an old image. Filenames are now unique per write (timestamped) and the few most recent files are kept instead of deleted immediately, so Android Auto always fetches the current cover.
+
+### Notes
+- iOS has no functional changes in this release; its version is bumped only to keep both platforms in sync.
+
 ## [1.4.1] - 2026-07-01
 
 ### Fixed
