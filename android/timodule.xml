@@ -35,6 +35,15 @@
 						<action android:name="android.media.browse.MediaBrowserService"/>
 					</intent-filter>
 				</service>
+				<provider
+					android:name="androidx.core.content.FileProvider"
+					android:authorities="${applicationId}.tiaudiostream.fileprovider"
+					android:exported="false"
+					android:grantUriPermissions="true">
+					<meta-data
+						android:name="android.support.FILE_PROVIDER_PATHS"
+						android:resource="@xml/tiaudiostream_file_paths"/>
+				</provider>
 			</application>
 		</manifest>
 	</android>

@@ -39,6 +39,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.ServiceCompat;
+import androidx.core.content.FileProvider;
 import androidx.media.MediaBrowserServiceCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 import androidx.media3.common.MediaItem;
@@ -128,6 +129,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	private String currentTitle = "";
 	private String currentArtist = "";
 	private Bitmap currentArtwork = null;
+	// Android Auto reads album art by content:// URI (it ignores http and caches embedded
+	// bitmaps), so we cache each cover to a file and expose it through a FileProvider.
+	private android.net.Uri currentArtworkUri = null;
+	private final AtomicLong artworkFileCounter = new AtomicLong(0);
+	private final java.util.Set<String> browserClients = new java.util.concurrent.CopyOnWriteArraySet<>();
 	private Bitmap transparentArtwork = null;
 	private Bitmap appIconBitmap = null;
 	private boolean sessionHadArtwork = false;
@@ -1511,7 +1517,17 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, sessionArtwork);
 		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, sessionArtwork);
 		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, sessionArtwork);
-		if (!hasArtwork && sessionArtwork == null) {
+		if (hasArtwork) {
+			// Android Auto caches embedded bitmaps and won't re-render on change; give it a
+			// fresh content:// URI each time so the now-playing cover actually updates.
+			android.net.Uri artUri = publishArtworkUri(sessionArtwork);
+			if (artUri != null) {
+				String uriString = artUri.toString();
+				metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, uriString);
+				metadata.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, uriString);
+				metadata.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, uriString);
+			}
+		} else if (sessionArtwork == null) {
 			metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, "");
 			metadata.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, "");
 			metadata.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, "");
@@ -1522,6 +1538,49 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 		// Android Auto: refresh browse tree when metadata changes
 		notifyChildrenChanged("ROOT");
+	}
+
+	/**
+	 * Write the current cover to a private cache file and return a content:// URI for it.
+	 * Android Auto ignores http artwork URIs and caches embedded bitmaps, so we hand it a
+	 * fresh URI on every change and grant read access to the media browser clients.
+	 */
+	private synchronized android.net.Uri publishArtworkUri(Bitmap bitmap)
+	{
+		if (bitmap == null) {
+			return null;
+		}
+		try {
+			java.io.File dir = new java.io.File(getCacheDir(), "artwork");
+			if (!dir.exists()) {
+				dir.mkdirs();
+			}
+			java.io.File file = new java.io.File(dir, "art_" + artworkFileCounter.incrementAndGet() + ".jpg");
+			java.io.FileOutputStream out = new java.io.FileOutputStream(file);
+			bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+			out.flush();
+			out.close();
+
+			// Keep only the file we just wrote.
+			java.io.File[] existing = dir.listFiles();
+			if (existing != null) {
+				for (java.io.File old : existing) {
+					if (!old.equals(file)) {
+						old.delete();
+					}
+				}
+			}
+
+			android.net.Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".tiaudiostream.fileprovider", file);
+			currentArtworkUri = uri;
+			for (String pkg : browserClients) {
+				grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+			}
+			return uri;
+		} catch (Exception e) {
+			Log.w(LCAT, "Could not publish artwork URI: " + e.getMessage());
+			return null;
+		}
 	}
 
 	/**
@@ -1812,6 +1871,14 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	@Override
 	public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints)
 	{
+		// Remember who browses us (Android Auto, Assistant, ...) so we can grant them read
+		// access to the artwork content:// URI. Grant the current one to a late-joining client.
+		if (clientPackageName != null) {
+			browserClients.add(clientPackageName);
+			if (currentArtworkUri != null) {
+				grantUriPermission(clientPackageName, currentArtworkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+			}
+		}
 		return new BrowserRoot(ROOT_ID, null);
 	}
 
