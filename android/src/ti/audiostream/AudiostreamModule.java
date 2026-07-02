@@ -16,6 +16,7 @@ import android.view.KeyEvent;
 
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollModule;
+import org.appcelerator.kroll.KrollRuntime;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.common.Log;
 import org.appcelerator.kroll.common.TiConfig;
@@ -676,7 +677,12 @@ public class AudiostreamModule extends KrollModule
 	 */
 	public static boolean hasRemoteControlListeners()
 	{
-		return activeModule != null && activeModule.hasListeners("remotecontrol");
+		// A swiped-away app leaves activeModule (a static) pointing at a stale proxy whose
+		// listener registry still reports true, even though its V8 runtime is gone. Without
+		// the isDisposed() guard the service would defer to dead JS and never skip natively.
+		return !KrollRuntime.isDisposed()
+			&& activeModule != null
+			&& activeModule.hasListeners("remotecontrol");
 	}
 
 	/**
