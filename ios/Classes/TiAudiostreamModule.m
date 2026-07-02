@@ -1331,6 +1331,25 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 // Register on both centers because CarPlay can surface either the session
 // command center or the application-wide default player.
+// Toggle play/pause from the CarPlay list row. Mirrors the togglePlayPauseCommand handler.
+- (void)carPlayTogglePlayPause
+{
+  if (![NSThread isMainThread]) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [self carPlayTogglePlayPause];
+    });
+    return;
+  }
+
+  if (_player && _player.rate > 0) {
+    [self pause:nil];
+    [self fireRemoteControl:101];
+  } else {
+    [self start:nil];
+    [self fireRemoteControl:100];
+  }
+}
+
 - (void)registerRemoteCommandHandlersOnCenter:(MPRemoteCommandCenter *)commandCenter
 {
   if (!commandCenter) {
@@ -1980,6 +1999,10 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
         [self fireState:@"playing"];
         [self setPlaybackState:MPNowPlayingPlaybackStatePlaying];
         [self updateNowPlaying];
+        // Playback actually started (rate > 0). The CarPlay list only marks the now-playing
+        // station when isPlaybackActive is true, so re-refresh it now — at station-change time
+        // the player was still buffering (rate 0) and the indicator never appeared.
+        [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
       } else if (status == AVPlayerTimeControlStatusPaused) {
         if (self->_playRequested || self->_pendingPlay || self->_prepareInProgress) {
           NSLog(@"[ti.audiostream] Preserving Now Playing ownership during transient pause");
@@ -1991,6 +2014,8 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
         [self fireState:@"paused"];
         [self setPlaybackState:MPNowPlayingPlaybackStatePaused];
         [self updateNowPlaying];
+        // Genuinely paused: clear the CarPlay now-playing indicator on the station.
+        [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
       }
     });
   }

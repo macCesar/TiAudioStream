@@ -23,6 +23,7 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 - (BOOL)carPlayNowPlayingReady;
 - (NSString *)carPlayCurrentStreamURL;
 - (void)refreshCarPlayNowPlayingItemForReason:(NSString *)reason;
+- (void)carPlayTogglePlayPause;
 @end
 
 typedef void (^TiAudiostreamCarPlayCompletion)(void);
@@ -33,6 +34,62 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   NSUInteger _pendingNowPlayingRequestID;
   NSMutableArray<CPListItem *> *_stationItems;
   NSArray<NSString *> *_stationItemIdentifiers;
+  NSCache<NSString *, UIImage *> *_artworkCache;
+  CPListItem *_playPauseItem;
+}
+
+- (NSString *)playPauseTitle
+{
+  return [self isPlaybackActive] ? @"Pausar" : @"Reproducir";
+}
+
+// Sets the station artwork (remote URL) as the item's leading thumbnail. Cached
+// hits apply synchronously; misses download in the background then set on main.
+// ponytail: NSData dataWithContentsOfURL is a blocking download off the main
+// queue — fine for a handful of small station photos; switch to NSURLSession if
+// the list ever grows large.
+- (void)applyArtworkForStation:(NSDictionary *)station toItem:(CPListItem *)item API_AVAILABLE(ios(14.0))
+{
+  NSString *artworkURL = [station objectForKey:@"artwork"];
+  if (![artworkURL isKindOfClass:[NSString class]] || artworkURL.length == 0) {
+    [item setImage:nil];
+    return;
+  }
+
+  if (!_artworkCache) {
+    _artworkCache = [[NSCache alloc] init];
+    _artworkCache.countLimit = 64;
+  }
+
+  UIImage *cached = [_artworkCache objectForKey:artworkURL];
+  if (cached) {
+    [item setImage:cached];
+    return;
+  }
+
+  [item setImage:nil];
+
+  NSURL *url = [NSURL URLWithString:artworkURL];
+  if (!url) {
+    return;
+  }
+
+  __weak TiAudiostreamCarPlaySceneDelegate *weakSelf = self;
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    NSData *data = [NSData dataWithContentsOfURL:url];
+    UIImage *image = data ? [UIImage imageWithData:data] : nil;
+    if (!image) {
+      return;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+      TiAudiostreamCarPlaySceneDelegate *strongSelf = weakSelf;
+      if (!strongSelf) {
+        return;
+      }
+      [strongSelf->_artworkCache setObject:image forKey:artworkURL];
+      [item setImage:image];
+    });
+  });
 }
 
 - (NSString *)stationIdentifier:(NSDictionary *)station
@@ -163,6 +220,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     stationItem.playing = [self station:station matchesCurrentStation:currentStation] && [self isPlaybackActive];
     stationItem.playingIndicatorLocation = CPListItemPlayingIndicatorLocationTrailing;
     stationItem.userInfo = station;
+    [self applyArtworkForStation:station toItem:stationItem];
     stationItem.handler = ^(id<CPSelectableListItem> item, dispatch_block_t completionBlock) {
       NSDictionary *selectedStation = nil;
       if ([item isKindOfClass:[CPListItem class]]) {
@@ -190,7 +248,37 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   _stationItems = [items mutableCopy];
   _stationItemIdentifiers = [identifiers copy];
 
-  return @[ [[CPListSection alloc] initWithItems:items] ];
+  // No stations registered? Return empty so the template's empty view shows.
+  if (items.count == 0) {
+    _playPauseItem = nil;
+    return @[ [[CPListSection alloc] initWithItems:items] ];
+  }
+
+  // Leading Play/Pause row: CarPlay never pushes our Now Playing template, so this is the
+  // only on-screen transport control. Kept out of _stationItems so the index mapping in
+  // refreshStationItemsInPlace stays 1:1 with the persisted stations.
+  _playPauseItem = [[CPListItem alloc] initWithText:[self playPauseTitle] detailText:nil];
+  _playPauseItem.handler = ^(id<CPSelectableListItem> item, dispatch_block_t completionBlock) {
+    [[TiAudiostreamModule activeModule] carPlayTogglePlayPause];
+    if (completionBlock) {
+      completionBlock();
+    }
+    TiAudiostreamCarPlaySceneDelegate *strongSelf = weakSelf;
+    if (!strongSelf) {
+      return;
+    }
+    // Snap the label to the new state; play/pause settles asynchronously so retry a couple times.
+    for (NSNumber *delay in @[ @0.10, @0.40, @1.00 ]) {
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [strongSelf refreshStationItemsInPlace];
+      });
+    }
+  };
+
+  NSMutableArray<CPListItem *> *sectionItems = [NSMutableArray arrayWithObject:_playPauseItem];
+  [sectionItems addObjectsFromArray:items];
+
+  return @[ [[CPListSection alloc] initWithItems:sectionItems] ];
 }
 
 - (void)refreshStationItemsInPlace API_AVAILABLE(ios(14.0))
@@ -206,6 +294,8 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     return;
   }
 
+  [_playPauseItem setText:[self playPauseTitle]];
+
   [_stationItems enumerateObjectsUsingBlock:^(CPListItem *item, NSUInteger idx, BOOL *stop) {
     NSDictionary *station = idx < stations.count ? stations[idx] : nil;
     if (![station isKindOfClass:[NSDictionary class]]) {
@@ -219,6 +309,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     item.userInfo = station;
     item.playing = [self station:station matchesCurrentStation:currentStation] && [self isPlaybackActive];
     item.playingIndicatorLocation = CPListItemPlayingIndicatorLocationTrailing;
+    [self applyArtworkForStation:station toItem:item];
   }];
 }
 
