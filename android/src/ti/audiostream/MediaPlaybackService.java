@@ -1936,6 +1936,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				.setSubtitle(getStationString(currentAutomotiveStation, "title",
 					getStationString(currentAutomotiveStation, "stationName", "Last station")));
 
+			String resumeArtwork = getStationString(currentAutomotiveStation, "artwork", null);
+			if (resumeArtwork != null && !resumeArtwork.isEmpty()) {
+				resume.setIconUri(android.net.Uri.parse(resumeArtwork));
+			}
+
 			items.add(new MediaBrowserCompat.MediaItem(resume.build(),
 				MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
 		}
@@ -1956,6 +1961,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 					.setMediaId(stationId)
 					.setTitle(title)
 					.setSubtitle(subtitle);
+
+				String artworkUrl = getStationString(station, "artwork", null);
+				if (artworkUrl != null && !artworkUrl.isEmpty()) {
+					desc.setIconUri(android.net.Uri.parse(artworkUrl));
+				}
 
 				items.add(new MediaBrowserCompat.MediaItem(desc.build(),
 					MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
