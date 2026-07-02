@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] - 2026-07-02
+
+### Fixed
+- **iOS: black screen at launch when building with Titanium SDK `13.3.0.GA`.** `13.3.0.GA` adopted the UIScene lifecycle natively — `TiApp` now conforms to `UIWindowSceneDelegate` and builds the window through the scene callbacks. The module's `TiAudiostreamWindowSceneDelegate` (needed so a CarPlay scene can coexist with the phone UI) was written for the classic lifecycle, where `TiApp` created its window in `didFinishLaunching`; under `13.3.0.GA` that window was never built, so `delegate.window` was `nil` and the app showed a black screen. The delegate is now SDK-adaptive: it forwards the whole scene lifecycle to `TiApp` on `13.3.0.GA+` and keeps the legacy window-attach on `≤ 13.2.x.GA`. The same `tiapp.xml` scene manifest now boots on every supported SDK — no per-SDK changes. Verified booting with CarPlay on both `13.2.0.GA` and `13.3.0.GA`.
+
+### Notes
+- Android has no functional changes in this release; its version is bumped only to keep both platforms in sync.
+
 ## [1.5.0] - 2026-07-01
 
 ### Added
