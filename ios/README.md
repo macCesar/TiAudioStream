@@ -129,6 +129,8 @@ CarPlay uses the iOS scene lifecycle. Add this inside `<ios><plist><dict>`:
 
 These delegate classes ship inside the module. Your app only references them by name in `tiapp.xml`.
 
+The window scene delegate adapts to your Titanium SDK automatically, so the manifest above is the same on every supported version: on `13.3.0.GA+` — where TiApp adopts the UIScene lifecycle natively — it forwards the window scene to TiApp; on `≤ 13.2.x.GA` it attaches Titanium's window to the connecting scene. No per-SDK changes are needed.
+
 #### 5. Background audio (required)
 
 Background audio must already be enabled in your `tiapp.xml` (inside `<ios><plist><dict>`). This is the same configuration required for background playback:
