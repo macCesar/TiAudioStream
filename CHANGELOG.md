@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-07-01
+
+### Added
+- **CarPlay: Play/Pause row at the top of the station list.** The module deliberately stays on the station list instead of pushing the Now Playing template, which left no on-screen transport control (only the car's hardware buttons worked). A leading row now toggles playback and shows "Pausar" while playing / "Reproducir" while paused, kept in sync with the actual player state.
+- **Per-station thumbnail in the car browse list (Android Auto + CarPlay).** The station list now shows each station's `artwork` URL as its leading thumbnail (the DJ/program photo) instead of a generic grey icon — the same image that already feeds the now-playing screen. Apps that register `artwork` per station get it automatically, no new API. Android Auto downloads the remote image itself (`MediaDescriptionCompat.setIconUri`); on CarPlay the module downloads it in the background and caches it (`NSCache`) so re-registering the list doesn't re-fetch.
+
+### Fixed
+- **Android: next/previous now also works when the app was opened and then swiped away.** 1.4.2 added native skip, but it only ran when the app's JS had no `remotecontrol` listeners. After the app was launched and then closed, its `activeModule` static kept a stale proxy whose listener registry still reported `true`, so the service deferred to a dead V8 runtime — the skip fired `Runtime disposed, cannot fire event 'remotecontrol'` and nothing advanced. `hasRemoteControlListeners()` now also checks `KrollRuntime.isDisposed()`, so a torn-down runtime correctly routes the skip to the native station list.
+- **CarPlay: the now-playing indicator now appears on the correct station when you switch from the app.** The station list was refreshed at the moment of the change, while the new stream was still buffering (`rate == 0`), so `CPListItem.playing` stayed off and never turned on once playback actually started — only the "On Air" subtitle updated. The list is now refreshed when the player reaches the playing state (and cleared on pause), so the indicator tracks app-driven station changes. (CarPlay's grey row highlight is the system focus cursor and has no public API to move it programmatically; the playing indicator plus "On Air" are the markers we control.)
+
 ## [1.4.2] - 2026-07-01
 
 ### Fixed

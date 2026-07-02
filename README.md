@@ -112,15 +112,15 @@ audioStream.start()
 
 Initializes the audio source. Call this before `start()` or when switching streams.
 
-| Parameter            | Type          | Required | Description                                                                                                             |
-| :------------------- | :------------ | :------- | :---------------------------------------------------------------------------------------------------------------------- |
+| Parameter            | Type          | Required | Description                                                                                                                  |
+| :------------------- | :------------ | :------- | :--------------------------------------------------------------------------------------------------------------------------- |
 | `url`                | String        | Yes      | Direct audio stream, HLS (`.m3u8`), or a `.pls`/`.m3u` playlist (resolved automatically). SHOUTcast/Icecast URLs work as-is. |
-| `isLive`             | Boolean       | No       | Hides seek bar and shows live indicator on system controls. Default: `true`.                                            |
-| `autoUpdateMetadata` | Boolean       | No       | Auto-update lock screen from stream metadata. Default: `true`.                                                          |
-| `title`              | String        | No       | Initial title for lock screen / notification                                                                            |
-| `artist`             | String        | No       | Initial artist for lock screen / notification                                                                           |
-| `artwork`            | String        | No       | Initial artwork URL for lock screen / notification                                                                      |
-| `metadataRules`      | Object / null | No       | Regex cleanup rules (see [`setMetadataRules()`](#setmetadatarulesrules)). Omit to keep existing rules, `null` to clear. |
+| `isLive`             | Boolean       | No       | Hides seek bar and shows live indicator on system controls. Default: `true`.                                                 |
+| `autoUpdateMetadata` | Boolean       | No       | Auto-update lock screen from stream metadata. Default: `true`.                                                               |
+| `title`              | String        | No       | Initial title for lock screen / notification                                                                                 |
+| `artist`             | String        | No       | Initial artist for lock screen / notification                                                                                |
+| `artwork`            | String        | No       | Initial artwork URL for lock screen / notification                                                                           |
+| `metadataRules`      | Object / null | No       | Regex cleanup rules (see [`setMetadataRules()`](#setmetadatarulesrules)). Omit to keep existing rules, `null` to clear.      |
 
 ```javascript
 audioStream.setStream({
@@ -252,15 +252,15 @@ Registers a list of stations for the Android Auto / CarPlay **browse list** — 
 
 Pass an array of station objects, or `null` to clear:
 
-| Field       | Type    | Description                                                     |
-| :---------- | :------ | :------------------------------------------------------------- |
-| `id`        | String  | Stable, unique id — echoed back in `automotivestationselected` |
-| `streamUrl` | String  | Stream URL to play when the station is tapped                  |
-| `title`     | String  | Station title shown in the list                                |
-| `subtitle`  | String  | Secondary line (e.g. frequency or slogan)                      |
-| `artist`    | String  | Optional; used for now-playing metadata                        |
-| `artwork`   | String  | Optional artwork URL                                           |
-| `isLive`    | Boolean | Optional; default `true`                                       |
+| Field       | Type    | Description                                                            |
+| :---------- | :------ | :--------------------------------------------------------------------- |
+| `id`        | String  | Stable, unique id — echoed back in `automotivestationselected`         |
+| `streamUrl` | String  | Stream URL to play when the station is tapped                          |
+| `title`     | String  | Station title shown in the list                                        |
+| `subtitle`  | String  | Secondary line (e.g. frequency or slogan)                              |
+| `artist`    | String  | Optional; used for now-playing metadata                                |
+| `artwork`   | String  | Optional artwork URL; shown as the station's thumbnail in the car list |
+| `isLive`    | Boolean | Optional; default `true`                                               |
 
 #### `setCurrentAutomotiveStation(station)`
 
@@ -283,14 +283,16 @@ audioStream.addEventListener('automotivestationselected', (e) => {
 })
 ```
 
+Each station's `artwork` URL is shown as its leading thumbnail in the car's browse list (Android Auto and CarPlay), so apps that already register `artwork` per station get the photo automatically — no extra code. The car downloads the remote image itself; on CarPlay the module also caches it so re-registering the list doesn't re-download.
+
 Both methods are cross-platform (Android Auto + CarPlay). On builds without car support they are simply absent, so feature-detect with `typeof audioStream.setAutomotiveStations === 'function'`.
 
 ### Properties
 
-| Property                       | Type                | Description                                                                                       |
-| :----------------------------- | :------------------ | :------------------------------------------------------------------------------------------------ |
-| `playing`                      | Boolean (read-only) | `true` if audio is currently playing                                                              |
-| `allowCrossProtocolRedirects`  | Boolean (Android)   | Follow cross-protocol redirects (HTTPS↔HTTP). Default `true`. Set before `start()`. See note below. |
+| Property                      | Type                | Description                                                                                         |
+| :---------------------------- | :------------------ | :-------------------------------------------------------------------------------------------------- |
+| `playing`                     | Boolean (read-only) | `true` if audio is currently playing                                                                |
+| `allowCrossProtocolRedirects` | Boolean (Android)   | Follow cross-protocol redirects (HTTPS↔HTTP). Default `true`. Set before `start()`. See note below. |
 
 #### Transport security note (`allowCrossProtocolRedirects`)
 
@@ -365,10 +367,10 @@ The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fir
 
 Fires when the driver taps a station in the Android Auto / CarPlay browse list. The module starts that station **natively** before firing, so your handler only needs to sync the phone UI — don't call `setStream()`/`start()` again.
 
-| Property  | Type   | Description                                                    |
-| :-------- | :----- | :------------------------------------------------------------ |
+| Property  | Type   | Description                                                         |
+| :-------- | :----- | :------------------------------------------------------------------ |
 | `station` | Object | The selected station object (same shape you registered, incl. `id`) |
-| `source`  | String | Which car surface triggered it (e.g. `androidAuto`)           |
+| `source`  | String | Which car surface triggered it (e.g. `androidAuto`)                 |
 
 Requires registering stations first with [`setAutomotiveStations()`](#setautomotivestationsstations).
 
@@ -549,18 +551,20 @@ For setup details, testing with Desktop Head Unit, and troubleshooting, see the 
 
 The module uses MediaPlayer integration that CarPlay reads from, including `MPNowPlayingSession` on iOS 16+ and the shared Now Playing centers on older versions. In Titanium apps, CarPlay also requires the proper entitlement and `UIApplicationSceneManifest` entries in `tiapp.xml`.
 
+CarPlay shows the stations registered with [`setAutomotiveStations()`](#setautomotivestationsstations) as a list (each with its `artwork` thumbnail), and stays on that list rather than pushing a separate Now Playing screen. A **Play/Pause row** at the top is the on-screen transport control; the active station is marked with a now-playing indicator and an "On Air" subtitle.
+
 For the step-by-step entitlement setup, testing with CarPlay Simulator, and troubleshooting, see the [iOS-specific documentation](ios/README.md#carplay).
 
 ### Car integration comparison
 
-| Feature | Bluetooth (AVRCP) | Android Auto | CarPlay |
-| :--- | :--- | :--- | :--- |
-| Title / Artist | Yes (AVRCP 1.3+) | Always | Always |
-| Artwork | Depends on AVRCP version | Always | Always |
-| App icon on head unit | No | Yes | Yes |
-| Playback controls | Basic (play/pause/next/prev) | Full | Full |
-| Content browsing | No | Yes | No (Now Playing only) |
-| Setup required | None | None | Apple entitlement approval |
+| Feature               | Bluetooth (AVRCP)            | Android Auto | CarPlay                    |
+| :-------------------- | :--------------------------- | :----------- | :------------------------- |
+| Title / Artist        | Yes (AVRCP 1.3+)             | Always       | Always                     |
+| Artwork               | Depends on AVRCP version     | Always       | Always                     |
+| App icon on head unit | No                           | Yes          | Yes                        |
+| Playback controls     | Basic (play/pause/next/prev) | Full         | Full                       |
+| Content browsing      | No                           | Yes          | No (Now Playing only)      |
+| Setup required        | None                         | None         | Apple entitlement approval |
 
 ### Artwork on car stereos
 
@@ -587,14 +591,14 @@ When a stream sends `Artist - Title` as a single string, which is common with IC
 
 ## Technical implementation
 
-| Feature             | Android                     | iOS                                  |
-| :------------------ | :-------------------------- | :----------------------------------- |
-| **Engine**          | Media3 ExoPlayer (1.5+)     | AVFoundation (AVPlayer)              |
-| **Background**      | Foreground Service          | AVAudioSession (Playback)            |
+| Feature             | Android                     | iOS                                         |
+| :------------------ | :-------------------------- | :------------------------------------------ |
+| **Engine**          | Media3 ExoPlayer (1.5+)     | AVFoundation (AVPlayer)                     |
+| **Background**      | Foreground Service          | AVAudioSession (Playback)                   |
 | **System controls** | MediaSessionCompat          | MPRemoteCommandCenter + MPNowPlayingSession |
-| **Metadata**        | ID3 / ICY / Deep JSON       | TimedMetadata / CommonMetadata       |
-| **Audio focus**     | AudioManager + MediaSession | AVAudioSession interruption handling |
-| **Reconnect**       | 5 retries, 3s delay         | 5 retries, 3s delay                  |
+| **Metadata**        | ID3 / ICY / Deep JSON       | TimedMetadata / CommonMetadata              |
+| **Audio focus**     | AudioManager + MediaSession | AVAudioSession interruption handling        |
+| **Reconnect**       | 5 retries, 3s delay         | 5 retries, 3s delay                         |
 
 ## License
 
