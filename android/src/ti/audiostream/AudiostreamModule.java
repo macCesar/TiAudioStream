@@ -75,6 +75,11 @@ public class AudiostreamModule extends KrollModule
 	{
 		super();
 		activeModule = this;
+		// A fresh JS runtime (app relaunched by a notification tap, the media output
+		// switcher, or a task kill) creates a new module instance while the playback
+		// service keeps streaming in the same process. Seed the playing flag from the
+		// last service-reported state so `playing` doesn't lie right after a relaunch.
+		isPlaying = "playing".equals(lastEmittedState);
 	}
 
 	private void appendMetadataRule(JSONArray target, Object item) throws Exception
@@ -579,6 +584,12 @@ public class AudiostreamModule extends KrollModule
 	 */
 	public static void fireState(String state)
 	{
+		// Record the state at process level BEFORE the null check: it must be tracked
+		// even while no JS runtime exists, so a new runtime can seed `isPlaying` from
+		// it in the constructor (relaunch with the service still streaming).
+		boolean duplicate = state.equals(lastEmittedState);
+		lastEmittedState = state;
+
 		if (activeModule == null) {
 			return;
 		}
@@ -587,10 +598,9 @@ public class AudiostreamModule extends KrollModule
 		activeModule.isPlaying = "playing".equals(state);
 
 		// Deduplicate: only emit on actual state transitions
-		if (state.equals(lastEmittedState)) {
+		if (duplicate) {
 			return;
 		}
-		lastEmittedState = state;
 
 		if (!activeModule.hasListeners("state")) {
 			return;
