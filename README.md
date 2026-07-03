@@ -531,6 +531,7 @@ On Android, transient connection failures are retried automatically (5 attempts,
 #### Android
 
 - Background playback runs inside a Foreground Service with a persistent media notification
+- The Foreground Service keeps streaming even if Android tears down and relaunches your app's UI (a notification tap, the media output switcher, or an OS task kill spawn a fresh JavaScript runtime). On that new runtime, `playing` reflects the live service state instead of resetting to `false`, so on startup you can check `playing` and re-sync your UI to the station that is still on air. Persist the current station yourself (the module does not carry your metadata across the relaunch) and restore it when `playing` is `true`
 - The notification has compact (lock screen), expanded (drawer), and system media player (Quick Settings) views
 - Uses MediaSession for Bluetooth devices and the system output switcher
 - Android Auto support via MediaBrowserService: the module registers as a media source so Android Auto can discover, display, and control the stream (see [Android Auto](#android-auto))
