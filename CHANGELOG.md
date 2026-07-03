@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2026-07-03
+
+### Fixed
+- **Android: `playing` now reports correctly after the JS runtime is relaunched while the stream keeps playing.** When Android tears down and recreates the app's activities (a notification tap, the media output switcher, an OS task kill) the foreground playback service keeps streaming, but the fresh JS runtime builds a new module instance whose `playing` flag started at `false`. So an app reading `audioStream.playing` right after the relaunch saw `false` even though audio was live, and couldn't resync its UI to the ongoing session. The module now records the last service-reported state at the process level (in `fireState`, before the JS-runtime check) and seeds `isPlaying` from it in the constructor, so `playing` is accurate on the new instance.
+
+### Notes
+- iOS has no functional changes in this release; its version is bumped only to keep both platforms in sync. iOS reads `playing` live from the AVPlayer and has no background-service-survives-relaunch scenario, so it never had this gap.
+
 ## [1.5.1] - 2026-07-02
 
 ### Fixed
