@@ -105,6 +105,9 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	private static final String PREF_AUTOMOTIVE_STATIONS = "stations";
 	private static final String PREF_CURRENT_AUTOMOTIVE_STATION = "currentStation";
 	private static final String ROOT_ID = "ROOT";
+	// Dedicated root the car requests (via EXTRA_RECENT) to offer resume-on-connect: it
+	// must expose exactly ONE playable item — the last station — not the full browse list.
+	private static final String RESUMPTION_ROOT_ID = "__recent__";
 	private static final String RESUME_MEDIA_ID = "__resume__";
 
 	        // Media3 ExoPlayer
@@ -564,6 +567,13 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 		// Android Auto: expose session token so browser clients can control playback
 		setSessionToken(mediaSession.getSessionToken());
+
+		// If a station was restored, publish its metadata in a paused/ready state so a car that
+		// reconnects sees the last station ready to resume before playback is even requested.
+		if (currentUrl != null && !currentUrl.isEmpty()) {
+			updateMediaSessionMetadata();
+			updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+		}
 	}
 
 	private void initializePlayer()
@@ -656,6 +666,38 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				if ("CURRENT_STREAM".equals(mediaId)) {
 					play();
 				}
+			}
+
+			@Override
+			public void onPrepare()
+			{
+				// Resumption handshake: publish the last station's metadata in a paused, ready
+				// state so the car shows it. We deliberately do NOT pre-buffer here — the async
+				// ExoPlayer prepare would flip the session to BUFFERING (a spinner on the head
+				// unit) with nothing to correct it; the stream is prepared lazily on actual play.
+				if (currentUrl == null || currentUrl.isEmpty()) {
+					seedPlaybackFieldsFromStation(currentAutomotiveStation);
+				}
+				if (currentUrl != null && !currentUrl.isEmpty()) {
+					updateMediaSessionMetadata();
+					updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+				}
+			}
+
+			@Override
+			public void onPrepareFromMediaId(String mediaId, Bundle extras)
+			{
+				JSONObject station = RESUME_MEDIA_ID.equals(mediaId)
+					? currentAutomotiveStation
+					: findAutomotiveStation(mediaId);
+				if (station == null) {
+					return;
+				}
+				currentAutomotiveStation = station;
+				seedPlaybackFieldsFromStation(station);
+				// Metadata + paused state only; the stream is prepared lazily on play (see onPrepare).
+				updateMediaSessionMetadata();
+				updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
 			}
 		});
 
@@ -1053,9 +1095,35 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 		try {
 			currentAutomotiveStation = new JSONObject(json);
+			// Rehydrate the scalar playback fields from the persisted station so a bare onPlay /
+			// onPrepare after the service is recreated (car reconnects, JS not alive) resumes the
+			// last station instead of doing nothing (currentUrl would otherwise be null).
+			if (currentUrl == null || currentUrl.isEmpty()) {
+				seedPlaybackFieldsFromStation(currentAutomotiveStation);
+			}
 		} catch (Exception e) {
 			Log.e(LCAT, "Failed to restore current automotive station: " + e.getMessage());
 		}
+	}
+
+	/**
+	 * Populate the scalar playback fields (url/live/title/artist) from a station WITHOUT touching
+	 * the player. Lets a bare onPlay/onPrepare from the car resume the last station after the
+	 * service was recreated. Mirrors the field-setting half of playAutomotiveStation().
+	 */
+	private void seedPlaybackFieldsFromStation(JSONObject station)
+	{
+		if (station == null) {
+			return;
+		}
+		String streamUrl = getStationString(station, "streamUrl", null);
+		if (streamUrl == null || streamUrl.isEmpty()) {
+			return;
+		}
+		currentUrl = streamUrl;
+		isLive = getStationBoolean(station, "isLive", true);
+		currentTitle = getStationString(station, "title", getStationString(station, "programName", localized("ti_audiostream_live_stream", "Live Stream")));
+		currentArtist = getStationString(station, "artist", getStationString(station, "stationName", getStationString(station, "subtitle", "")));
 	}
 
 	private void handleSetAutomotiveStations(Intent intent)
@@ -1074,6 +1142,23 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		persistCurrentAutomotiveStation();
 		notifyChildrenChanged(ROOT_ID);
 		Log.d(LCAT, "Current automotive station updated: " + (currentAutomotiveStation != null));
+	}
+
+	/**
+	 * Resolve a module string through the host app's i18n. Titanium compiles
+	 * app/i18n/<lang>/strings.xml into the app's res/values-<lang>/ti_i18n_strings.xml, so any
+	 * key the app defines wins and the device language picks the right one; apps that define
+	 * nothing get the English fallback. Keys MUST use underscores — aapt2 silently drops
+	 * resource names containing dots, so "ti.audiostream.play" would never resolve.
+	 */
+	private String localized(String key, String fallback)
+	{
+		try {
+			int id = getResources().getIdentifier(key, "string", getPackageName());
+			return id != 0 ? getString(id) : fallback;
+		} catch (Exception e) {
+			return fallback;
+		}
 	}
 
 	private String getStationString(JSONObject station, String key, String fallback)
@@ -1156,7 +1241,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 		currentUrl = streamUrl;
 		isLive = getStationBoolean(station, "isLive", true);
-		currentTitle = getStationString(station, "title", getStationString(station, "programName", "Live Stream"));
+		currentTitle = getStationString(station, "title", getStationString(station, "programName", localized("ti_audiostream_live_stream", "Live Stream")));
 		currentArtist = getStationString(station, "artist", getStationString(station, "stationName", getStationString(station, "subtitle", "")));
 
 		long generation = artworkGeneration.incrementAndGet();
@@ -1575,8 +1660,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		mediaSession.setMetadata(metadata.build());
 		sessionHadArtwork = hasArtwork;
 
-		// Android Auto: refresh browse tree when metadata changes
-		notifyChildrenChanged("ROOT");
+		// NOTE: do NOT notifyChildrenChanged here. Track info travels via MediaMetadata +
+		// PlaybackState, not the browse tree. Rebuilding the tree on every song made the car's
+		// station list flicker / reset its scroll each time the live metadata changed. The tree
+		// is only refreshed when the station list itself changes (handleSet*AutomotiveStation*).
 	}
 
 	/**
@@ -1633,14 +1720,20 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			if (artworkGeneration.get() != expectedGeneration) {
 				return;
 			}
+			java.net.HttpURLConnection connection = null;
 			try {
 				Log.d(LCAT, "Fetching artwork from: " + urlString);
 				java.net.URL url = new java.net.URL(urlString);
-				java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+				connection = (java.net.HttpURLConnection) url.openConnection();
+				// Without timeouts a hung host blocks the single shared executor indefinitely,
+				// stalling every later artwork fetch. Mirror loadArtworkAsync's timeouts.
+				connection.setConnectTimeout(5000);
+				connection.setReadTimeout(8000);
 				connection.setDoInput(true);
 				connection.connect();
 				java.io.InputStream input = connection.getInputStream();
 				Bitmap bitmap = BitmapFactory.decodeStream(input);
+				input.close();
 				if (bitmap != null) {
 					mainHandler.post(() -> {
 							if (artworkGeneration.get() != expectedGeneration) {
@@ -1657,6 +1750,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				}
 			} catch (Exception e) {
 				Log.e(LCAT, "Error fetching artwork: " + e.getMessage());
+			} finally {
+				if (connection != null) {
+					connection.disconnect();
+				}
 			}
 		});
 	}
@@ -1670,16 +1767,24 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		long position = player != null ? player.getCurrentPosition() : 0;
 		float speed = (state == PlaybackStateCompat.STATE_PLAYING) ? 1.0f : 0.0f;
 
+		long actions =
+			PlaybackStateCompat.ACTION_PLAY |
+			PlaybackStateCompat.ACTION_PAUSE |
+			PlaybackStateCompat.ACTION_STOP |
+			PlaybackStateCompat.ACTION_PLAY_PAUSE |
+			PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID |
+			PlaybackStateCompat.ACTION_PREPARE |
+			PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID;
+
+		// Only advertise skip when there's more than one station to move between; otherwise a
+		// voice/UI "next" has nowhere to go and the car shows dead skip buttons.
+		if (automotiveStations.size() > 1) {
+			actions |= PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS;
+		}
+
 		PlaybackStateCompat playbackState = new PlaybackStateCompat.Builder()
 			.setState(state, position, speed)
-			.setActions(
-				PlaybackStateCompat.ACTION_PLAY |
-				PlaybackStateCompat.ACTION_PAUSE |
-				PlaybackStateCompat.ACTION_STOP |
-				PlaybackStateCompat.ACTION_PLAY_PAUSE |
-				PlaybackStateCompat.ACTION_SKIP_TO_NEXT |
-				PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-			)
+			.setActions(actions)
 			.build();
 
 		mediaSession.setPlaybackState(playbackState);
@@ -1765,7 +1870,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			}
 			Log.d(LCAT, "Foreground service started");
 		} catch (Exception e) {
+			// Android 12+/14 can refuse to start a foreground service from the background
+			// (ForegroundServiceStartNotAllowedException). A failed startForeground means playback
+			// won't run, so surface it instead of silently swallowing it.
 			Log.e(LCAT, "Failed to start foreground: " + e.getMessage());
+			AudiostreamModule.fireError("Cannot start playback service: " + e.getMessage());
+			AudiostreamModule.fireState("error");
 		}
 	}
 
@@ -1826,11 +1936,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 			.setOnlyAlertOnce(true)
 			.setOngoing(isPlaying)
-			.addAction(buildAction(android.R.drawable.ic_media_previous, "Previous", ACTION_PREV))
+			.addAction(buildAction(android.R.drawable.ic_media_previous, localized("ti_audiostream_previous", "Previous"), ACTION_PREV))
 			.addAction(isPlaying
-				? buildAction(android.R.drawable.ic_media_pause, "Pause", ACTION_PAUSE)
-				: buildAction(android.R.drawable.ic_media_play, "Play", ACTION_PLAY))
-			.addAction(buildAction(android.R.drawable.ic_media_next, "Next", ACTION_NEXT));
+				? buildAction(android.R.drawable.ic_media_pause, localized("ti_audiostream_pause", "Pause"), ACTION_PAUSE)
+				: buildAction(android.R.drawable.ic_media_play, localized("ti_audiostream_play", "Play"), ACTION_PLAY))
+			.addAction(buildAction(android.R.drawable.ic_media_next, localized("ti_audiostream_next", "Next"), ACTION_NEXT));
 
 		MediaStyle mediaStyle = new MediaStyle()
 			.setShowActionsInCompactView(0, 1, 2);
@@ -1888,10 +1998,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			if (manager != null && manager.getNotificationChannel(CHANNEL_ID) == null) {
 				NotificationChannel channel = new NotificationChannel(
 					CHANNEL_ID,
-					"Audio Streaming",
+					localized("ti_audiostream_channel_name", "Audio Streaming"),
 					NotificationManager.IMPORTANCE_LOW
 				);
-				channel.setDescription("Audio streaming playback controls");
+				channel.setDescription(localized("ti_audiostream_channel_description", "Audio streaming playback controls"));
 				channel.setShowBadge(false);
 				manager.createNotificationChannel(channel);
 			}
@@ -1921,7 +2031,34 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				grantUriPermission(clientPackageName, currentArtworkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
 			}
 		}
+
+		// Resume-on-connect: when the car asks for the recents root (EXTRA_RECENT) and we have a
+		// last station, hand back a dedicated root that exposes exactly one playable item, so the
+		// car offers "resume last station" on its media launcher.
+		if (rootHints != null && rootHints.getBoolean(BrowserRoot.EXTRA_RECENT) && currentAutomotiveStation != null) {
+			Bundle extras = new Bundle();
+			extras.putBoolean(BrowserRoot.EXTRA_RECENT, true);
+			return new BrowserRoot(RESUMPTION_ROOT_ID, extras);
+		}
+
 		return new BrowserRoot(ROOT_ID, null);
+	}
+
+	/** Build the single "resume last station" playable item shown for resume-on-connect. */
+	private MediaBrowserCompat.MediaItem buildResumeItem()
+	{
+		MediaDescriptionCompat.Builder resume = new MediaDescriptionCompat.Builder()
+			.setMediaId(RESUME_MEDIA_ID)
+			.setTitle(localized("ti_audiostream_resume_last_station", "Resume last station"))
+			.setSubtitle(getStationString(currentAutomotiveStation, "title",
+				getStationString(currentAutomotiveStation, "stationName", localized("ti_audiostream_last_station", "Last station"))));
+
+		String resumeArtwork = getStationString(currentAutomotiveStation, "artwork", null);
+		if (resumeArtwork != null && !resumeArtwork.isEmpty()) {
+			resume.setIconUri(android.net.Uri.parse(resumeArtwork));
+		}
+
+		return new MediaBrowserCompat.MediaItem(resume.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE);
 	}
 
 	@Override
@@ -1929,27 +2066,24 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	{
 		List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
 
-		if (ROOT_ID.equals(parentId) && currentAutomotiveStation != null) {
-			MediaDescriptionCompat.Builder resume = new MediaDescriptionCompat.Builder()
-				.setMediaId(RESUME_MEDIA_ID)
-				.setTitle("Resume last station")
-				.setSubtitle(getStationString(currentAutomotiveStation, "title",
-					getStationString(currentAutomotiveStation, "stationName", "Last station")));
-
-			String resumeArtwork = getStationString(currentAutomotiveStation, "artwork", null);
-			if (resumeArtwork != null && !resumeArtwork.isEmpty()) {
-				resume.setIconUri(android.net.Uri.parse(resumeArtwork));
+		// Recents root: exactly one playable item — the last station — for resume-on-connect.
+		if (RESUMPTION_ROOT_ID.equals(parentId)) {
+			if (currentAutomotiveStation != null) {
+				items.add(buildResumeItem());
 			}
+			result.sendResult(items);
+			return;
+		}
 
-			items.add(new MediaBrowserCompat.MediaItem(resume.build(),
-				MediaBrowserCompat.MediaItem.FLAG_PLAYABLE));
+		if (ROOT_ID.equals(parentId) && currentAutomotiveStation != null) {
+			items.add(buildResumeItem());
 		}
 
 		if (ROOT_ID.equals(parentId) && !automotiveStations.isEmpty()) {
 			for (JSONObject station : automotiveStations) {
 				String stationId = getStationString(station, "id", null);
 				String title = getStationString(station, "title",
-					getStationString(station, "programName", getStationString(station, "stationName", "Live Stream")));
+					getStationString(station, "programName", getStationString(station, "stationName", localized("ti_audiostream_live_stream", "Live Stream"))));
 				String subtitle = getStationString(station, "subtitle",
 					getStationString(station, "stationName", getStationString(station, "artist", "")));
 
@@ -1975,7 +2109,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		if (ROOT_ID.equals(parentId) && items.isEmpty() && currentUrl != null && !currentUrl.isEmpty()) {
 			MediaDescriptionCompat.Builder desc = new MediaDescriptionCompat.Builder()
 				.setMediaId("CURRENT_STREAM")
-				.setTitle(currentTitle != null && !currentTitle.isEmpty() ? currentTitle : "Live Stream")
+				.setTitle(currentTitle != null && !currentTitle.isEmpty() ? currentTitle : localized("ti_audiostream_live_stream", "Live Stream"))
 				.setSubtitle(currentArtist != null ? currentArtist : "");
 
 			Bitmap effectiveIcon = currentArtwork != null ? currentArtwork : getAppIconBitmap();
