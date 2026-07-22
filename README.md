@@ -554,6 +554,8 @@ The module uses MediaPlayer integration that CarPlay reads from, including `MPNo
 
 CarPlay shows the stations registered with [`setAutomotiveStations()`](#setautomotivestationsstations) as a list (each with its `artwork` thumbnail), and stays on that list rather than pushing a separate Now Playing screen. A **Play/Pause row** at the top is the on-screen transport control; the active station is marked with a now-playing indicator and an "On Air" subtitle.
 
+The Play/Pause row label, the "On Air" subtitle and the empty-list text are localizable — see [Localization](#localization).
+
 For the step-by-step entitlement setup, testing with CarPlay Simulator, and troubleshooting, see the [iOS-specific documentation](ios/README.md#carplay).
 
 ### Car integration comparison
@@ -574,6 +576,70 @@ Android Auto uses its own display protocol and always shows artwork when availab
 The module scales artwork to 512x512 before passing it to the MediaSession, which keeps bitmaps within the Binder transaction limits that the Bluetooth AVRCP stack requires. Without this, large artwork images are silently dropped and never reach the car display.
 
 If your car stereo supports AVRCP cover art (most modern stereos do), artwork should appear over Bluetooth. If it does not, the stereo likely uses an older AVRCP version (1.3 or below) that only transmits title and artist.
+
+## Localization
+
+Every text the module puts on screen — notification buttons, the Android notification channel, the Android Auto browse list, the CarPlay rows, and the fallback title used on the lock screen — resolves through **your app's** i18n. Define a key and the module uses it; define nothing and it falls back to English.
+
+Add the keys to `app/i18n/<lang>/strings.xml` (Alloy) or `i18n/<lang>/strings.xml` (Classic):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<resources>
+  <string name="ti_audiostream_play">Reproducir</string>
+  <string name="ti_audiostream_pause">Pausar</string>
+  <string name="ti_audiostream_next">Siguiente</string>
+  <string name="ti_audiostream_previous">Anterior</string>
+  <string name="ti_audiostream_live_stream">Transmisión en vivo</string>
+  <string name="ti_audiostream_resume_last_station">Reanudar última estación</string>
+  <string name="ti_audiostream_last_station">Última estación</string>
+  <string name="ti_audiostream_channel_name">Reproducción de audio</string>
+  <string name="ti_audiostream_channel_description">Controles de reproducción de audio</string>
+  <string name="ti_audiostream_on_air">Al aire</string>
+  <string name="ti_audiostream_empty_title">Sin opciones de reproducción</string>
+  <string name="ti_audiostream_empty_subtitle">Abre la app en el iPhone para actualizar la reproducción.</string>
+</resources>
+```
+
+### Keys
+
+| Key                                  | Default                                       | Where it shows                                            | Platform |
+| :----------------------------------- | :-------------------------------------------- | :-------------------------------------------------------- | :------- |
+| `ti_audiostream_play`                | `Play`                                        | Notification button; CarPlay transport row                 | Both     |
+| `ti_audiostream_pause`               | `Pause`                                       | Notification button; CarPlay transport row                 | Both     |
+| `ti_audiostream_next`                | `Next`                                        | Notification button                                        | Android  |
+| `ti_audiostream_previous`            | `Previous`                                    | Notification button                                        | Android  |
+| `ti_audiostream_live_stream`         | `Live Stream`                                 | Fallback title — notification, lock screen, car list       | Both     |
+| `ti_audiostream_resume_last_station` | `Resume last station`                         | Android Auto resume item                                   | Android  |
+| `ti_audiostream_last_station`        | `Last station`                                | Android Auto resume item subtitle                          | Android  |
+| `ti_audiostream_channel_name`        | `Audio Streaming`                             | Notification channel name, in Android system settings      | Android  |
+| `ti_audiostream_channel_description` | `Audio streaming playback controls`           | Notification channel description                           | Android  |
+| `ti_audiostream_on_air`              | `On Air`                                      | Subtitle of the station currently playing in CarPlay       | iOS      |
+| `ti_audiostream_empty_title`         | `No playback options`                         | CarPlay list when no stations are registered               | iOS      |
+| `ti_audiostream_empty_subtitle`      | `Open the app on iPhone to refresh playback.` | Subtitle of that empty list                                | iOS      |
+
+Keys you don't define keep the English default, so translating a subset is fine.
+
+### Android: `<defaultLang>` is required for single-language apps
+
+On Android, Titanium compiles `app/i18n/<lang>/` into `res/values-<lang>/`, and the locale named by `<defaultLang>` (which defaults to `en`) becomes the **default** `res/values/`. A locale that never lands in the default configuration is dropped from the APK — verified against the compiled APK with Titanium SDK 13.3.0.
+
+What that means in practice:
+
+| Your app's i18n                         | Result on Android                                   |
+| :-------------------------------------- | :--------------------------------------------------- |
+| `en/` only                              | ✅ Works (`en` is the default)                        |
+| `en/` + `es/`                           | ✅ Works — English default, Spanish on Spanish devices |
+| `es/` only, no `<defaultLang>`          | ❌ **Silently ignored** — module shows English         |
+| `es/` only + `<defaultLang>es</defaultLang>` | ✅ Works — Spanish for every device                |
+
+So if your app ships a single non-English language, add this to `tiapp.xml`:
+
+```xml
+<defaultLang>es</defaultLang>
+```
+
+Without it the strings compile without any warning and the module keeps showing English. iOS is unaffected — it resolves through `CFBundleDevelopmentRegion`.
 
 ## How metadata extraction works
 
