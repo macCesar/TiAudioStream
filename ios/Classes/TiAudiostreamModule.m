@@ -99,6 +99,9 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   AVPlayerItemMetadataOutput *_metadataOutput;
   BOOL _isLive;
   NSString *_currentURL;
+  // URL the loaded _currentItem was built from. setStream() defers preparation while
+  // nothing plays, so _currentURL can point at a station the loaded item is NOT for.
+  NSString *_preparedURL;
   NSString *_currentTitle;
   NSString *_currentArtist;
   UIImage *_currentArtwork;
@@ -284,6 +287,13 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return;
   }
 
+  // The CarPlay list marks its current row partly off the live player URL. Re-mark now
+  // that it actually changed: the app's JS may switch streams long after the selection
+  // refreshes (0.15/0.60/1.20s) have fired, which used to leave a stale double-mark.
+  if (!sameURL) {
+    [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
+  }
+
   if (_playRequested || _pendingPlay) {
     [self prepareCurrentStreamItem];
   } else {
@@ -327,10 +337,15 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return;
   }
 
-  // If player is IDLE or has no valid item, prepare once and let the async
-  // completion consume _pendingPlay. Calling prepare twice for the same URL can
+  // The loaded item can belong to a PREVIOUS station: setStream() defers preparation while
+  // nothing is playing, so switching stations while paused leaves the old item loaded and a
+  // bare [_player play] below would resume the old station. Treat that as "needs preparing".
+  BOOL itemIsForCurrentURL = _preparedURL.length > 0 && [_preparedURL isEqualToString:_currentURL];
+
+  // If the player is IDLE, has no valid item, or holds a different stream, prepare once and let
+  // the async completion consume _pendingPlay. Calling prepare twice for the same URL can
   // replace the item that CarPlay just selected.
-  if (!_currentItem || !_player.currentItem || _currentItem.status == AVPlayerItemStatusFailed) {
+  if (!_currentItem || !_player.currentItem || _currentItem.status == AVPlayerItemStatusFailed || !itemIsForCurrentURL) {
     _pendingPlay = YES;
     if (_currentURL.length > 0) {
       [self prepareCurrentStreamItem];
@@ -456,6 +471,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       _metadataOutput = nil;
     }
     _currentItem = nil;
+    _preparedURL = nil;
   }
   [self fireState:@"stopped"];
 #if TARGET_OS_IOS
@@ -598,7 +614,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   id stations = args;
   if ([args isKindOfClass:[NSArray class]]) {
     NSArray *argArray = (NSArray *)args;
-    if (argArray.count == 1) {
+    // Titanium may hand us the stations array wrapped as the single method
+    // argument (@[ @[station, ...] ]). Unwrap ONLY when the sole element is
+    // itself an array — otherwise a one-station list @[station] would get its
+    // lone dictionary pulled out and rejected below as "not an array".
+    if (argArray.count == 1 && [[argArray objectAtIndex:0] isKindOfClass:[NSArray class]]) {
       stations = [argArray objectAtIndex:0];
     }
   }
@@ -625,6 +645,15 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   NSString *json = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+
+  // Re-publishing an identical list is a no-op: skip the persist and the refresh
+  // notification so app-side republish bursts (collection bindings re-emitting the
+  // same stations) don't churn the CarPlay template.
+  NSString *existingJSON = [[NSUserDefaults standardUserDefaults] stringForKey:TiAudiostreamDefaultsAutomotiveStationsKey];
+  if (existingJSON != nil && [existingJSON isEqualToString:json]) {
+    return;
+  }
+
   [[NSUserDefaults standardUserDefaults] setObject:json forKey:TiAudiostreamDefaultsAutomotiveStationsKey];
   [[NSUserDefaults standardUserDefaults] synchronize];
 #if TARGET_OS_IOS
@@ -738,6 +767,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       _metadataOutput = nil;
     }
     _currentItem = nil;
+    _preparedURL = nil;
   }
 
   [self fireState:@"buffering"];
@@ -750,6 +780,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
   _prepareInProgress = NO;
   _preparingURL = nil;
+  _preparedURL = urlString;
   _currentItem = newItem;
   [_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
 
@@ -886,7 +917,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
   [self setCurrentAutomotiveStation:station];
 
-  NSString *title = [TiUtils stringValue:@"title" properties:station def:[TiUtils stringValue:@"programName" properties:station def:@"Live Stream"]];
+  NSString *title = [TiUtils stringValue:@"title" properties:station def:[TiUtils stringValue:@"programName" properties:station def:TiAudiostreamLocalized(@"ti_audiostream_live_stream", @"Live Stream")]];
   NSString *artist = [TiUtils stringValue:@"artist" properties:station def:[TiUtils stringValue:@"stationName" properties:station def:[TiUtils stringValue:@"subtitle" properties:station def:@""]]];
   NSString *artwork = [TiUtils stringValue:@"artwork" properties:station];
   BOOL isLive = [TiUtils boolValue:@"isLive" properties:station def:YES];
@@ -914,6 +945,41 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   if (emitEvent) {
     [self emitAutomotiveStationSelected:station source:TiAudiostreamAutomotiveSourceCarPlay];
   }
+}
+
+// Advance to the next/previous station in the persisted CarPlay list and play it natively —
+// mirror of Android's MediaPlaybackService.playAdjacentAutomotiveStation. Used when the head
+// unit sends next/prev but the app's JS isn't alive to handle the remotecontrol event. Matches
+// the current station by streamUrl with an id fallback (same as currentAutomotiveContentIdentifier).
+- (void)playAdjacentAutomotiveStation:(NSInteger)direction
+{
+  NSArray<NSDictionary *> *stations = [TiAudiostreamModule persistedAutomotiveStations];
+  if (stations.count == 0) {
+    return;
+  }
+
+  NSDictionary *currentStation = [TiAudiostreamModule persistedCurrentAutomotiveStation];
+  NSUInteger currentIndex = NSNotFound;
+  if ([currentStation isKindOfClass:[NSDictionary class]]) {
+    NSString *currentURL = [TiUtils stringValue:@"streamUrl" properties:currentStation];
+    NSString *currentID = [TiUtils stringValue:@"id" properties:currentStation];
+    currentIndex = [stations indexOfObjectPassingTest:^BOOL(id stationObject, NSUInteger idx, BOOL *stop) {
+      NSDictionary *station = [stationObject isKindOfClass:[NSDictionary class]] ? stationObject : nil;
+      NSString *stationURL = [TiUtils stringValue:@"streamUrl" properties:station];
+      if (stationURL.length > 0 && currentURL.length > 0 && [stationURL isEqualToString:currentURL]) {
+        return YES;
+      }
+      NSString *stationID = [TiUtils stringValue:@"id" properties:station];
+      return stationID.length > 0 && currentID.length > 0 && [stationID isEqualToString:currentID];
+    }];
+  }
+
+  NSInteger size = (NSInteger)stations.count;
+  NSInteger nextIndex = (currentIndex == NSNotFound)
+    ? (direction > 0 ? 0 : size - 1)
+    : ((((NSInteger)currentIndex + direction) % size) + size) % size;
+
+  [self playAutomotiveStation:stations[nextIndex] emitEvent:YES];
 }
 
 - (UIImage *)appIconImage
@@ -1248,7 +1314,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   NSDictionary *station = stations[index];
   NSString *identifier = [self automotiveContentIdentifierForStation:station fallbackIndex:index];
   MPContentItem *item = [[MPContentItem alloc] initWithIdentifier:identifier];
-  item.title = [TiUtils stringValue:@"title" properties:station def:[TiUtils stringValue:@"programName" properties:station def:@"Live Stream"]];
+  item.title = [TiUtils stringValue:@"title" properties:station def:[TiUtils stringValue:@"programName" properties:station def:TiAudiostreamLocalized(@"ti_audiostream_live_stream", @"Live Stream")]];
   item.subtitle = [TiUtils stringValue:@"artist" properties:station def:[TiUtils stringValue:@"stationName" properties:station def:[TiUtils stringValue:@"subtitle" properties:station def:@""]]];
   item.playable = YES;
   item.container = NO;
@@ -1413,6 +1479,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     NSLog(@"[ti.audiostream] remote command received: nextTrack");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self fireRemoteControl:104];
+      // App JS not running (e.g. launched from the car)? Advance natively through the
+      // persisted station list — same gating as Android's onSkipToNext.
+      if (![self _hasListeners:@"remotecontrol"]) {
+        [self playAdjacentAutomotiveStation:1];
+      }
     });
     return MPRemoteCommandHandlerStatusSuccess;
   }];
@@ -1421,6 +1492,9 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     NSLog(@"[ti.audiostream] remote command received: previousTrack");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self fireRemoteControl:105];
+      if (![self _hasListeners:@"remotecontrol"]) {
+        [self playAdjacentAutomotiveStation:-1];
+      }
     });
     return MPRemoteCommandHandlerStatusSuccess;
   }];

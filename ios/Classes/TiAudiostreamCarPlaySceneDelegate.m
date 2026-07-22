@@ -40,7 +40,10 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 
 - (NSString *)playPauseTitle
 {
-  return [self isPlaybackActive] ? @"Pausar" : @"Reproducir";
+  if ([self isPlaybackActive]) {
+    return TiAudiostreamLocalized(@"ti_audiostream_pause", @"Pause");
+  }
+  return TiAudiostreamLocalized(@"ti_audiostream_play", @"Play");
 }
 
 // Sets the station artwork (remote URL) as the item's leading thumbnail. Cached
@@ -120,45 +123,92 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   return identifiers;
 }
 
-- (NSString *)displaySubtitleForStation:(NSDictionary *)station currentStation:(NSDictionary *)currentStation
+- (NSString *)displaySubtitleForStation:(NSDictionary *)station isCurrent:(BOOL)isCurrent
 {
   NSString *subtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"stationName"] ?: [station objectForKey:@"artist"] ?: @"";
-  if ([self station:station matchesCurrentStation:currentStation]) {
+  if (isCurrent) {
+    NSString *onAir = TiAudiostreamLocalized(@"ti_audiostream_on_air", @"On Air");
     if (subtitle.length > 0) {
-      return [NSString stringWithFormat:@"On Air • %@", subtitle];
+      return [NSString stringWithFormat:@"%@ • %@", onAir, subtitle];
     }
-    return @"On Air";
+    return onAir;
   }
   return subtitle;
 }
 
-- (BOOL)station:(NSDictionary *)station matchesCurrentStation:(NSDictionary *)currentStation
+// Decide which SINGLE row is the current station, evaluating all match signals in
+// priority order across the whole list. Matching each row independently against two
+// live sources (the persisted station AND the player's URL) marked two rows at once
+// mid-switch — playAutomotiveStation persists the new station before setStream moves
+// the player URL — and the stale double-mark stuck whenever the app's JS settled the
+// state after the last scheduled refresh.
+- (NSUInteger)indexOfCurrentStationInStations:(NSArray<NSDictionary *> *)stations
+                               currentStation:(NSDictionary *)currentStation
 {
-  if (![station isKindOfClass:[NSDictionary class]] || ![currentStation isKindOfClass:[NSDictionary class]]) {
-    return NO;
+  NSString *currentURL = nil;
+  NSString *currentID = nil;
+  NSString *currentTitle = nil;
+  NSString *currentSubtitle = nil;
+  if ([currentStation isKindOfClass:[NSDictionary class]]) {
+    currentURL = [currentStation objectForKey:@"streamUrl"] ?: [currentStation objectForKey:@"url"];
+    id rawID = [currentStation objectForKey:@"id"];
+    currentID = rawID ? [NSString stringWithFormat:@"%@", rawID] : nil;
+    currentTitle = [currentStation objectForKey:@"stationName"] ?: [currentStation objectForKey:@"title"];
+    currentSubtitle = [currentStation objectForKey:@"subtitle"] ?: [currentStation objectForKey:@"artist"];
+  }
+  NSString *moduleURL = [[TiAudiostreamModule activeModule] carPlayCurrentStreamURL];
+
+  NSUInteger byPersistedURL = NSNotFound;
+  NSUInteger byID = NSNotFound;
+  NSUInteger byLiveURL = NSNotFound;
+  NSUInteger byTitle = NSNotFound;
+
+  for (NSUInteger i = 0; i < stations.count; i++) {
+    NSDictionary *station = stations[i];
+    if (![station isKindOfClass:[NSDictionary class]]) {
+      continue;
+    }
+    NSString *stationURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
+
+    if (byPersistedURL == NSNotFound && stationURL.length > 0 && currentURL.length > 0 &&
+        [stationURL isEqualToString:currentURL]) {
+      byPersistedURL = i;
+    }
+    if (byID == NSNotFound && currentID.length > 0) {
+      id rawID = [station objectForKey:@"id"];
+      NSString *stationID = rawID ? [NSString stringWithFormat:@"%@", rawID] : nil;
+      if (stationID.length > 0 && [stationID isEqualToString:currentID]) {
+        byID = i;
+      }
+    }
+    if (byLiveURL == NSNotFound && stationURL.length > 0 && moduleURL.length > 0 &&
+        [stationURL isEqualToString:moduleURL]) {
+      byLiveURL = i;
+    }
+    if (byTitle == NSNotFound && currentTitle.length > 0) {
+      NSString *stationTitle = [station objectForKey:@"stationName"] ?: [station objectForKey:@"title"];
+      NSString *stationSubtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"artist"];
+      if (stationTitle.length > 0 && [stationTitle isEqualToString:currentTitle] &&
+          ((stationSubtitle.length == 0 && currentSubtitle.length == 0) ||
+           [stationSubtitle isEqualToString:currentSubtitle])) {
+        byTitle = i;
+      }
+    }
   }
 
-  NSString *stationStreamURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
-  NSString *currentStreamURL = [currentStation objectForKey:@"streamUrl"] ?: [currentStation objectForKey:@"url"];
-  if (stationStreamURL.length > 0 && currentStreamURL.length > 0 && [stationStreamURL isEqualToString:currentStreamURL]) {
-    return YES;
+  // The user's last explicit selection wins over what is momentarily audible; the
+  // live URL and the title comparison stay as fallbacks for stations persisted by
+  // the host app with divergent fields.
+  if (byPersistedURL != NSNotFound) {
+    return byPersistedURL;
   }
-
-  NSString *moduleStreamURL = [[TiAudiostreamModule activeModule] carPlayCurrentStreamURL];
-  if (stationStreamURL.length > 0 && moduleStreamURL.length > 0 && [stationStreamURL isEqualToString:moduleStreamURL]) {
-    return YES;
+  if (byID != NSNotFound) {
+    return byID;
   }
-
-  NSString *stationTitle = [station objectForKey:@"stationName"] ?: [station objectForKey:@"title"];
-  NSString *currentTitle = [currentStation objectForKey:@"stationName"] ?: [currentStation objectForKey:@"title"];
-  NSString *stationSubtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"artist"];
-  NSString *currentSubtitle = [currentStation objectForKey:@"subtitle"] ?: [currentStation objectForKey:@"artist"];
-
-  return stationTitle.length > 0 &&
-         currentTitle.length > 0 &&
-         [stationTitle isEqualToString:currentTitle] &&
-         ((stationSubtitle.length == 0 && currentSubtitle.length == 0) ||
-          [stationSubtitle isEqualToString:currentSubtitle]);
+  if (byLiveURL != NSNotFound) {
+    return byLiveURL;
+  }
+  return byTitle;
 }
 
 - (BOOL)isPlaybackActive
@@ -196,8 +246,8 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   listTemplate.leadingNavigationBarButtons = @[];
   listTemplate.trailingNavigationBarButtons = @[];
   listTemplate.backButton = nil;
-  listTemplate.emptyViewTitleVariants = @[ @"No playback options" ];
-  listTemplate.emptyViewSubtitleVariants = @[ @"Open the app on iPhone to refresh playback." ];
+  listTemplate.emptyViewTitleVariants = @[ TiAudiostreamLocalized(@"ti_audiostream_empty_title", @"No playback options") ];
+  listTemplate.emptyViewSubtitleVariants = @[ TiAudiostreamLocalized(@"ti_audiostream_empty_subtitle", @"Open the app on iPhone to refresh playback.") ];
   return listTemplate;
 }
 
@@ -208,16 +258,19 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   NSDictionary *currentStation = [TiAudiostreamModule persistedCurrentAutomotiveStation];
   NSArray<NSDictionary *> *stations = [TiAudiostreamModule persistedAutomotiveStations];
   NSMutableArray<NSString *> *identifiers = [NSMutableArray array];
+  NSUInteger currentIndex = [self indexOfCurrentStationInStations:stations currentStation:currentStation];
 
-  for (NSDictionary *station in stations) {
+  for (NSUInteger stationIndex = 0; stationIndex < stations.count; stationIndex++) {
+    NSDictionary *station = stations[stationIndex];
     if (![station isKindOfClass:[NSDictionary class]]) {
       continue;
     }
 
+    BOOL isCurrent = (stationIndex == currentIndex);
     NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
-    NSString *subtitle = [self displaySubtitleForStation:station currentStation:currentStation];
+    NSString *subtitle = [self displaySubtitleForStation:station isCurrent:isCurrent];
     CPListItem *stationItem = [[CPListItem alloc] initWithText:title detailText:subtitle];
-    stationItem.playing = [self station:station matchesCurrentStation:currentStation] && [self isPlaybackActive];
+    stationItem.playing = isCurrent && [self isPlaybackActive];
     stationItem.playingIndicatorLocation = CPListItemPlayingIndicatorLocationTrailing;
     stationItem.userInfo = station;
     [self applyArtworkForStation:station toItem:stationItem];
@@ -287,14 +340,21 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   NSDictionary *currentStation = [TiAudiostreamModule persistedCurrentAutomotiveStation];
   NSArray<NSString *> *identifiers = [self stationIdentifiersFromStations:stations];
 
-  if (_stationItems.count == 0 || ![_stationItemIdentifiers isEqualToArray:identifiers] || _stationItems.count != stations.count) {
+  // Only a change in ROW COUNT forces a full updateSections rebuild — which resets the
+  // car's scroll position. Content changes (reordered stations, new URLs, renamed
+  // programs) are applied in place: the block below already rewrites every row's text,
+  // subtitle, artwork, userInfo and playing mark from the fresh stations array.
+  if (_stationItems.count == 0 || _stationItems.count != stations.count) {
     if (_rootTemplate) {
       [_rootTemplate updateSections:[self buildRootSections]];
     }
     return;
   }
+  _stationItemIdentifiers = identifiers;
 
   [_playPauseItem setText:[self playPauseTitle]];
+
+  NSUInteger currentIndex = [self indexOfCurrentStationInStations:stations currentStation:currentStation];
 
   [_stationItems enumerateObjectsUsingBlock:^(CPListItem *item, NSUInteger idx, BOOL *stop) {
     NSDictionary *station = idx < stations.count ? stations[idx] : nil;
@@ -302,12 +362,13 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
       return;
     }
 
+    BOOL isCurrent = (idx == currentIndex);
     NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
-    NSString *subtitle = [self displaySubtitleForStation:station currentStation:currentStation];
+    NSString *subtitle = [self displaySubtitleForStation:station isCurrent:isCurrent];
     [item setText:title];
     [item setDetailText:subtitle];
     item.userInfo = station;
-    item.playing = [self station:station matchesCurrentStation:currentStation] && [self isPlaybackActive];
+    item.playing = isCurrent && [self isPlaybackActive];
     item.playingIndicatorLocation = CPListItemPlayingIndicatorLocationTrailing;
     [self applyArtworkForStation:station toItem:item];
   }];

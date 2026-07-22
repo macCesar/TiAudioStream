@@ -31,3 +31,15 @@
 @property (nonatomic, readonly) NSNumber *REMOTE_CONTROL_PREV;
 
 @end
+
+/**
+ * Resolve a module string through the host app's i18n. Titanium compiles
+ * app/i18n/<lang>/strings.xml into the app bundle, so any key the app defines wins and the
+ * device language picks the right one; apps that define nothing get the English fallback.
+ * Keys use underscores to stay valid on Android too, where aapt2 silently drops resource
+ * names containing dots.
+ */
+NS_INLINE NSString *TiAudiostreamLocalized(NSString *key, NSString *fallback)
+{
+  return NSLocalizedStringWithDefaultValue(key, nil, [NSBundle mainBundle], fallback, nil);
+}
