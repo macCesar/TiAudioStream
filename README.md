@@ -33,7 +33,7 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 | :----------- | :--------------- |
 | Titanium SDK | 13.1.1.GA+       |
 | Android      | API 24+ (Nougat) |
-| iOS          | 13.0+            |
+| iOS          | 15.0+            |
 
 ### Mac Catalyst note
 
