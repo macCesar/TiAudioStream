@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [1.6.1] - 2026-09-15
+
+### Changed
+- **iOS: the minimum deployment target is now iOS 15.0 (was 13.0).** Xcode 27 only accepts deployment targets from 15.0 to 27.0, so the module no longer builds with 13.0. No app is affected: Titanium SDK 13.1.1.GA, the module's minimum, already requires iOS 15.0. The iOS project now builds against Titanium SDK 13.4.1.GA, and `titanium.xcconfig` no longer points at a `mobilesdk` directory that does not exist.
+
 ## [1.6.0] - 2026-07-21
 
 ### Added
