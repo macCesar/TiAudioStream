@@ -1,0 +1,16 @@
+{
+  "android/dist/ti.audiostream-android-2.0.0.zip": {
+    "sha256": "594f6e004574ad9cd01a3801caea752858c5195e213047ae96c548bf71839c88",
+    "bytes": 177264,
+    "manifests": {
+      "modules/android/ti.audiostream/2.0.0/manifest": "#\n# this is your module manifest and used by Titanium\n# during compilation, packaging, distribution, etc.\n#\nversion: 2.0.0\napiversion: 4\narchitectures: arm64-v8a armeabi-v7a x86 x86_64\ndescription: Audio streaming module for Titanium\nauthor: C\u00e9sar Estrada\nlicense: MIT\ncopyright: Copyright (c) 2026 C\u00e9sar Estrada\n\n# these should not be edited\nname: audiostream\nmoduleid: ti.audiostream\nguid: 04e2decf-6370-43f1-bf1d-457c4b417325\nplatform: android\nclasspaths:\nplugins:\nminsdk: 13.4.1.GA\n"
+    }
+  },
+  "ios/dist/ti.audiostream-iphone-2.0.0.zip": {
+    "sha256": "04b0ba5a38da45203211f3419fdb7573adb72d55c1f511cb588e5931b12417d1",
+    "bytes": 412730,
+    "manifests": {
+      "modules/iphone/ti.audiostream/2.0.0/manifest": "#\n# this is your module manifest and used by Titanium\n# during compilation, packaging, distribution, etc.\n#\nversion: 2.0.0\napiversion: 2\narchitectures: arm64 x86_64\nmac: true\ndescription: Audio streaming module for Titanium\nauthor: C\u00e9sar Estrada\nlicense: MIT\ncopyright: Copyright (c) 2026 C\u00e9sar Estrada\n\n# these should not be edited\nname: audiostream\nmoduleid: ti.audiostream\nguid: 04e2decf-6370-43f1-bf1d-457c4b417325\nplatform: iphone\nminsdk: 13.1.1.GA\n"
+    }
+  }
+}
