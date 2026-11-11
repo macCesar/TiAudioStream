@@ -1,0 +1,65 @@
+[
+  {
+    "command": "inspect",
+    "checks": {
+      "controllerConnected": true,
+      "noReaderErrors": true,
+      "embeddedArtworkPresentAndUnchanged": true,
+      "uriArtworkPresentAndUnchanged": true,
+      "embeddedHashPresentAndUnchanged": true,
+      "uriHashPresentAndUnchanged": true,
+      "embedded512": true,
+      "uri1024": true
+    }
+  },
+  {
+    "command": "prepareB",
+    "checks": {
+      "controllerConnected": true,
+      "noReaderErrors": true,
+      "BRequested": true,
+      "BMetadata": true,
+      "BPlaying": true
+    }
+  },
+  {
+    "command": "playB",
+    "checks": {
+      "controllerConnected": true,
+      "noReaderErrors": true,
+      "BRequested": true,
+      "BMetadata": true,
+      "BPlaying": true
+    }
+  },
+  {
+    "command": "stop",
+    "checks": {
+      "controllerConnected": true,
+      "noReaderErrors": true,
+      "lateSourceCannotResume": true
+    }
+  },
+  {
+    "command": "focusTransient",
+    "checks": {
+      "controllerConnected": true,
+      "noReaderErrors": true,
+      "focusGranted": true,
+      "pausedDuringFocusLoss": true,
+      "noPlayingDuringFocusLoss": true,
+      "focusGainResumes": true
+    }
+  },
+  {
+    "command": "focusPause",
+    "checks": {
+      "controllerConnected": true,
+      "noReaderErrors": true,
+      "focusGranted": true,
+      "pausedDuringFocusLoss": true,
+      "noPlayingDuringFocusLoss": true,
+      "manualPauseWins": true
+    }
+  }
+]

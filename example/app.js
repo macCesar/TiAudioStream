@@ -1,12 +1,6 @@
 /**
- * ti.audiostream - Professional Example App (Refined)
- *
- * Demonstrates:
- * - Optimized Light Mode UI
- * - Matrix-style Terminal Console (Auto-scrolling)
- * - Error handling for dead streams
- * - Real-time metadata and station synchronization
- * - Android Auto & CarPlay station list (browse + now-playing)
+ * ti.audiostream example for Titanium Classic.
+ * Demonstrates playback states, stream metadata, retries, and the automotive catalog.
  */
 
 const audioStream = require('ti.audiostream')
@@ -41,7 +35,7 @@ const STREAMS = {
         { match: '^(.+),\\s*The$', replace: 'The $1' }
       ],
       title: [
-        // Remove (YYYY) y también (YYYY) - ... al final del título
+        // Remove a trailing year and any suffix that follows it.
         { match: '\\s*\\(\\d{4}\\)(?:\\s*-\\s*.+)?$', replace: '' }
       ]
     }
@@ -76,12 +70,13 @@ const STREAMS = {
     isLive: true,
     title: 'Offline Test',
     artist: 'Intentionally broken signal',
-    url: 'https://invalid-url-for-test.org/dead.m3u8',
+    url: 'https://example.invalid/dead.m3u8',
   }
 }
 
 let currentStreamKey = 'radioParadise'
 let currentStream = STREAMS[currentStreamKey]
+let playbackState = 'stopped'
 
 // =============================================================================
 // UI COMPONENTS
@@ -110,7 +105,7 @@ header.add(Ti.UI.createLabel({
 header.add(Ti.UI.createLabel({
   font: { fontSize: 13 },
   color: COLORS.secondaryText,
-  text: 'Unified Audio Engine v1.0.0'
+  text: 'Playback and automotive sample'
 }))
 mainContainer.add(header)
 
@@ -132,8 +127,7 @@ const artworkContainer = Ti.UI.createView({
 
 const artworkImage = Ti.UI.createImageView({
   image: currentStream.artwork,
-  width: 160, height: Ti.UI.SIZE, // Fix width, auto height to maintain ratio
-  defaultImage: '/images/default_artwork.png'
+  width: 160, height: Ti.UI.SIZE
 })
 artworkContainer.add(artworkImage)
 playerCard.add(artworkContainer)
@@ -308,14 +302,9 @@ function loadStream(key, shouldStart) {
     isLive: currentStream.isLive,
     title: currentStream.title,
     artist: currentStream.artist,
-    artwork: currentStream.artwork
-  }
-
-  // Pass metadataRules inline when the stream definition includes them.
-  // Streams without this key preserve whatever rules are already active.
-  // To clear rules on a specific stream, set metadataRules: null.
-  if ('metadataRules' in currentStream) {
-    streamOpts.metadataRules = currentStream.metadataRules
+    artwork: currentStream.artwork || null,
+    // Clear the previous station's cleanup rules when this station has none.
+    metadataRules: currentStream.metadataRules || null
   }
 
   audioStream.setStream(streamOpts)
@@ -368,24 +357,20 @@ function buildAutomotiveStations() {
 // =============================================================================
 
 audioStream.addEventListener('state', (e) => {
+  playbackState = e.state
   log('State: ' + e.state)
   stateLabel.applyProperties({
     text: e.state.toUpperCase(),
     color: (e.state === 'error') ? COLORS.error : COLORS.accent
   })
-  btnPlayPause.applyProperties({ title: (e.state === 'playing') ? ' PAUSE ' : '  PLAY  ' })
+  const canPause = playbackState === 'playing' || playbackState === 'buffering'
+  btnPlayPause.applyProperties({ title: canPause ? ' PAUSE ' : '  PLAY  ' })
 })
 
 audioStream.addEventListener('error', (e) => {
   const errorMsg = e.message || 'The stream URL is invalid or the server is unreachable.'
+  // The module can retry after an error. Keep the controls available.
   log('ERROR: ' + errorMsg)
-
-  const dialog = Ti.UI.createAlertDialog({
-    title: 'Connection Failed',
-    message: `Station: ${currentStream.title}\n\nTechnical Details:\n${errorMsg}`,
-    buttonNames: ['Understand']
-  })
-  dialog.show()
 })
 
 audioStream.addEventListener('metadata', (e) => {
@@ -420,14 +405,14 @@ audioStream.addEventListener('automotivestationselected', (e) => {
 })
 
 btnPlayPause.addEventListener('click', () => {
-  if (audioStream.playing) audioStream.pause()
+  if (audioStream.playing || playbackState === 'buffering') audioStream.pause()
   else audioStream.start()
 })
 
 btnNext.addEventListener('click', () => loadStream(getNextKey(), true))
 btnPrev.addEventListener('click', () => loadStream(getPrevKey(), true))
 
-win.addEventListener('close', () => audioStream.stop())
+win.addEventListener('close', () => audioStream.hardStop())
 
 // Initialize
 win.open()
@@ -437,4 +422,4 @@ win.open()
 // this natively, so the list survives the app being killed.
 if (supportsAutomotive) audioStream.setAutomotiveStations(buildAutomotiveStations())
 
-loadStream('radioParadise', true)
+loadStream(currentStreamKey, false)

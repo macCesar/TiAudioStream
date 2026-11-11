@@ -1,0 +1,11 @@
+const audio=require('ti.audiostream'),base=Ti.App.Properties.getString('auditBaseURL');
+const mode=Ti.Android.currentActivity.intent.getStringExtra('mode')||'normal';
+const out={started:Date.now(),mode,events:[],ready:false};
+const win=Ti.UI.createWindow({backgroundColor:'#fff',keepScreenOn:true});win.add(Ti.UI.createLabel({text:'Silent controller acceptance: '+mode,color:'#111'}));win.open();
+const save=()=>Ti.Filesystem.getFile(Ti.Filesystem.applicationDataDirectory,'controller-target-results.json').write(JSON.stringify(out));
+for(const type of ['state','metadata','error'])audio.addEventListener(type,e=>{out.events.push({type,value:e.state||e.title||e.message,at:Date.now()});save()});
+audio.setAutomotiveStations(['A','B','C'].map(id=>({id,title:'Station '+id,streamUrl:base+'/stream/'+id+'.mp3',artwork:base+'/cover.png'})));
+audio.setStream({url:mode==='normal'?base+'/stream/A.mp3':base+'/slow.pls?station=B&delay=4',title:mode==='normal'?'Station A':'Station B',artwork:base+'/cover.png'});audio.start();
+setTimeout(()=>{out.ready=true;save()},mode==='normal'?3000:150);
+if(mode==='normal')setTimeout(()=>{audio.setMetadata({title:'Repeated artwork',artwork:base+'/cover.png'});save()},6500);
+setTimeout(()=>{audio.hardStop();win.keepScreenOn=false;out.complete=true;save()},20000);

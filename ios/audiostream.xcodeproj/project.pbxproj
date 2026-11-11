@@ -22,6 +22,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		CF001001000000000000001A /* TiAudiostreamContentLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = CF001001000000000000001B; };
 		24DD6CF91134B3F500162E58 /* TiAudiostreamModule.h in Headers */ = {isa = PBXBuildFile; fileRef = 24DD6CF71134B3F500162E58 /* TiAudiostreamModule.h */; };
 		24DD6CFA1134B3F500162E58 /* TiAudiostreamModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 24DD6CF81134B3F500162E58 /* TiAudiostreamModule.m */; };
 		24DE9E1111C5FE74003F90F6 /* TiAudiostreamModuleAssets.h in Headers */ = {isa = PBXBuildFile; fileRef = 24DE9E0F11C5FE74003F90F6 /* TiAudiostreamModuleAssets.h */; };
@@ -46,6 +47,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		CF001001000000000000001B /* TiAudiostreamContentLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "Classes/TiAudiostreamContentLoader.m"; sourceTree = "<group>"; };
 		24DD6CF71134B3F500162E58 /* TiAudiostreamModule.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "TiAudiostreamModule.h"; path = "Classes/TiAudiostreamModule.h"; sourceTree = "<group>"; };
 		24DD6CF81134B3F500162E58 /* TiAudiostreamModule.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "TiAudiostreamModule.m"; path = "Classes/TiAudiostreamModule.m"; sourceTree = "<group>"; };
 		24DD6D1B1134B66800162E58 /* titanium.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = titanium.xcconfig; sourceTree = "<group>"; };
@@ -109,6 +111,7 @@
 				24DE9E1011C5FE74003F90F6 /* TiAudiostreamModuleAssets.m */,
 				24DD6CF71134B3F500162E58 /* TiAudiostreamModule.h */,
 				24DD6CF81134B3F500162E58 /* TiAudiostreamModule.m */,
+				CF001001000000000000001B /* TiAudiostreamContentLoader.m */,
 				CP001001000000000000001B /* TiAudiostreamCarPlaySceneDelegate.h */,
 				CP001001000000000000001D /* TiAudiostreamCarPlaySceneDelegate.m */,
 				CP001001000000000000002B /* TiAudiostreamWindowSceneDelegate.h */,
@@ -210,6 +213,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				24DD6CFA1134B3F500162E58 /* TiAudiostreamModule.m in Sources */,
+				CF001001000000000000001A /* TiAudiostreamContentLoader.m in Sources */,
 				24DE9E1211C5FE74003F90F6 /* TiAudiostreamModuleAssets.m in Sources */,
 				CP001001000000000000001C /* TiAudiostreamCarPlaySceneDelegate.m in Sources */,
 				CP001001000000000000002C /* TiAudiostreamWindowSceneDelegate.m in Sources */,

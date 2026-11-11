@@ -4,7 +4,15 @@ Platform-specific details for the iOS implementation of `ti.audiostream`.
 
 For the full API reference, see the [main README](../README.md).
 
+The iOS package requires Titanium SDK **13.1.1.GA+** and **iOS 15.0+**. See the [source build requirements](../README.md#mac-catalyst-note) if you rebuild the module with Mac Catalyst support.
+
 ## iOS-specific behavior
+
+### Source completion and metadata
+
+The module accepts timed metadata only from the selected item's output and URL, including when you change stations while paused. At the end of the item it reports `stopped`. The next `start()` prepares a fresh item. AVPlayer opens direct audio and HLS URLs with recognized suffixes without a preliminary playlist request. The module still resolves extensionless URLs and station playlists.
+
+CarPlay keeps the station list open and shares pending artwork downloads across rows with the same URL. If a row changes URL before its download finishes, it discards that image. Verify the result on a CarPlay display.
 
 ### Background audio
 
@@ -39,9 +47,11 @@ These controls appear on the lock screen, in Control Center, and on Apple Watch 
 | Scenario                               | Behavior                                                          |
 | :------------------------------------- | :---------------------------------------------------------------- |
 | Interruption begins (phone call, Siri) | Playback pauses                                                   |
-| Interruption ends                      | Playback resumes (only if it was playing before the interruption) |
+| Interruption ends                      | Playback resumes when the system allows it and playback is still requested |
 
-If the user manually paused before the interruption, playback stays paused after the interruption ends.
+If the user manually pauses before or during the interruption, playback stays paused after the interruption ends. Pending retries also honor manual pause and stop.
+
+The module resolves relative M3U and PLS entries against the response URL. AVPlayer handles HLS, including HLS served with a `.m3u` suffix. Changing URLs invalidates the previous resolution. Artwork downloads have an 8 MiB limit, a 15-second resource timeout and a 1024-pixel decode limit. The module publishes text metadata while the image loads. Detailed native diagnostics are off by default. Compile with `TI_AUDIOSTREAM_DIAGNOSTICS=1` to enable diagnostics with URLs redacted.
 
 ### Mac Catalyst
 
@@ -55,7 +65,7 @@ At runtime, the module provides:
 
 - CarPlay and window scene delegates for Titanium apps
 - A station browsing list backed by `setAutomotiveStations(...)`
-- Now-playing info published directly to `MPNowPlayingInfoCenter.defaultCenter` so CarPlay and the system always see the app as the active audio source
+- Now-playing metadata published through MediaPlayer for the system's Now Playing surface
 - `remotecontrol` events from CarPlay with the same `PLAY`, `PAUSE`, `STOP`, `NEXT`, and `PREV` actions used on the lock screen
 
 ### Setup step-by-step
@@ -90,7 +100,7 @@ Add the CarPlay Audio entitlement inside your `<ios>` section:
 </ios>
 ```
 
-If your approved App ID or existing provisioning profile also includes `com.apple.developer.playable-content`, keep it enabled consistently in the same block. The example apps in this repo use both keys during development.
+If your approved App ID and provisioning profile also include `com.apple.developer.playable-content`, keep it enabled consistently in the same block.
 
 #### 4. Add the scene manifest (required for Titanium)
 
@@ -129,7 +139,7 @@ CarPlay uses the iOS scene lifecycle. Add this inside `<ios><plist><dict>`:
 
 These delegate classes ship inside the module. Your app only references them by name in `tiapp.xml`.
 
-The window scene delegate adapts to your Titanium SDK automatically, so the manifest above is the same on every supported version: on `13.3.0.GA+` — where TiApp adopts the UIScene lifecycle natively — it forwards the window scene to TiApp; on `≤ 13.2.x.GA` it attaches Titanium's window to the connecting scene. No per-SDK changes are needed.
+Use the manifest above on every supported Titanium SDK version. On `13.3.0.GA+`, TiApp uses the UIScene lifecycle natively and the module forwards the window scene to it. On `≤ 13.2.x.GA`, the module attaches Titanium's window to the connecting scene.
 
 #### 5. Background audio (required)
 
@@ -142,15 +152,15 @@ Background audio must already be enabled in your `tiapp.xml` (inside `<ios><plis
 </array>
 ```
 
-#### 6. That's it
+#### 6. Check the active stream
 
 Once configured, CarPlay reads the same active stream metadata and playback state that power the lock screen and Control Center.
 
 ### What appears on CarPlay
 
-- **Station list** with station/program rows published from the app
-- **Now Playing screen** with title, artist, and artwork
-- **Transport controls**: play/pause, next, previous, stop
+- **Station list** with artwork thumbnails, a Play/Pause row, and a single active station indicator
+- **System Now Playing** with title, artist, and artwork. Selecting a station keeps the app on its list.
+- **Transport controls** exposed through MediaPlayer
 - The `remotecontrol` event fires normally from CarPlay interactions, with the same `action` values (`PLAY`, `PAUSE`, `STOP`, `NEXT`, `PREV`) as from the lock screen or Control Center
 
 ### Limitations
@@ -158,16 +168,13 @@ Once configured, CarPlay reads the same active stream metadata and playback stat
 - Apple must approve the entitlement before CarPlay works
 - The entitlement is **per-app**, not per-module
 
-## Testing with CarPlay Simulator
+## Testing CarPlay
 
-1. Run your app on the iOS Simulator
-2. In the Simulator menu: **I/O → External Displays → CarPlay**
-3. Start a stream in your app
-4. Open your app from the CarPlay home screen or tap **Now Playing**
+With Device Hub on Xcode 27.2, connect a physical iPhone to the Mac by USB and open CarPlay Simulator for that device. A simulated iPhone or a device paired only over the network cannot host this CarPlay session. Install a build signed with your approved entitlement, then select a station from the CarPlay list. Verify the active indicator, artwork, and transport controls. [Xcode 27.2 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27_2-release-notes)
 
-The CarPlay entitlement is required even in the Simulator. Without it, your app will not appear as a selectable audio source on the CarPlay home screen.
+On older Xcode versions that provide the CarPlay external display in Simulator, run the app on an existing iOS simulator, then choose **I/O → External Displays → CarPlay**. Open the app on the CarPlay home screen and select a station. The app still needs its CarPlay entitlement. [Apple's Simulator guide](https://developer.apple.com/documentation/carplay/using-the-carplay-simulator)
 
-If the CarPlay simulator shows a stale or blank Now Playing surface during development, test the already-built `.app` directly with `simctl install` + `simctl launch` or from Xcode against the generated simulator build.
+You can also retest an existing simulator build by installing and launching its `.app` with `xcrun simctl install` and `xcrun simctl launch`, then opening the CarPlay display.
 
 ### Using a physical device
 
@@ -189,6 +196,6 @@ Connect an iPhone to a CarPlay-compatible head unit (USB or wireless). The CarPl
 
 ### Controls do not respond
 
-- Make sure you have a `remotecontrol` event listener set up for `NEXT` and `PREV`
+- If your app listens for `remotecontrol`, handle `NEXT` and `PREV` there. Without a listener, the registered station list provides native next/previous behavior.
 - Play, pause, and stop are handled automatically by the module
 - If no controls appear at all, verify the `UIBackgroundModes: audio` configuration

@@ -5,7 +5,10 @@
  * Licensed under the MIT License
  */
 
+#import "TiAudiostreamDiagnostics.h"
 #import "TiAudiostreamModule.h"
+#import "TiAudiostreamContentLoader.h"
+#import "TiAudiostreamArtwork.h"
 #import "TiAudiostreamCarPlaySceneDelegate.h"
 #import "TiAudiostreamWindowSceneDelegate.h"
 #import "TiBase.h"
@@ -35,7 +38,7 @@ static UISceneConfiguration *TiAudiostream_configurationForConnecting(id self, S
   UISceneConfiguration *configuration = [[UISceneConfiguration alloc] initWithName:configurationName
                                                                       sessionRole:connectingSceneSession.role];
 
-  NSLog(@"[ti.audiostream] configurationForConnecting role=%@ name=%@ existingSceneClass=%@ existingDelegate=%@",
+  TiAudiostreamDebugLog(@"[ti.audiostream] configurationForConnecting role=%@ name=%@ existingSceneClass=%@ existingDelegate=%@",
     connectingSceneSession.role,
     existingConfiguration.name ?: @"",
     existingConfiguration.sceneClass ? NSStringFromClass(existingConfiguration.sceneClass) : @"",
@@ -51,7 +54,7 @@ static UISceneConfiguration *TiAudiostream_configurationForConnecting(id self, S
     configuration.sceneClass = [CPTemplateApplicationScene class];
   }
 
-  NSLog(@"[ti.audiostream] configurationForConnecting returning role=%@ name=%@ sceneClass=%@ delegate=%@",
+  TiAudiostreamDebugLog(@"[ti.audiostream] configurationForConnecting returning role=%@ name=%@ sceneClass=%@ delegate=%@",
     connectingSceneSession.role,
     configuration.name ?: @"",
     configuration.sceneClass ? NSStringFromClass(configuration.sceneClass) : @"",
@@ -73,10 +76,10 @@ static void TiAudiostreamRegisterSceneClasses(void)
   SEL selector = @selector(application:configurationForConnectingSceneSession:options:);
   if (tiAppClass && !class_getInstanceMethod(tiAppClass, selector)) {
     class_addMethod(tiAppClass, selector, (IMP)TiAudiostream_configurationForConnecting, "@@:@@@");
-    NSLog(@"[ti.audiostream] Added manifest-style scene configuration dispatch to TiApp");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Added manifest-style scene configuration dispatch to TiApp");
   }
 
-  NSLog(@"[ti.audiostream] Registered scene delegate classes for manifest-based dispatch");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Registered scene delegate classes for manifest-based dispatch");
 }
 
 static NSString *const TiAudiostreamCarPlayDidConnectNotification = @"TiAudiostreamCarPlayDidConnectNotification";
@@ -108,6 +111,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   BOOL _resumeOnInterruption;
   BOOL _autoUpdateMetadata;
   BOOL _playRequested;
+  BOOL _stopped;
   NSArray *_titleRules;
   NSArray *_artistRules;
   NSString *_lastEmittedState;
@@ -121,6 +125,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   NSUInteger _nowPlayingPublishSequence;
   BOOL _terminalErrorReportedForCurrentItem;
   NSUInteger _artworkGeneration;
+  NSUInteger _automaticMetadataGeneration;
   UIImage *_appIconImage;
   NSUInteger _carPlayRefreshGeneration;
   int _retryCount;
@@ -177,6 +182,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleAppWillEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:nil];
 #endif
 
+  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handlePlaybackEnded:) name:AVPlayerItemDidPlayToEndTimeNotification object:nil];
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(handleErrorLogEntry:)
                                                name:AVPlayerItemNewErrorLogEntryNotification
@@ -214,7 +220,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   ENSURE_SINGLE_ARG(args, NSDictionary);
   NSString *requestedURL = [TiUtils stringValue:@"url" properties:args];
   if (requestedURL.length == 0) {
-    NSLog(@"[ti.audiostream] setStream ignored: missing url");
+    TiAudiostreamDebugLog(@"[ti.audiostream] setStream ignored: missing url");
     return;
   }
 
@@ -225,6 +231,13 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
   [self resetRetryLogic];
   if (!sameURL || forceReload) {
+    // A deferred preparation belongs to its URL, not the next start() call.
+    _streamGeneration++;
+    // Retire the old item's delegate even when the replacement is deferred while paused.
+    if (_metadataOutput && _currentItem) [_currentItem removeOutput:_metadataOutput];
+    _metadataOutput = nil;
+    _prepareInProgress = NO;
+    _preparingURL = nil;
     _artworkGeneration++;
     _lastEmittedMetadataTitle = nil;
     _lastEmittedMetadataArtist = nil;
@@ -235,7 +248,9 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
   _currentURL = requestedURL;
   _isLive = [TiUtils boolValue:@"isLive" properties:args def:YES];
-  _autoUpdateMetadata = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
+  BOOL autoUpdate = [TiUtils boolValue:@"autoUpdateMetadata" properties:args def:YES];
+  if (_autoUpdateMetadata != autoUpdate) _automaticMetadataGeneration++;
+  _autoUpdateMetadata = autoUpdate;
 
   // Check if title, artist, artwork are provided
   NSString *title = [TiUtils stringValue:@"title" properties:args];
@@ -279,7 +294,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   if (hasReusableItem) {
-    NSLog(@"[ti.audiostream] setStream reused active item for %@", requestedURL);
+    TiAudiostreamDebugLog(@"[ti.audiostream] setStream reused active item for %@", requestedURL);
     if ([self hasNowPlayingPublishIntent]) {
       [self updateNowPlaying];
       [self activateNowPlayingSessionIfPossible];
@@ -297,7 +312,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   if (_playRequested || _pendingPlay) {
     [self prepareCurrentStreamItem];
   } else {
-    NSLog(@"[ti.audiostream] setStream deferred item preparation until start");
+    TiAudiostreamDebugLog(@"[ti.audiostream] setStream deferred item preparation until start");
   }
 }
 
@@ -312,6 +327,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
   [self resetRetryLogic];
   _playRequested = YES;
+  _stopped = NO;
 
 #if TARGET_OS_IOS
   [self primeSystemAudioOwnershipForPlaybackStart];
@@ -358,6 +374,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [self activateNowPlayingSessionIfPossible];
 }
 
+- (void)play:(id)unused
+{
+  [self start:unused];
+}
+
 - (void)pause:(id)unused
 {
   if (![NSThread isMainThread]) {
@@ -367,20 +388,16 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return;
   }
 
-  NSLog(@"[ti.audiostream] pause requested playRequested=%@ pending=%@ preparing=%@ rate=%.2f timeControl=%@",
-    _playRequested ? @"YES" : @"NO",
-    _pendingPlay ? @"YES" : @"NO",
-    _prepareInProgress ? @"YES" : @"NO",
-    _player ? _player.rate : 0.0,
-    [self timeControlStatusName:_player ? _player.timeControlStatus : AVPlayerTimeControlStatusPaused]);
-  NSLog(@"[ti.audiostream] pause call stack:\n%@", [[NSThread callStackSymbols] componentsJoinedByString:@"\n"]);
-  if (_player) {
-    _playRequested = NO;
+  [self resetRetryLogic];
+  _playRequested = NO;
+  _pendingPlay = NO;
+  _resumeOnInterruption = NO;
 #if TARGET_OS_IOS
-    _carPlayOwnershipSessionRefreshed = NO;
+  _carPlayOwnershipSessionRefreshed = NO;
 #endif
+  if (_player) {
     [_player pause];
-    [self updateNowPlaying];
+    if (!_stopped) [self updateNowPlaying];
   }
 }
 
@@ -394,7 +411,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return;
   }
 
-  NSLog(@"[ti.audiostream] stop requested hard=%@ playRequested=%@ pending=%@ preparing=%@ rate=%.2f",
+  TiAudiostreamDebugLog(@"[ti.audiostream] stop requested hard=%@ playRequested=%@ pending=%@ preparing=%@ rate=%.2f",
     ([args isKindOfClass:[NSDictionary class]] && [TiUtils boolValue:@"hard" properties:args def:NO]) ? @"YES" : @"NO",
     _playRequested ? @"YES" : @"NO",
     _pendingPlay ? @"YES" : @"NO",
@@ -406,6 +423,8 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   [self resetRetryLogic];
+  _stopped = YES;
+  _resumeOnInterruption = NO;
   _artworkGeneration++;
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
@@ -439,12 +458,14 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return;
   }
 
-  NSLog(@"[ti.audiostream] hardStop requested playRequested=%@ pending=%@ preparing=%@ rate=%.2f",
+  TiAudiostreamDebugLog(@"[ti.audiostream] hardStop requested playRequested=%@ pending=%@ preparing=%@ rate=%.2f",
     _playRequested ? @"YES" : @"NO",
     _pendingPlay ? @"YES" : @"NO",
     _prepareInProgress ? @"YES" : @"NO",
     _player ? _player.rate : 0.0);
   [self resetRetryLogic];
+  _stopped = YES;
+  _resumeOnInterruption = NO;
   _artworkGeneration++;
   _lastEmittedMetadataTitle = nil;
   _lastEmittedMetadataArtist = nil;
@@ -496,9 +517,6 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   ENSURE_SINGLE_ARG(args, NSDictionary);
-  _artworkGeneration++;
-  NSUInteger expectedGeneration = _artworkGeneration;
-
   BOOL hasTitleKey = [args objectForKey:@"title"] != nil;
   BOOL hasArtistKey = [args objectForKey:@"artist"] != nil;
   BOOL hasArtworkKey = [args objectForKey:@"artwork"] != nil;
@@ -509,6 +527,10 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   if (hasArtistKey) {
     _currentArtist = [TiUtils stringValue:@"artist" properties:args def:@""];
   }
+
+  if (hasArtworkKey) _artworkGeneration++;
+  NSUInteger expectedGeneration = _artworkGeneration;
+  [self updateNowPlaying];
 
   // Check if artwork key exists in args
   id artworkValue = [args objectForKey:@"artwork"];
@@ -521,29 +543,21 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       _currentArtwork = nil;
       [self updateNowPlaying];
     } else {
-      // Valid URL -> load it
-      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
-        UIImage *img = [UIImage imageWithData:data];
-        dispatch_async(dispatch_get_main_queue(), ^{
-          if (expectedGeneration != self->_artworkGeneration) {
-            return;
-          }
-          if (img) {
-            self->_currentArtwork = img;
-          } else {
-            self->_currentArtwork = nil;
-          }
-          [self updateNowPlaying];
+      [TiAudiostreamContentLoader fetchURL:[NSURL URLWithString:artworkURL] maxBytes:8 * 1024 * 1024 completion:^(NSData *data, NSURLResponse *response, NSError *error) {
+        // Decode on a worker; ImageIO downsamples before allocating a full bitmap.
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+          UIImage *image = TiAudiostreamDecodeArtwork(data);
+          dispatch_async(dispatch_get_main_queue(), ^{
+            if (expectedGeneration != self->_artworkGeneration) return;
+            self->_currentArtwork = image;
+            [self updateNowPlaying];
+          });
         });
-      });
+      }];
     }
   } else if (hasArtworkKey) {
     // Caller explicitly passed null/empty artwork -> clear it
     _currentArtwork = nil;
-    [self updateNowPlaying];
-  } else {
-    // Preserve existing artwork/title/artist when the caller only updates a subset.
     [self updateNowPlaying];
   }
 }
@@ -552,7 +566,8 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 {
   ENSURE_SINGLE_ARG(args, NSNumber);
   _autoUpdateMetadata = [TiUtils boolValue:args def:YES];
-  NSLog(@"[ti.audiostream] Auto-update metadata: %@", _autoUpdateMetadata ? @"YES" : @"NO");
+  _automaticMetadataGeneration++;
+  TiAudiostreamDebugLog(@"[ti.audiostream] Auto-update metadata: %@", _autoUpdateMetadata ? @"YES" : @"NO");
 }
 
 #pragma mark - Properties
@@ -594,7 +609,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   if (args == nil || args == [NSNull null]) {
     _titleRules = nil;
     _artistRules = nil;
-    NSLog(@"[ti.audiostream] Metadata rules cleared");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Metadata rules cleared");
     return;
   }
 
@@ -604,7 +619,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   _titleRules = [rules objectForKey:@"title"];
   _artistRules = [rules objectForKey:@"artist"];
 
-  NSLog(@"[ti.audiostream] Metadata rules set: title=%lu, artist=%lu",
+  TiAudiostreamDebugLog(@"[ti.audiostream] Metadata rules set: title=%lu, artist=%lu",
     (unsigned long)(_titleRules ? _titleRules.count : 0),
     (unsigned long)(_artistRules ? _artistRules.count : 0));
 }
@@ -634,13 +649,13 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   if (![stations isKindOfClass:[NSArray class]]) {
-    NSLog(@"[ti.audiostream] setAutomotiveStations expected array payload, got %@", NSStringFromClass([stations class]));
+    TiAudiostreamDebugLog(@"[ti.audiostream] setAutomotiveStations expected array payload, got %@", NSStringFromClass([stations class]));
     return;
   }
 
   NSData *data = [NSJSONSerialization dataWithJSONObject:stations options:0 error:nil];
   if (!data) {
-    NSLog(@"[ti.audiostream] Failed to serialize automotive stations");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Failed to serialize automotive stations");
     return;
   }
 
@@ -683,13 +698,13 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   if (![station isKindOfClass:[NSDictionary class]]) {
-    NSLog(@"[ti.audiostream] setCurrentAutomotiveStation expected dictionary payload, got %@", NSStringFromClass([station class]));
+    TiAudiostreamDebugLog(@"[ti.audiostream] setCurrentAutomotiveStation expected dictionary payload, got %@", NSStringFromClass([station class]));
     return;
   }
 
   NSData *data = [NSJSONSerialization dataWithJSONObject:station options:0 error:nil];
   if (!data) {
-    NSLog(@"[ti.audiostream] Failed to serialize current automotive station");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Failed to serialize current automotive station");
     return;
   }
 
@@ -704,17 +719,33 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (NSString *)applyRules:(NSArray *)rules toString:(NSString *)input
 {
-  if (!rules || rules.count == 0 || !input) return input;
-
+  if (![rules isKindOfClass:[NSArray class]] || !input) return input;
   NSString *result = input;
-  for (NSDictionary *rule in rules) {
-    NSString *pattern = rule[@"match"];
-    NSString *replacement = rule[@"replace"];
-    if (!pattern || !replacement) continue;
-
+  for (id value in rules) {
+    if (![value isKindOfClass:[NSDictionary class]]) continue;
+    NSString *pattern = value[@"match"];
+    NSString *replacement = value[@"replace"];
+    if (![pattern isKindOfClass:[NSString class]] || ![replacement isKindOfClass:[NSString class]]) continue;
     NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:nil];
-    if (regex) {
+    if (!regex) continue;
+    BOOL valid = YES;
+    for (NSUInteger i = 0; i < replacement.length; i++) {
+      unichar c = [replacement characterAtIndex:i];
+      if (c == '\\') { i++; continue; }
+      if (c != '$') continue;
+      NSUInteger start = i + 1, end = start;
+      while (end < replacement.length && [replacement characterAtIndex:end] >= '0' && [replacement characterAtIndex:end] <= '9') end++;
+      if (end > start) {
+        NSInteger group = [[replacement substringWithRange:NSMakeRange(start, end - start)] integerValue];
+        if (group > (NSInteger)regex.numberOfCaptureGroups) { valid = NO; break; }
+        i = end - 1;
+      }
+    }
+    if (!valid) { TiAudiostreamDebugLog(@"[ti.audiostream] Ignored invalid metadata replacement group"); continue; }
+    @try {
       result = [regex stringByReplacingMatchesInString:result options:0 range:NSMakeRange(0, result.length) withTemplate:replacement];
+    } @catch (NSException *exception) {
+      TiAudiostreamDebugLog(@"[ti.audiostream] Ignored invalid metadata replacement");
     }
   }
   return result;
@@ -730,7 +761,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 
   if (_currentURL.length == 0) {
-    NSLog(@"[ti.audiostream] prepare ignored: missing current URL");
+    TiAudiostreamDebugLog(@"[ti.audiostream] prepare ignored: missing current URL");
     return;
   }
 
@@ -739,12 +770,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   _prepareInProgress = YES;
   _preparingURL = urlString;
   _terminalErrorReportedForCurrentItem = NO;
-  BOOL shouldResumeAfterReplace = _playRequested || _pendingPlay;
 
   [self ensurePlayerInitialized];
 
   if (_player) {
-    NSLog(@"[ti.audiostream] prepare replacing item: pausing player generation=%lu playRequested=%@ pending=%@ rate=%.2f timeControl=%@",
+    TiAudiostreamDebugLog(@"[ti.audiostream] prepare replacing item: pausing player generation=%lu playRequested=%@ pending=%@ rate=%.2f timeControl=%@",
       (unsigned long)generation,
       _playRequested ? @"YES" : @"NO",
       _pendingPlay ? @"YES" : @"NO",
@@ -773,38 +803,52 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [self fireState:@"buffering"];
   [_player addObserver:self forKeyPath:@"timeControlStatus" options:NSKeyValueObservingOptionNew context:nil];
 
-  AVPlayerItem *newItem = [AVPlayerItem playerItemWithURL:[NSURL URLWithString:urlString]];
-  if (generation != _streamGeneration || ![urlString isEqualToString:_currentURL]) {
+  [TiAudiostreamContentLoader resolveStreamURL:[NSURL URLWithString:urlString] completion:^(NSURL *resolvedURL, NSError *error) {
+    if (generation != self->_streamGeneration || ![urlString isEqualToString:self->_currentURL]) return;
+    if (error) {
+      self->_prepareInProgress = NO;
+      self->_preparingURL = nil;
+      if ([self isRetryablePlaybackError:error] && self->_playRequested && self->_retryCount < self->_maxRetries) {
+        [self attemptReconnect];
+      } else {
+        [self reportTerminalPlaybackErrorOnce:error.localizedDescription];
+        [self stop:nil];
+      }
+      return;
+    }
+    AVPlayerItem *newItem = [AVPlayerItem playerItemWithURL:resolvedURL];
+    if (generation != self->_streamGeneration || ![urlString isEqualToString:self->_currentURL]) {
     return;
-  }
+    }
 
-  _prepareInProgress = NO;
-  _preparingURL = nil;
-  _preparedURL = urlString;
-  _currentItem = newItem;
-  [_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
+    self->_prepareInProgress = NO;
+    self->_preparingURL = nil;
+    self->_preparedURL = urlString;
+    self->_currentItem = newItem;
+    [self->_currentItem addObserver:self forKeyPath:@"status" options:NSKeyValueObservingOptionNew context:nil];
 
-  _metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
-  [_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
-  [_currentItem addOutput:_metadataOutput];
+    self->_metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
+    [self->_metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
+    [self->_currentItem addOutput:self->_metadataOutput];
 
-  [_player replaceCurrentItemWithPlayerItem:_currentItem];
+    [self->_player replaceCurrentItemWithPlayerItem:self->_currentItem];
 
-  if (shouldResumeAfterReplace) {
-    _pendingPlay = NO;
-    NSLog(@"[ti.audiostream] prepare resuming playback generation=%lu", (unsigned long)generation);
-    [_player play];
+    if ((self->_playRequested || self->_pendingPlay) && !self->_stopped) {
+    self->_pendingPlay = NO;
+    TiAudiostreamDebugLog(@"[ti.audiostream] prepare resuming playback generation=%lu", (unsigned long)generation);
+    [self->_player play];
 #if TARGET_OS_IOS
     [self ensureCarPlayOwnershipSessionForReason:@"prepare-resume"];
 #endif
-  }
+    }
 
-  if ([self hasNowPlayingPublishIntent]) {
+    if ([self hasNowPlayingPublishIntent]) {
     [self updateNowPlaying];
     [self activateNowPlayingSessionIfPossible];
-  } else {
-    NSLog(@"[ti.audiostream] Prepared stream item without publishing Now Playing");
-  }
+    } else {
+    TiAudiostreamDebugLog(@"[ti.audiostream] Prepared stream item without publishing Now Playing");
+    }
+  }];
 }
 
 - (void)emitMetadataIfChangedWithTitle:(NSString *)title artist:(NSString *)artist artwork:(NSString *)artwork raw:(NSDictionary *)raw
@@ -995,7 +1039,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
         _appIconImage = [UIImage imageWithContentsOfFile:path];
         if (_appIconImage) {
-          NSLog(@"[ti.audiostream] App icon loaded from bundle: %@ (%gx%g)", name, _appIconImage.size.width, _appIconImage.size.height);
+          TiAudiostreamDebugLog(@"[ti.audiostream] App icon loaded from bundle: %@ (%gx%g)", name, _appIconImage.size.width, _appIconImage.size.height);
           break;
         }
       }
@@ -1007,7 +1051,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       if (iconFiles.count > 0) {
         _appIconImage = [UIImage imageNamed:iconFiles.lastObject];
         if (_appIconImage) {
-          NSLog(@"[ti.audiostream] App icon loaded via CFBundleIcons: %@", iconFiles.lastObject);
+          TiAudiostreamDebugLog(@"[ti.audiostream] App icon loaded via CFBundleIcons: %@", iconFiles.lastObject);
         }
       }
     }
@@ -1016,7 +1060,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     if (!_appIconImage) {
       _appIconImage = [UIImage imageNamed:@"AppIcon"];
       if (_appIconImage) {
-        NSLog(@"[ti.audiostream] App icon loaded via imageNamed:AppIcon");
+        TiAudiostreamDebugLog(@"[ti.audiostream] App icon loaded via imageNamed:AppIcon");
       }
     }
 
@@ -1047,7 +1091,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
             if (largest) {
               _appIconImage = [UIImage imageWithCGImage:largest];
               CGImageRelease(largest);
-              NSLog(@"[ti.audiostream] App icon loaded from .icns (%gx%g)", _appIconImage.size.width, _appIconImage.size.height);
+              TiAudiostreamDebugLog(@"[ti.audiostream] App icon loaded from .icns (%gx%g)", _appIconImage.size.width, _appIconImage.size.height);
             }
             CFRelease(source);
           }
@@ -1056,7 +1100,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     }
 
     if (!_appIconImage) {
-      NSLog(@"[ti.audiostream] WARNING: Could not load app icon from any source");
+      TiAudiostreamDebugLog(@"[ti.audiostream] WARNING: Could not load app icon from any source");
     }
   }
   return _appIconImage;
@@ -1102,7 +1146,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [self configureRemoteCommandHandlingIfNeeded];
   [self configurePlayableContentManagerIfNeeded];
 
-  NSLog(@"[ti.audiostream] ownership(start-prime) refreshed");
+  TiAudiostreamDebugLog(@"[ti.audiostream] ownership(start-prime) refreshed");
 }
 
 - (void)refreshSystemAudioOwnershipForReason:(NSString *)reason requireActivePlayback:(BOOL)requireActivePlayback
@@ -1110,7 +1154,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   AVAudioSession *session = [AVAudioSession sharedInstance];
 
   if (requireActivePlayback && (!_playRequested || !_player)) {
-    NSLog(@"[ti.audiostream] ownership(%@) skipped - playback not requested", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] ownership(%@) skipped - playback not requested", reason);
     return;
   }
 
@@ -1121,7 +1165,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [session setActive:YES error:nil];
 
   if (!_player && !_playRequested && _currentURL.length == 0) {
-    NSLog(@"[ti.audiostream] ownership(%@) primed without player", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] ownership(%@) primed without player", reason);
     return;
   }
 
@@ -1135,11 +1179,12 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     [self activateNowPlayingSessionIfPossible];
   }
 
-  NSLog(@"[ti.audiostream] ownership(%@) refreshed", reason);
+  TiAudiostreamDebugLog(@"[ti.audiostream] ownership(%@) refreshed", reason);
 }
 
 - (void)logNowPlayingSnapshot:(NSString *)reason
 {
+#if TI_AUDIOSTREAM_DIAGNOSTICS
   MPNowPlayingInfoCenter *center = [[self activeNowPlayingInfoCenters] firstObject] ?: [MPNowPlayingInfoCenter defaultCenter];
   NSDictionary *info = center.nowPlayingInfo ?: @{};
   id rawTitle = info[MPMediaItemPropertyTitle];
@@ -1151,7 +1196,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   BOOL hasArtwork = info[MPMediaItemPropertyArtwork] != nil;
 
   if (@available(iOS 16.0, *)) {
-    NSLog(@"[ti.audiostream] Snapshot(%@) session=%@ active=%@ canBecomeActive=%@ playerRate=%.2f title='%@' artist='%@' infoRate=%@ live=%@ artwork=%@ playbackState=%ld",
+    TiAudiostreamDebugLog(@"[ti.audiostream] Snapshot(%@) session=%@ active=%@ canBecomeActive=%@ playerRate=%.2f title='%@' artist='%@' infoRate=%@ live=%@ artwork=%@ playbackState=%ld",
       reason,
       _nowPlayingSession ? @"YES" : @"NO",
       _nowPlayingSession && _nowPlayingSession.isActive ? @"YES" : @"NO",
@@ -1164,7 +1209,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 	      hasArtwork ? @"YES" : @"NO",
 	      (long)center.playbackState);
 	  } else {
-    NSLog(@"[ti.audiostream] Snapshot(%@) playerRate=%.2f title='%@' artist='%@' infoRate=%@ live=%@ artwork=%@ playbackState=%ld",
+    TiAudiostreamDebugLog(@"[ti.audiostream] Snapshot(%@) playerRate=%.2f title='%@' artist='%@' infoRate=%@ live=%@ artwork=%@ playbackState=%ld",
       reason,
       _player.rate,
       title,
@@ -1174,6 +1219,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 	      hasArtwork ? @"YES" : @"NO",
 	      (long)center.playbackState);
 	  }
+#endif
 }
 
 - (NSArray<MPNowPlayingInfoCenter *> *)activeNowPlayingInfoCenters
@@ -1268,7 +1314,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   manager.delegate = self;
   _playableContentManagerConfigured = YES;
   [self refreshPlayableContentManagerForReason:@"configure"];
-  NSLog(@"[ti.audiostream] playable-content manager configured");
+  TiAudiostreamDebugLog(@"[ti.audiostream] playable-content manager configured");
 }
 
 - (void)refreshPlayableContentManagerForReason:(NSString *)reason
@@ -1285,7 +1331,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   manager.nowPlayingIdentifiers = identifiers;
   [manager endUpdates];
   [manager reloadData];
-  NSLog(@"[ti.audiostream] playable-content refreshed (%@) nowPlayingIdentifiers=%@ stations=%lu",
+  TiAudiostreamDebugLog(@"[ti.audiostream] playable-content refreshed (%@) nowPlayingIdentifiers=%@ stations=%lu",
     reason ?: @"unknown",
     manager.nowPlayingIdentifiers ?: @[],
     (unsigned long)[TiAudiostreamModule persistedAutomotiveStations].count);
@@ -1368,7 +1414,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 - (void)playableContentManager:(MPPlayableContentManager *)contentManager
  initializePlaybackQueueWithCompletionHandler:(void (^)(NSError *error))completionHandler
 {
-  NSLog(@"[ti.audiostream] playable-content initializePlaybackQueue");
+  TiAudiostreamDebugLog(@"[ti.audiostream] playable-content initializePlaybackQueue");
   [self refreshPlayableContentManagerForReason:@"initialize-queue"];
   [self refreshSystemAudioOwnershipForReason:@"initialize-queue" requireActivePlayback:NO];
   if (completionHandler) {
@@ -1380,7 +1426,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
  initializePlaybackQueueWithContentItems:(NSArray *)contentItems
              completionHandler:(void (^)(NSError *error))completionHandler
 {
-  NSLog(@"[ti.audiostream] playable-content initializePlaybackQueue contentItems=%lu",
+  TiAudiostreamDebugLog(@"[ti.audiostream] playable-content initializePlaybackQueue contentItems=%lu",
     (unsigned long)contentItems.count);
   [self refreshPlayableContentManagerForReason:@"initialize-queue-items"];
   [self refreshSystemAudioOwnershipForReason:@"initialize-queue-items" requireActivePlayback:NO];
@@ -1392,7 +1438,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 - (void)playableContentManager:(MPPlayableContentManager *)contentManager
  didUpdateContext:(MPPlayableContentManagerContext *)context
 {
-  NSLog(@"[ti.audiostream] playable-content context updated");
+  TiAudiostreamDebugLog(@"[ti.audiostream] playable-content context updated");
 }
 
 // Register on both centers because CarPlay can surface either the session
@@ -1431,7 +1477,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [commandCenter.previousTrackCommand setEnabled:YES];
 
   [commandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    NSLog(@"[ti.audiostream] remote command received: play");
+    TiAudiostreamDebugLog(@"[ti.audiostream] remote command received: play");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self start:nil];
       [self fireRemoteControl:100];
@@ -1440,7 +1486,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }];
 
   [commandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    NSLog(@"[ti.audiostream] remote command received: pause");
+    TiAudiostreamDebugLog(@"[ti.audiostream] remote command received: pause");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self pause:nil];
       [self fireRemoteControl:101];
@@ -1449,7 +1495,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }];
 
   [commandCenter.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    NSLog(@"[ti.audiostream] remote command received: togglePlayPause rate=%.2f timeControl=%@",
+    TiAudiostreamDebugLog(@"[ti.audiostream] remote command received: togglePlayPause rate=%.2f timeControl=%@",
       self->_player ? self->_player.rate : 0.0,
       [self timeControlStatusName:self->_player ? self->_player.timeControlStatus : AVPlayerTimeControlStatusPaused]);
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -1466,7 +1512,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [commandCenter.togglePlayPauseCommand setEnabled:YES];
 
   [commandCenter.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    NSLog(@"[ti.audiostream] remote command received: stop");
+    TiAudiostreamDebugLog(@"[ti.audiostream] remote command received: stop");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self stop:nil];
       [self fireRemoteControl:102];
@@ -1476,7 +1522,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   [commandCenter.stopCommand setEnabled:YES];
 
   [commandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    NSLog(@"[ti.audiostream] remote command received: nextTrack");
+    TiAudiostreamDebugLog(@"[ti.audiostream] remote command received: nextTrack");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self fireRemoteControl:104];
       // App JS not running (e.g. launched from the car)? Advance natively through the
@@ -1489,7 +1535,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }];
 
   [commandCenter.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent *e) {
-    NSLog(@"[ti.audiostream] remote command received: previousTrack");
+    TiAudiostreamDebugLog(@"[ti.audiostream] remote command received: previousTrack");
     dispatch_async(dispatch_get_main_queue(), ^{
       [self fireRemoteControl:105];
       if (![self _hasListeners:@"remotecontrol"]) {
@@ -1511,7 +1557,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     if (sessionCommandCenter && _registeredSessionRemoteCommandCenter != sessionCommandCenter) {
       _registeredSessionRemoteCommandCenter = sessionCommandCenter;
       [self registerRemoteCommandHandlersOnCenter:sessionCommandCenter];
-      NSLog(@"[ti.audiostream] Registered remote commands on session command center");
+      TiAudiostreamDebugLog(@"[ti.audiostream] Registered remote commands on session command center");
     }
   }
 
@@ -1519,7 +1565,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   if (sharedCommandCenter && _registeredSharedRemoteCommandCenter != sharedCommandCenter) {
     _registeredSharedRemoteCommandCenter = sharedCommandCenter;
     [self registerRemoteCommandHandlersOnCenter:sharedCommandCenter];
-    NSLog(@"[ti.audiostream] Registered remote commands on shared command center");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Registered remote commands on shared command center");
   }
 }
 
@@ -1534,9 +1580,9 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
   if (@available(iOS 16.0, *)) {
     if (_nowPlayingSession && !_nowPlayingSession.isActive) {
-      NSLog(@"[ti.audiostream] Requesting now playing session activation");
+      TiAudiostreamDebugLog(@"[ti.audiostream] Requesting now playing session activation");
       [_nowPlayingSession becomeActiveIfPossibleWithCompletion:^(BOOL isActive) {
-        NSLog(@"[ti.audiostream] Now playing session activation completed: %@", isActive ? @"YES" : @"NO");
+        TiAudiostreamDebugLog(@"[ti.audiostream] Now playing session activation completed: %@", isActive ? @"YES" : @"NO");
         [self logNowPlayingSnapshot:@"session-activation-completion"];
       }];
     }
@@ -1558,13 +1604,13 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     }
 
     if (_nowPlayingSession) {
-      NSLog(@"[ti.audiostream] Reusing existing now playing session for CarPlay ownership (%@)", reason ?: @"unknown");
+      TiAudiostreamDebugLog(@"[ti.audiostream] Reusing existing now playing session for CarPlay ownership (%@)", reason ?: @"unknown");
       _carPlayOwnershipSessionRefreshed = YES;
       [self configureRemoteCommandHandlingIfNeeded];
       return;
     }
 
-    NSLog(@"[ti.audiostream] Creating now playing session for CarPlay ownership (%@)", reason ?: @"unknown");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Creating now playing session for CarPlay ownership (%@)", reason ?: @"unknown");
     _nowPlayingSession = [[MPNowPlayingSession alloc] initWithPlayers:@[ _player ]];
     _nowPlayingSession.delegate = self;
     _nowPlayingSession.automaticallyPublishesNowPlayingInfo = NO;
@@ -1591,12 +1637,12 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 {
 #if TARGET_OS_IOS
   if (!_player || !_playRequested) {
-    NSLog(@"[ti.audiostream] carplay-refresh(%@) skipped - no requested playback", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] carplay-refresh(%@) skipped - no requested playback", reason);
     return;
   }
 
   _carPlayRefreshGeneration += 1;
-  NSLog(@"[ti.audiostream] carplay-refresh(%@) generation=%lu", reason, (unsigned long)_carPlayRefreshGeneration);
+  TiAudiostreamDebugLog(@"[ti.audiostream] carplay-refresh(%@) generation=%lu", reason, (unsigned long)_carPlayRefreshGeneration);
   [self updateNowPlaying];
   [self activateNowPlayingSessionIfPossible];
 #endif
@@ -1618,18 +1664,18 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (void)handleCarPlaySceneDidConnect:(NSNotification *)notification
 {
-  NSLog(@"[ti.audiostream] Received CarPlay scene connect notification");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Received CarPlay scene connect notification");
 
 #if TARGET_OS_IOS
   _carPlayConnected = YES;
   _carPlayOwnershipSessionRefreshed = NO;
 
   if (!_playRequested || !_player) {
-    NSLog(@"[ti.audiostream] CarPlay connected but no active playback - skipping reassertion");
+    TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay connected but no active playback - skipping reassertion");
     return;
   }
 
-  NSLog(@"[ti.audiostream] CarPlay connected with active playback - reasserting Now Playing");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay connected with active playback - reasserting Now Playing");
   [self ensureCarPlayOwnershipSessionForReason:@"carplay-connect"];
   [self refreshSystemAudioOwnershipForReason:@"carplay-connect" requireActivePlayback:YES];
   __weak __typeof(self) weakSelf = self;
@@ -1644,7 +1690,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (void)handleCarPlaySceneDidDisconnect:(NSNotification *)notification
 {
-  NSLog(@"[ti.audiostream] Received CarPlay scene disconnect notification");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Received CarPlay scene disconnect notification");
 #if TARGET_OS_IOS
   _carPlayConnected = NO;
   _carPlayOwnershipSessionRefreshed = NO;
@@ -1653,7 +1699,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (void)handleCarPlayNowPlayingDidPresent:(NSNotification *)notification
 {
-  NSLog(@"[ti.audiostream] Received CarPlay Now Playing presentation notification");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Received CarPlay Now Playing presentation notification");
   __weak __typeof(self) weakSelf = self;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     [weakSelf refreshCarPlayNowPlayingItemForReason:@"carplay-now-playing-presented"];
@@ -1672,12 +1718,12 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (void)nowPlayingSessionDidChangeActive:(MPNowPlayingSession *)nowPlayingSession API_AVAILABLE(ios(16.0))
 {
-  NSLog(@"[ti.audiostream] Now playing session active=%@", nowPlayingSession.isActive ? @"YES" : @"NO");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Now playing session active=%@", nowPlayingSession.isActive ? @"YES" : @"NO");
 }
 
 - (void)nowPlayingSessionDidChangeCanBecomeActive:(MPNowPlayingSession *)nowPlayingSession API_AVAILABLE(ios(16.0))
 {
-  NSLog(@"[ti.audiostream] Now playing session canBecomeActive=%@", nowPlayingSession.canBecomeActive ? @"YES" : @"NO");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Now playing session canBecomeActive=%@", nowPlayingSession.canBecomeActive ? @"YES" : @"NO");
 }
 #endif
 
@@ -1690,7 +1736,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return;
   }
 
-  if (!_player)
+  if (!_player || _stopped)
     return;
 
 #if TARGET_OS_IOS
@@ -1699,7 +1745,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   if (_playRequested &&
       _player.rate == 0 &&
       _player.timeControlStatus == AVPlayerTimeControlStatusPaused) {
-    NSLog(@"[ti.audiostream] NowPlaying publish suppressed during transient paused playback intent title='%@' artist='%@'",
+    TiAudiostreamDebugLog(@"[ti.audiostream] NowPlaying publish suppressed during transient paused playback intent title='%@' artist='%@'",
       _currentTitle ?: @"",
       _currentArtist ?: @"");
     return;
@@ -1710,9 +1756,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     _player.timeControlStatus == AVPlayerTimeControlStatusPlaying || _player.rate > 0);
   float effectiveRate = shouldAdvertisePlaying ? 1.0f : _player.rate;
   MPNowPlayingPlaybackState playbackState = shouldAdvertisePlaying ? MPNowPlayingPlaybackStatePlaying : MPNowPlayingPlaybackStatePaused;
+#if TI_AUDIOSTREAM_DIAGNOSTICS
   NSUInteger publishSequence = ++_nowPlayingPublishSequence;
+#endif
 
-  NSLog(@"[ti.audiostream] NowPlaying publish #%lu intent=%@ playRequested=%@ pending=%@ preparing=%@ live=%@ playerRate=%.2f timeControl=%@ infoRate=%.2f playbackState=%ld title='%@' artist='%@'",
+  TiAudiostreamDebugLog(@"[ti.audiostream] NowPlaying publish #%lu intent=%@ playRequested=%@ pending=%@ preparing=%@ live=%@ playerRate=%.2f timeControl=%@ infoRate=%.2f playbackState=%ld title='%@' artist='%@'",
     (unsigned long)publishSequence,
     shouldAdvertisePlaying ? @"YES" : @"NO",
     _playRequested ? @"YES" : @"NO",
@@ -1764,16 +1812,18 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   for (MPNowPlayingInfoCenter *center in [self activeNowPlayingInfoCenters]) {
     center.nowPlayingInfo = info;
     center.playbackState = playbackState;
+#if TI_AUDIOSTREAM_DIAGNOSTICS
     NSString *centerLabel = @"default";
     if (@available(iOS 16.0, *)) {
       if (_nowPlayingSession && center == _nowPlayingSession.nowPlayingInfoCenter) {
         centerLabel = @"session";
       }
     }
-    NSLog(@"[ti.audiostream] NowPlaying publish #%lu applied center=%@ playbackState=%ld",
+    TiAudiostreamDebugLog(@"[ti.audiostream] NowPlaying publish #%lu applied center=%@ playbackState=%ld",
       (unsigned long)publishSequence,
       centerLabel,
       (long)playbackState);
+#endif
   }
   [self activateNowPlayingSessionIfPossible];
   [self logNowPlayingSnapshot:@"update-now-playing"];
@@ -1814,11 +1864,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     _player.timeControlStatus == AVPlayerTimeControlStatusPlaying ||
     _player.rate > 0);
   if (!hasPlaybackIntent) {
-    NSLog(@"[ti.audiostream] reassert(%@) skipped - no playback intent", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] reassert(%@) skipped - no playback intent", reason);
     return;
   }
 
-  NSLog(@"[ti.audiostream] reassert(%@) attempts=%lu", reason, (unsigned long)attemptsRemaining);
+  TiAudiostreamDebugLog(@"[ti.audiostream] reassert(%@) attempts=%lu", reason, (unsigned long)attemptsRemaining);
   [self refreshSystemAudioOwnershipForReason:reason requireActivePlayback:YES];
   [self logNowPlayingSnapshot:reason];
 
@@ -1869,11 +1919,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       artist = (NSString *)value;
     } else if ([commonKey isEqualToString:AVMetadataCommonKeyArtwork]) {
       if ([value isKindOfClass:[NSData class]]) {
-        artwork = [UIImage imageWithData:(NSData *)value];
+        artwork = TiAudiostreamDecodeArtwork((NSData *)value);
       } else if ([value isKindOfClass:[NSDictionary class]]) {
         NSData *data = [value objectForKey:@"data"];
         if (data)
-          artwork = [UIImage imageWithData:data];
+          artwork = TiAudiostreamDecodeArtwork(data);
       }
     }
     // Direct Key Match
@@ -1888,7 +1938,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
           [stringValue hasSuffix:@".png"] || [stringValue hasSuffix:@".gif"] ||
           [stringValue containsString:@".jpg?"] || [stringValue containsString:@".png?"]) {
         artworkURL = stringValue;
-        NSLog(@"[ti.audiostream] Found artwork URL in StreamUrl: %@", artworkURL);
+        TiAudiostreamDebugLog(@"[ti.audiostream] Found artwork URL in StreamUrl: %@", artworkURL);
       }
     }
 
@@ -1921,7 +1971,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     if (title && !artist && [title containsString:@" - "]) {
       NSArray *parts = [title componentsSeparatedByString:@" - "];
       artist = [parts[0] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-      title = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+      title = [[[parts subarrayWithRange:NSMakeRange(1, parts.count - 1)] componentsJoinedByString:@" - "] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     }
 
     // Apply metadata rules (user-defined regex transformations)
@@ -1941,37 +1991,33 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
         changed = YES;
       }
       if (artwork) {
+        _artworkGeneration++;
         _currentArtwork = artwork;
         changed = YES;
       }
     }
 
     // Fetch artwork bitmap from URL for lock screen
-    if (artworkURL) {
-      NSUInteger expectedGeneration = _artworkGeneration;
+    if (artworkURL && _autoUpdateMetadata) {
+      NSUInteger expectedGeneration = ++_artworkGeneration;
+      NSUInteger expectedPolicy = _automaticMetadataGeneration;
       NSString *expectedURL = [_currentURL copy];
-      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSData *data = [NSData dataWithContentsOfURL:[NSURL URLWithString:artworkURL]];
-        UIImage *img = [UIImage imageWithData:data];
-        if (img) {
+      [TiAudiostreamContentLoader fetchURL:[NSURL URLWithString:artworkURL] maxBytes:8 * 1024 * 1024 completion:^(NSData *data, NSURLResponse *response, NSError *error) {
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+          UIImage *image = TiAudiostreamDecodeArtwork(data);
           dispatch_async(dispatch_get_main_queue(), ^{
-            if (expectedGeneration != self->_artworkGeneration) {
-              return;
-            }
-            if (expectedURL && self->_currentURL && ![expectedURL isEqualToString:self->_currentURL]) {
-              return;
-            }
-            if (self->_autoUpdateMetadata) {
-              self->_currentArtwork = img;
+            if (expectedGeneration != self->_artworkGeneration || ![expectedURL isEqualToString:self->_currentURL]) return;
+            if (self->_autoUpdateMetadata && expectedPolicy == self->_automaticMetadataGeneration) {
+              self->_currentArtwork = image;
               [self updateNowPlaying];
             }
           });
-        }
-      });
+        });
+      }];
       changed = YES;
     }
 
-    if (changed && !artworkURL && self->_autoUpdateMetadata) {
+    if (changed && self->_autoUpdateMetadata) {
       [self updateNowPlaying];
     }
 
@@ -1986,7 +2032,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (void)metadataOutput:(AVPlayerItemMetadataOutput *)output didOutputTimedMetadataGroups:(NSArray<AVTimedMetadataGroup *> *)groups fromPlayerItemTrack:(AVPlayerItemTrack *)track
 {
-  if (output != _metadataOutput) {
+  if (_stopped || output != _metadataOutput || ![_preparedURL isEqualToString:_currentURL]) {
     return;
   }
 
@@ -2006,11 +2052,17 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     return NO;
   }
 
+  if ([error.domain isEqualToString:@"ti.audiostream.HTTP"]) {
+    return error.code == 429 || error.code == 502 || error.code == 503 || error.code == 504;
+  }
   if ([error.domain isEqualToString:NSURLErrorDomain]) {
     switch (error.code) {
       case NSURLErrorNetworkConnectionLost:
       case NSURLErrorNotConnectedToInternet:
       case NSURLErrorTimedOut:
+      case NSURLErrorCannotFindHost:
+      case NSURLErrorCannotConnectToHost:
+      case NSURLErrorDNSLookupFailed:
       case NSURLErrorDataNotAllowed:
       case NSURLErrorInternationalRoamingOff:
       case NSURLErrorCallIsActive:
@@ -2018,9 +2070,6 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
       case NSURLErrorBadURL:
       case NSURLErrorUnsupportedURL:
-      case NSURLErrorCannotFindHost:
-      case NSURLErrorCannotConnectToHost:
-      case NSURLErrorDNSLookupFailed:
       case NSURLErrorBadServerResponse:
       case NSURLErrorResourceUnavailable:
       case NSURLErrorFileDoesNotExist:
@@ -2039,6 +2088,15 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
     }
   }
 
+  // AVFoundation wraps transport errors in NSUnderlyingErrorKey.
+  NSError *underlying = error.userInfo[NSUnderlyingErrorKey];
+  if ([underlying isKindOfClass:[NSError class]] && underlying != error) {
+    return [self isRetryablePlaybackError:underlying];
+  }
+  // CoreMedia's HTTP errors encode the negative HTTP status.
+  if ([error.domain isEqualToString:@"CoreMediaErrorDomain"]) {
+    return error.code == -429 || error.code == -503 || error.code == -502 || error.code == -504;
+  }
   return NO;
 }
 
@@ -2056,9 +2114,11 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
   if (object == _player && [keyPath isEqualToString:@"timeControlStatus"]) {
+    NSUInteger expectedGeneration = _streamGeneration;
     dispatch_async(dispatch_get_main_queue(), ^{
+      if (self->_stopped || expectedGeneration != self->_streamGeneration || object != self->_player) return;
       AVPlayerTimeControlStatus status = self->_player.timeControlStatus;
-      NSLog(@"[ti.audiostream] timeControlStatus changed status=%@ playRequested=%@ pending=%@ preparing=%@ rate=%.2f",
+      TiAudiostreamDebugLog(@"[ti.audiostream] timeControlStatus changed status=%@ playRequested=%@ pending=%@ preparing=%@ rate=%.2f",
         [self timeControlStatusName:status],
         self->_playRequested ? @"YES" : @"NO",
         self->_pendingPlay ? @"YES" : @"NO",
@@ -2078,8 +2138,14 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
         // the player was still buffering (rate 0) and the indicator never appeared.
         [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
       } else if (status == AVPlayerTimeControlStatusPaused) {
-        if (self->_playRequested || self->_pendingPlay || self->_prepareInProgress) {
-          NSLog(@"[ti.audiostream] Preserving Now Playing ownership during transient pause");
+        if (!self->_isLive && self->_currentItem && CMTIME_IS_NUMERIC(self->_currentItem.duration) &&
+            CMTIME_IS_NUMERIC(self->_currentItem.currentTime) &&
+            CMTimeCompare(self->_currentItem.currentTime, self->_currentItem.duration) >= 0) {
+          [self handlePlaybackEnded:[NSNotification notificationWithName:AVPlayerItemDidPlayToEndTimeNotification object:self->_currentItem]];
+          return;
+        }
+        if (self->_playRequested || self->_pendingPlay) {
+          TiAudiostreamDebugLog(@"[ti.audiostream] Preserving Now Playing ownership during transient pause");
           [self fireState:@"buffering"];
           [self setPlaybackState:MPNowPlayingPlaybackStatePlaying];
           [self updateNowPlaying];
@@ -2093,13 +2159,13 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
       }
     });
   }
-  if (object == _currentItem && [keyPath isEqualToString:@"status"]) {
+  if (!_stopped && object == _currentItem && [_preparedURL isEqualToString:_currentURL] && [keyPath isEqualToString:@"status"]) {
     AVPlayerItem *item = (AVPlayerItem *)object;
     if (item.status == AVPlayerItemStatusReadyToPlay) {
       [self parseMetadataItems:item.asset.commonMetadata];
     } else if (item.status == AVPlayerItemStatusFailed) {
       NSError *error = item.error;
-      NSLog(@"[ti.audiostream] Playback Failed: %@ (domain=%@, code=%ld)", error.localizedDescription, error.domain, (long)error.code);
+      TiAudiostreamDebugLog(@"[ti.audiostream] Playback Failed: %@ (domain=%@, code=%ld)", error.localizedDescription, error.domain, (long)error.code);
 
       BOOL isRetryable = [self isRetryablePlaybackError:error];
 
@@ -2109,9 +2175,9 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
         [self attemptReconnect];
       } else {
         if (!isRetryable) {
-          NSLog(@"[ti.audiostream] Permanent error -- no retry");
+          TiAudiostreamDebugLog(@"[ti.audiostream] Permanent error -- no retry");
         } else {
-          NSLog(@"[ti.audiostream] Max retries (%d) exhausted", _maxRetries);
+          TiAudiostreamDebugLog(@"[ti.audiostream] Max retries (%d) exhausted", _maxRetries);
         }
         [self reportTerminalPlaybackErrorOnce:error.localizedDescription];
         [self stop:nil];
@@ -2120,20 +2186,38 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
   }
 }
 
+- (void)handlePlaybackEnded:(NSNotification *)notification
+{
+  if (_stopped || notification.object != _currentItem || ![_preparedURL isEqualToString:_currentURL]) return;
+  _preparedURL = nil; // start() must build a fresh item instead of resuming at EOF.
+  _playRequested = NO;
+  _pendingPlay = NO;
+  _stopped = YES;
+  [self resetRetryLogic];
+  [self fireState:@"stopped"];
+  [self setPlaybackState:MPNowPlayingPlaybackStateStopped];
+  [self updateNowPlaying];
+  [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
+}
+
 - (void)handleErrorLogEntry:(NSNotification *)notification
 {
   AVPlayerItem *item = (AVPlayerItem *)notification.object;
-  if (item != _currentItem) {
+  if (_stopped || item != _currentItem || ![_preparedURL isEqualToString:_currentURL]) {
     return;
   }
 
   AVPlayerItemErrorLogEvent *lastEvent = item.errorLog.events.lastObject;
   if (lastEvent && lastEvent.errorStatusCode >= 400) {
-    NSLog(@"[ti.audiostream] HTTP Error Detected: %ld on domain %@", (long)lastEvent.errorStatusCode, lastEvent.errorDomain);
+    TiAudiostreamDebugLog(@"[ti.audiostream] HTTP Error Detected: %ld on domain %@", (long)lastEvent.errorStatusCode, lastEvent.errorDomain);
 
-    [self reportTerminalPlaybackErrorOnce:[NSString stringWithFormat:@"HTTP Error: %ld", (long)lastEvent.errorStatusCode]];
-
-    [self stop:nil];
+    NSInteger status = lastEvent.errorStatusCode;
+    if ((status == 429 || status == 502 || status == 503 || status == 504) && _playRequested && _retryCount < _maxRetries) {
+      [self attemptReconnect];
+    } else {
+      [self reportTerminalPlaybackErrorOnce:[NSString stringWithFormat:@"HTTP Error: %ld", (long)status]];
+      [self stop:nil];
+    }
   }
 }
 
@@ -2141,18 +2225,19 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 - (void)handleInterruption:(NSNotification *)n
 {
   int type = [n.userInfo[AVAudioSessionInterruptionTypeKey] intValue];
-  NSLog(@"[ti.audiostream] audio interruption type=%d playRequested=%@ rate=%.2f timeControl=%@",
+  TiAudiostreamDebugLog(@"[ti.audiostream] audio interruption type=%d playRequested=%@ rate=%.2f timeControl=%@",
     type,
     _playRequested ? @"YES" : @"NO",
     _player ? _player.rate : 0.0,
     [self timeControlStatusName:_player ? _player.timeControlStatus : AVPlayerTimeControlStatusPaused]);
   if (type == AVAudioSessionInterruptionTypeBegan) {
-    _resumeOnInterruption = (_player && _player.timeControlStatus == AVPlayerTimeControlStatusPlaying);
+    BOOL shouldResume = _playRequested || _pendingPlay;
     [self pause:nil];
+    _resumeOnInterruption = shouldResume;
   } else if (type == AVAudioSessionInterruptionTypeEnded) {
     if (_resumeOnInterruption) {
       int options = [n.userInfo[AVAudioSessionInterruptionOptionKey] intValue];
-      if (options == AVAudioSessionInterruptionOptionShouldResume) {
+      if ((options & AVAudioSessionInterruptionOptionShouldResume) != 0) {
         [self start:nil];
       }
     }
@@ -2164,12 +2249,16 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 {
   NSNumber *reasonNumber = notification.userInfo[AVAudioSessionRouteChangeReasonKey];
   AVAudioSessionRouteChangeReason reason = (AVAudioSessionRouteChangeReason)[reasonNumber integerValue];
-  NSLog(@"[ti.audiostream] Audio route changed reason=%ld currentRoute=%@", (long)reason, [AVAudioSession sharedInstance].currentRoute);
+  TiAudiostreamDebugLog(@"[ti.audiostream] Audio route changed reason=%ld currentRoute=%@", (long)reason, [AVAudioSession sharedInstance].currentRoute);
 
   if (!_player) {
     return;
   }
 
+  if (reason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable) {
+    [self pause:nil];
+    return;
+  }
   if (_player.rate > 0 || _player.timeControlStatus == AVPlayerTimeControlStatusWaitingToPlayAtSpecifiedRate) {
     [self reassertNowPlayingContextForReason:@"audio-route-change" attemptsRemaining:2];
   }
@@ -2178,8 +2267,9 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 
 - (void)attemptReconnect
 {
+  if (!_playRequested || _stopped || _retryTimer) return;
   _retryCount++;
-  NSLog(@"[ti.audiostream] Reconnect attempt %d/%d in %.0fs...", _retryCount, _maxRetries, _retryDelay);
+  TiAudiostreamDebugLog(@"[ti.audiostream] Reconnect attempt %d/%d in %.0fs...", _retryCount, _maxRetries, _retryDelay);
   [self fireState:@"buffering"];
   _retryTimer = [NSTimer scheduledTimerWithTimeInterval:_retryDelay
                                                  target:self
@@ -2191,8 +2281,7 @@ static TiAudiostreamModule *TiAudiostreamActiveModule = nil;
 - (void)reconnect
 {
   _retryTimer = nil;
-  if (_currentURL) {
-    _playRequested = YES;
+  if (_currentURL && _playRequested && !_stopped) {
     _pendingPlay = YES;
     [self prepareCurrentStreamItem];
     [self updateNowPlaying];

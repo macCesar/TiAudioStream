@@ -1,0 +1,2555 @@
+{
+  "platform": "android",
+  "started": 1794350974618,
+  "fixtureBase": "http://192.168.100.4:18768",
+  "phase": "COMPLETE",
+  "checks": [
+    {
+      "name": "finite starts",
+      "passed": true,
+      "at": 1794350977620
+    },
+    {
+      "name": "finite ends stopped",
+      "passed": true,
+      "at": 1794350985839
+    },
+    {
+      "name": "finite does not remain buffering",
+      "passed": true,
+      "at": 1794350985840
+    },
+    {
+      "name": "finite restarts",
+      "passed": true,
+      "at": 1794350986197
+    },
+    {
+      "name": "sustained play 0",
+      "passed": true,
+      "at": 1794350987252
+    },
+    {
+      "name": "sustained metadata 0",
+      "passed": true,
+      "at": 1794350988454
+    },
+    {
+      "name": "sustained resume 0",
+      "passed": true,
+      "at": 1794350990571
+    },
+    {
+      "name": "sustained play 1",
+      "passed": true,
+      "at": 1794351016746
+    },
+    {
+      "name": "sustained metadata 1",
+      "passed": true,
+      "at": 1794351017947
+    },
+    {
+      "name": "sustained resume 1",
+      "passed": true,
+      "at": 1794351020070
+    },
+    {
+      "name": "sustained play 2",
+      "passed": true,
+      "at": 1794351046231
+    },
+    {
+      "name": "sustained metadata 2",
+      "passed": true,
+      "at": 1794351047432
+    },
+    {
+      "name": "sustained resume 2",
+      "passed": true,
+      "at": 1794351049554
+    },
+    {
+      "name": "sustained play 3",
+      "passed": true,
+      "at": 1794351075659
+    },
+    {
+      "name": "sustained metadata 3",
+      "passed": true,
+      "at": 1794351076862
+    },
+    {
+      "name": "sustained resume 3",
+      "passed": true,
+      "at": 1794351078982
+    },
+    {
+      "name": "sustained play 4",
+      "passed": true,
+      "at": 1794351105093
+    },
+    {
+      "name": "sustained metadata 4",
+      "passed": true,
+      "at": 1794351106293
+    },
+    {
+      "name": "sustained resume 4",
+      "passed": true,
+      "at": 1794351108417
+    },
+    {
+      "name": "sustained play 5",
+      "passed": true,
+      "at": 1794351134579
+    },
+    {
+      "name": "sustained metadata 5",
+      "passed": true,
+      "at": 1794351135782
+    },
+    {
+      "name": "sustained resume 5",
+      "passed": true,
+      "at": 1794351137907
+    },
+    {
+      "name": "sustained play 6",
+      "passed": true,
+      "at": 1794351164074
+    },
+    {
+      "name": "sustained metadata 6",
+      "passed": true,
+      "at": 1794351165275
+    },
+    {
+      "name": "sustained resume 6",
+      "passed": true,
+      "at": 1794351167404
+    },
+    {
+      "name": "sustained play 7",
+      "passed": true,
+      "at": 1794351193544
+    },
+    {
+      "name": "sustained metadata 7",
+      "passed": true,
+      "at": 1794351194745
+    },
+    {
+      "name": "sustained resume 7",
+      "passed": true,
+      "at": 1794351196869
+    },
+    {
+      "name": "sustained play 8",
+      "passed": true,
+      "at": 1794351223037
+    },
+    {
+      "name": "sustained metadata 8",
+      "passed": true,
+      "at": 1794351224239
+    },
+    {
+      "name": "sustained resume 8",
+      "passed": true,
+      "at": 1794351226364
+    },
+    {
+      "name": "sustained play 9",
+      "passed": true,
+      "at": 1794351252485
+    },
+    {
+      "name": "sustained metadata 9",
+      "passed": true,
+      "at": 1794351253687
+    },
+    {
+      "name": "sustained resume 9",
+      "passed": true,
+      "at": 1794351255809
+    },
+    {
+      "name": "sustained play 10",
+      "passed": true,
+      "at": 1794351281938
+    },
+    {
+      "name": "sustained metadata 10",
+      "passed": true,
+      "at": 1794351283141
+    },
+    {
+      "name": "sustained resume 10",
+      "passed": true,
+      "at": 1794351285264
+    },
+    {
+      "name": "sustained play 11",
+      "passed": true,
+      "at": 1794351311383
+    },
+    {
+      "name": "sustained metadata 11",
+      "passed": true,
+      "at": 1794351312585
+    },
+    {
+      "name": "sustained resume 11",
+      "passed": true,
+      "at": 1794351314708
+    },
+    {
+      "name": "sustained play 12",
+      "passed": true,
+      "at": 1794351340854
+    },
+    {
+      "name": "sustained metadata 12",
+      "passed": true,
+      "at": 1794351342055
+    },
+    {
+      "name": "sustained resume 12",
+      "passed": true,
+      "at": 1794351344178
+    },
+    {
+      "name": "sustained play 13",
+      "passed": true,
+      "at": 1794351370335
+    },
+    {
+      "name": "sustained metadata 13",
+      "passed": true,
+      "at": 1794351371536
+    },
+    {
+      "name": "sustained resume 13",
+      "passed": true,
+      "at": 1794351373658
+    },
+    {
+      "name": "sustained play 14",
+      "passed": true,
+      "at": 1794351399813
+    },
+    {
+      "name": "sustained metadata 14",
+      "passed": true,
+      "at": 1794351401014
+    },
+    {
+      "name": "sustained resume 14",
+      "passed": true,
+      "at": 1794351403143
+    },
+    {
+      "name": "sustained play 15",
+      "passed": true,
+      "at": 1794351429284
+    },
+    {
+      "name": "sustained metadata 15",
+      "passed": true,
+      "at": 1794351430486
+    },
+    {
+      "name": "sustained resume 15",
+      "passed": true,
+      "at": 1794351432610
+    },
+    {
+      "name": "sustained play 16",
+      "passed": true,
+      "at": 1794351458740
+    },
+    {
+      "name": "sustained metadata 16",
+      "passed": true,
+      "at": 1794351459942
+    },
+    {
+      "name": "sustained resume 16",
+      "passed": true,
+      "at": 1794351462065
+    },
+    {
+      "name": "sustained play 17",
+      "passed": true,
+      "at": 1794351488229
+    },
+    {
+      "name": "sustained metadata 17",
+      "passed": true,
+      "at": 1794351489430
+    },
+    {
+      "name": "sustained resume 17",
+      "passed": true,
+      "at": 1794351491553
+    },
+    {
+      "name": "sustained play 18",
+      "passed": true,
+      "at": 1794351517750
+    },
+    {
+      "name": "sustained metadata 18",
+      "passed": true,
+      "at": 1794351518952
+    },
+    {
+      "name": "sustained resume 18",
+      "passed": true,
+      "at": 1794351521074
+    },
+    {
+      "name": "sustained play 19",
+      "passed": true,
+      "at": 1794351547216
+    },
+    {
+      "name": "sustained metadata 19",
+      "passed": true,
+      "at": 1794351548417
+    },
+    {
+      "name": "sustained resume 19",
+      "passed": true,
+      "at": 1794351550543
+    },
+    {
+      "name": "sustained play 20",
+      "passed": true,
+      "at": 1794351576645
+    },
+    {
+      "name": "sustained metadata 20",
+      "passed": true,
+      "at": 1794351577847
+    },
+    {
+      "name": "sustained resume 20",
+      "passed": true,
+      "at": 1794351579972
+    },
+    {
+      "name": "sustained play 21",
+      "passed": true,
+      "at": 1794351606248
+    },
+    {
+      "name": "sustained metadata 21",
+      "passed": true,
+      "at": 1794351607449
+    },
+    {
+      "name": "sustained resume 21",
+      "passed": true,
+      "at": 1794351609572
+    },
+    {
+      "name": "sustained play 22",
+      "passed": true,
+      "at": 1794351635743
+    },
+    {
+      "name": "sustained metadata 22",
+      "passed": true,
+      "at": 1794351636945
+    },
+    {
+      "name": "sustained resume 22",
+      "passed": true,
+      "at": 1794351639068
+    },
+    {
+      "name": "sustained play 23",
+      "passed": true,
+      "at": 1794351665148
+    },
+    {
+      "name": "sustained metadata 23",
+      "passed": true,
+      "at": 1794351666350
+    },
+    {
+      "name": "sustained resume 23",
+      "passed": true,
+      "at": 1794351668474
+    },
+    {
+      "name": "sustained play 24",
+      "passed": true,
+      "at": 1794351694594
+    },
+    {
+      "name": "sustained metadata 24",
+      "passed": true,
+      "at": 1794351695796
+    },
+    {
+      "name": "sustained resume 24",
+      "passed": true,
+      "at": 1794351697919
+    },
+    {
+      "name": "sustained play 25",
+      "passed": true,
+      "at": 1794351724083
+    },
+    {
+      "name": "sustained metadata 25",
+      "passed": true,
+      "at": 1794351725286
+    },
+    {
+      "name": "sustained resume 25",
+      "passed": true,
+      "at": 1794351727412
+    },
+    {
+      "name": "sustained play 26",
+      "passed": true,
+      "at": 1794351753540
+    },
+    {
+      "name": "sustained metadata 26",
+      "passed": true,
+      "at": 1794351754742
+    },
+    {
+      "name": "sustained resume 26",
+      "passed": true,
+      "at": 1794351756864
+    },
+    {
+      "name": "sustained play 27",
+      "passed": true,
+      "at": 1794351783041
+    },
+    {
+      "name": "sustained metadata 27",
+      "passed": true,
+      "at": 1794351784242
+    },
+    {
+      "name": "sustained resume 27",
+      "passed": true,
+      "at": 1794351786365
+    },
+    {
+      "name": "sustained play 28",
+      "passed": true,
+      "at": 1794351812554
+    },
+    {
+      "name": "sustained metadata 28",
+      "passed": true,
+      "at": 1794351813755
+    },
+    {
+      "name": "sustained resume 28",
+      "passed": true,
+      "at": 1794351815879
+    },
+    {
+      "name": "sustained play 29",
+      "passed": true,
+      "at": 1794351842025
+    },
+    {
+      "name": "sustained metadata 29",
+      "passed": true,
+      "at": 1794351843227
+    },
+    {
+      "name": "sustained resume 29",
+      "passed": true,
+      "at": 1794351845348
+    },
+    {
+      "name": "sustained play 30",
+      "passed": true,
+      "at": 1794351871551
+    },
+    {
+      "name": "sustained metadata 30",
+      "passed": true,
+      "at": 1794351872753
+    },
+    {
+      "name": "sustained resume 30",
+      "passed": true,
+      "at": 1794351874875
+    },
+    {
+      "name": "sustained play 31",
+      "passed": true,
+      "at": 1794351900926
+    },
+    {
+      "name": "sustained metadata 31",
+      "passed": true,
+      "at": 1794351902127
+    },
+    {
+      "name": "sustained resume 31",
+      "passed": true,
+      "at": 1794351904248
+    },
+    {
+      "name": "sustained play 32",
+      "passed": true,
+      "at": 1794351930413
+    },
+    {
+      "name": "sustained metadata 32",
+      "passed": true,
+      "at": 1794351931614
+    },
+    {
+      "name": "sustained resume 32",
+      "passed": true,
+      "at": 1794351933735
+    },
+    {
+      "name": "sustained play 33",
+      "passed": true,
+      "at": 1794351959913
+    },
+    {
+      "name": "sustained metadata 33",
+      "passed": true,
+      "at": 1794351961114
+    },
+    {
+      "name": "sustained resume 33",
+      "passed": true,
+      "at": 1794351963239
+    },
+    {
+      "name": "sustained play 34",
+      "passed": true,
+      "at": 1794351989293
+    },
+    {
+      "name": "sustained metadata 34",
+      "passed": true,
+      "at": 1794351990494
+    },
+    {
+      "name": "sustained resume 34",
+      "passed": true,
+      "at": 1794351992613
+    },
+    {
+      "name": "sustained play 35",
+      "passed": true,
+      "at": 1794352018819
+    },
+    {
+      "name": "sustained metadata 35",
+      "passed": true,
+      "at": 1794352020023
+    },
+    {
+      "name": "sustained resume 35",
+      "passed": true,
+      "at": 1794352022150
+    },
+    {
+      "name": "sustained play 36",
+      "passed": true,
+      "at": 1794352048217
+    },
+    {
+      "name": "sustained metadata 36",
+      "passed": true,
+      "at": 1794352049418
+    },
+    {
+      "name": "sustained resume 36",
+      "passed": true,
+      "at": 1794352051548
+    },
+    {
+      "name": "sustained play 37",
+      "passed": true,
+      "at": 1794352077719
+    },
+    {
+      "name": "sustained metadata 37",
+      "passed": true,
+      "at": 1794352078920
+    },
+    {
+      "name": "sustained resume 37",
+      "passed": true,
+      "at": 1794352081048
+    },
+    {
+      "name": "sustained play 38",
+      "passed": true,
+      "at": 1794352107215
+    },
+    {
+      "name": "sustained metadata 38",
+      "passed": true,
+      "at": 1794352108416
+    },
+    {
+      "name": "sustained resume 38",
+      "passed": true,
+      "at": 1794352110539
+    },
+    {
+      "name": "sustained play 39",
+      "passed": true,
+      "at": 1794352136726
+    },
+    {
+      "name": "sustained metadata 39",
+      "passed": true,
+      "at": 1794352137929
+    },
+    {
+      "name": "sustained resume 39",
+      "passed": true,
+      "at": 1794352140055
+    },
+    {
+      "name": "sustained play 40",
+      "passed": true,
+      "at": 1794352166204
+    },
+    {
+      "name": "sustained metadata 40",
+      "passed": true,
+      "at": 1794352167405
+    },
+    {
+      "name": "sustained resume 40",
+      "passed": true,
+      "at": 1794352169528
+    },
+    {
+      "name": "sustained play 41",
+      "passed": true,
+      "at": 1794352195742
+    },
+    {
+      "name": "sustained metadata 41",
+      "passed": true,
+      "at": 1794352196943
+    },
+    {
+      "name": "sustained resume 41",
+      "passed": true,
+      "at": 1794352199068
+    },
+    {
+      "name": "sustained play 42",
+      "passed": true,
+      "at": 1794352225244
+    },
+    {
+      "name": "sustained metadata 42",
+      "passed": true,
+      "at": 1794352226445
+    },
+    {
+      "name": "sustained resume 42",
+      "passed": true,
+      "at": 1794352228572
+    },
+    {
+      "name": "sustained play 43",
+      "passed": true,
+      "at": 1794352254774
+    },
+    {
+      "name": "sustained metadata 43",
+      "passed": true,
+      "at": 1794352255976
+    },
+    {
+      "name": "sustained resume 43",
+      "passed": true,
+      "at": 1794352258104
+    },
+    {
+      "name": "sustained play 44",
+      "passed": true,
+      "at": 1794352284286
+    },
+    {
+      "name": "sustained metadata 44",
+      "passed": true,
+      "at": 1794352285488
+    },
+    {
+      "name": "sustained resume 44",
+      "passed": true,
+      "at": 1794352287612
+    },
+    {
+      "name": "sustained play 45",
+      "passed": true,
+      "at": 1794352313803
+    },
+    {
+      "name": "sustained metadata 45",
+      "passed": true,
+      "at": 1794352315004
+    },
+    {
+      "name": "sustained resume 45",
+      "passed": true,
+      "at": 1794352317129
+    },
+    {
+      "name": "sustained play 46",
+      "passed": true,
+      "at": 1794352343331
+    },
+    {
+      "name": "sustained metadata 46",
+      "passed": true,
+      "at": 1794352344533
+    },
+    {
+      "name": "sustained resume 46",
+      "passed": true,
+      "at": 1794352346654
+    },
+    {
+      "name": "sustained play 47",
+      "passed": true,
+      "at": 1794352372839
+    },
+    {
+      "name": "sustained metadata 47",
+      "passed": true,
+      "at": 1794352374040
+    },
+    {
+      "name": "sustained resume 47",
+      "passed": true,
+      "at": 1794352376166
+    },
+    {
+      "name": "sustained play 48",
+      "passed": true,
+      "at": 1794352402381
+    },
+    {
+      "name": "sustained metadata 48",
+      "passed": true,
+      "at": 1794352403582
+    },
+    {
+      "name": "sustained resume 48",
+      "passed": true,
+      "at": 1794352405702
+    },
+    {
+      "name": "sustained play 49",
+      "passed": false,
+      "at": 1794352444047
+    },
+    {
+      "name": "sustained metadata 49",
+      "passed": true,
+      "at": 1794352445250
+    },
+    {
+      "name": "sustained resume 49",
+      "passed": false,
+      "at": 1794352447387
+    }
+  ],
+  "timings": [
+    {
+      "case": "start C?cycle=0",
+      "buffering": 209,
+      "playing": 799
+    },
+    {
+      "case": "start A?cycle=1",
+      "buffering": 294,
+      "playing": 855
+    },
+    {
+      "case": "start C?cycle=2",
+      "buffering": 300,
+      "playing": 884
+    },
+    {
+      "case": "start A?cycle=3",
+      "buffering": 214,
+      "playing": 817
+    },
+    {
+      "case": "start C?cycle=4",
+      "buffering": 210,
+      "playing": 813
+    },
+    {
+      "case": "start A?cycle=5",
+      "buffering": 306,
+      "playing": 889
+    },
+    {
+      "case": "start C?cycle=6",
+      "buffering": 294,
+      "playing": 888
+    },
+    {
+      "case": "start A?cycle=7",
+      "buffering": 265,
+      "playing": 866
+    },
+    {
+      "case": "start C?cycle=8",
+      "buffering": 275,
+      "playing": 886
+    },
+    {
+      "case": "start A?cycle=9",
+      "buffering": 265,
+      "playing": 847
+    },
+    {
+      "case": "start C?cycle=10",
+      "buffering": 255,
+      "playing": 844
+    },
+    {
+      "case": "start A?cycle=11",
+      "buffering": 268,
+      "playing": 839
+    },
+    {
+      "case": "start C?cycle=12",
+      "buffering": 260,
+      "playing": 866
+    },
+    {
+      "case": "start A?cycle=13",
+      "buffering": 304,
+      "playing": 868
+    },
+    {
+      "case": "start C?cycle=14",
+      "buffering": 273,
+      "playing": 877
+    },
+    {
+      "case": "start A?cycle=15",
+      "buffering": 263,
+      "playing": 852
+    },
+    {
+      "case": "start C?cycle=16",
+      "buffering": 263,
+      "playing": 839
+    },
+    {
+      "case": "start A?cycle=17",
+      "buffering": 277,
+      "playing": 876
+    },
+    {
+      "case": "start C?cycle=18",
+      "buffering": 295,
+      "playing": 901
+    },
+    {
+      "case": "start A?cycle=19",
+      "buffering": 266,
+      "playing": 865
+    },
+    {
+      "case": "start C?cycle=20",
+      "buffering": 236,
+      "playing": 821
+    },
+    {
+      "case": "start A?cycle=21",
+      "buffering": 293,
+      "playing": 990
+    },
+    {
+      "case": "start C?cycle=22",
+      "buffering": 261,
+      "playing": 874
+    },
+    {
+      "case": "start A?cycle=23",
+      "buffering": 216,
+      "playing": 795
+    },
+    {
+      "case": "start C?cycle=24",
+      "buffering": 244,
+      "playing": 816
+    },
+    {
+      "case": "start A?cycle=25",
+      "buffering": 272,
+      "playing": 875
+    },
+    {
+      "case": "start C?cycle=26",
+      "buffering": 248,
+      "playing": 842
+    },
+    {
+      "case": "start A?cycle=27",
+      "buffering": 262,
+      "playing": 878
+    },
+    {
+      "case": "start C?cycle=28",
+      "buffering": 279,
+      "playing": 893
+    },
+    {
+      "case": "start A?cycle=29",
+      "buffering": 258,
+      "playing": 853
+    },
+    {
+      "case": "start C?cycle=30",
+      "buffering": 277,
+      "playing": 894
+    },
+    {
+      "case": "start A?cycle=31",
+      "buffering": 184,
+      "playing": 754
+    },
+    {
+      "case": "start C?cycle=32",
+      "buffering": 263,
+      "playing": 865
+    },
+    {
+      "case": "start A?cycle=33",
+      "buffering": 285,
+      "playing": 883
+    },
+    {
+      "case": "start C?cycle=34",
+      "buffering": 208,
+      "playing": 758
+    },
+    {
+      "case": "start A?cycle=35",
+      "buffering": 269,
+      "playing": 897
+    },
+    {
+      "case": "start C?cycle=36",
+      "buffering": 180,
+      "playing": 764
+    },
+    {
+      "case": "start A?cycle=37",
+      "buffering": 276,
+      "playing": 872
+    },
+    {
+      "case": "start C?cycle=38",
+      "buffering": 261,
+      "playing": 852
+    },
+    {
+      "case": "start A?cycle=39",
+      "buffering": 261,
+      "playing": 881
+    },
+    {
+      "case": "start C?cycle=40",
+      "buffering": 270,
+      "playing": 853
+    },
+    {
+      "case": "start A?cycle=41",
+      "buffering": 286,
+      "playing": 894
+    },
+    {
+      "case": "start C?cycle=42",
+      "buffering": 275,
+      "playing": 868
+    },
+    {
+      "case": "start A?cycle=43",
+      "buffering": 276,
+      "playing": 884
+    },
+    {
+      "case": "start C?cycle=44",
+      "buffering": 287,
+      "playing": 874
+    },
+    {
+      "case": "start A?cycle=45",
+      "buffering": 266,
+      "playing": 876
+    },
+    {
+      "case": "start C?cycle=46",
+      "buffering": 269,
+      "playing": 877
+    },
+    {
+      "case": "start A?cycle=47",
+      "buffering": 284,
+      "playing": 870
+    },
+    {
+      "case": "start C?cycle=48",
+      "buffering": 286,
+      "playing": 886
+    },
+    {
+      "case": "start A?cycle=49",
+      "buffering": null,
+      "playing": null
+    }
+  ],
+  "events": [
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794350976332
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794350977619
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794350985829
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794350985896
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794350986197
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794350986219
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794350986661
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794350986832
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794350987251
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794350989538
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794350989607
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351015668
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351016184
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351016375
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351016745
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351019045
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351019120
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351045122
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351045646
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351045856
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351046230
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351048508
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351048598
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351074631
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351075055
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351075243
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351075658
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351077936
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351078028
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351104045
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351104480
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351104737
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351105083
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351107382
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351107467
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351133468
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351133996
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351134216
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351134579
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351136871
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351136953
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351162963
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351163479
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351163695
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351164073
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351166369
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351166456
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351192455
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351192943
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351193149
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351193544
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351195825
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351195917
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351221913
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351222416
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351222574
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351223027
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351225333
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351225415
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351251417
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351251903
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351252067
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351252485
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351254778
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351254848
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351280862
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351281339
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351281535
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351281928
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351284212
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351284292
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351310323
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351310812
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351311032
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351311383
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351313674
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351313752
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351339763
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351340247
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351340469
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351340853
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351343144
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351343226
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351369236
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351369761
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351369928
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351370325
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351372626
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351372711
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351398709
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351399209
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351399358
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351399813
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351402104
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351402193
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351428208
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351428694
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351428888
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351429283
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351431576
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351431658
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351457667
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351458155
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351458396
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351458731
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351461032
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351461108
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351487121
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351487620
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351487825
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351488219
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351490523
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351490608
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351516616
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351517134
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351517270
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351517740
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351520036
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351520126
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351546124
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351546617
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351546767
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351547216
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351549509
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351549580
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351575604
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351576060
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351576258
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351576645
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351578936
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351579013
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351605030
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351605550
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351605720
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351606247
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351608527
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351608620
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351634636
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351635121
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351635365
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351635734
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351638033
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351638116
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351664118
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351664568
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351664742
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351665147
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351667446
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351667521
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351693545
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351694012
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351694205
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351694584
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351696884
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351696959
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351722986
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351723480
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351723707
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351724083
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351726379
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351726459
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351752477
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351752946
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351753149
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351753540
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351755817
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351755915
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351781933
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351782416
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351782575
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351783032
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351785329
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351785411
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351811438
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351811940
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351812132
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351812554
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351814847
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351814918
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351840945
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351841429
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351841619
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351842024
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351844303
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351844387
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351870428
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351870925
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351871181
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351871542
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351873844
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351873924
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351899949
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351900355
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351900517
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351900925
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351903204
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351903294
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351929313
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351929801
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351929977
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351930403
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351932703
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351932788
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351958806
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351959315
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794351959501
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351959913
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351962203
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351962284
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794351988299
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794351988743
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794351988899
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351989293
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794351991559
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794351991643
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352017684
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352018181
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352018375
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352018809
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352021111
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352021200
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352047231
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352047633
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352047822
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352048217
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352050515
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352050597
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352076625
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352077123
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352077318
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352077719
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352080015
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352080098
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352106131
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352106614
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352106819
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352107205
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352109503
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352109581
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352135628
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352136106
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352136323
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352136726
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352139015
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352139104
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352165127
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352165621
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352165820
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352166204
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352168495
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352168571
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352194611
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352195124
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352195325
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352195732
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352198035
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352198111
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352224150
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352224650
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352224907
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352225243
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352227543
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352227616
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352253658
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352254156
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352254322
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352254764
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352257066
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352257154
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352283192
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352283699
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352283873
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352284286
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352286569
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352286653
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352312708
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352313192
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352313413
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352313802
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352316095
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352316184
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352342220
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352342713
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352342938
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352343321
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352345613
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352345703
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352371745
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352372253
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352372424
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352372839
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352375127
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352375207
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352401263
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794352401771
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794352402010
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352402371
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794352404666
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794352404744
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794352430799
+    },
+    {
+      "type": "state",
+      "value": "error",
+      "at": 1794352431435
+    },
+    {
+      "type": "error",
+      "value": "Cannot start playback from background: startForegroundService() not allowed due to mAllowStartForeground false: service mx.codigomovil.audiostreamaudit/ti.audiostream.MediaPlaybackService",
+      "at": 1794352431450
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794352431636
+    },
+    {
+      "type": "error",
+      "value": "Cannot start playback from background: startForegroundService() not allowed due to mAllowStartForeground false: service mx.codigomovil.audiostreamaudit/ti.audiostream.MediaPlaybackService",
+      "at": 1794352446387
+    }
+  ],
+  "complete": true,
+  "soakStarted": 1794350986198,
+  "updated": 1794352847301
+}

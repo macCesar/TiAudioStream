@@ -1,0 +1,251 @@
+{
+  "platform": "ipad",
+  "checks": [
+    {
+      "name": "direct stream plays",
+      "passed": true,
+      "at": 1794327401434
+    },
+    {
+      "name": "repeated start keeps playing",
+      "passed": true,
+      "at": 1794327402470
+    },
+    {
+      "name": "repeated start does not prepare again",
+      "passed": true,
+      "at": 1794327402490
+    },
+    {
+      "name": "metadata event with automatic publication disabled",
+      "passed": true,
+      "at": 1794327404512
+    },
+    {
+      "name": "manual pause remains paused",
+      "passed": true,
+      "at": 1794327408550
+    },
+    {
+      "name": "soft stop remains stopped",
+      "passed": true,
+      "at": 1794327410619
+    },
+    {
+      "name": "play alias resumes after soft stop",
+      "passed": true,
+      "at": 1794327412663
+    },
+    {
+      "name": "relative PLS plays after hard stop",
+      "passed": true,
+      "at": 1794327417793
+    },
+    {
+      "name": "relative M3U plays",
+      "passed": true,
+      "at": 1794327422924
+    },
+    {
+      "name": "pause cancels pending retry",
+      "passed": true,
+      "at": 1794327429083
+    },
+    {
+      "name": "public stream plays: Radio Paradise",
+      "passed": true,
+      "at": 1794327441136
+    },
+    {
+      "name": "public stream pauses: Radio Paradise",
+      "passed": true,
+      "at": 1794327442168
+    },
+    {
+      "name": "public stream plays: Heart London HLS",
+      "passed": true,
+      "at": 1794327454266
+    },
+    {
+      "name": "public stream pauses: Heart London HLS",
+      "passed": true,
+      "at": 1794327455297
+    },
+    {
+      "name": "public stream plays: The VIP Lounge 2",
+      "passed": true,
+      "at": 1794327467385
+    },
+    {
+      "name": "public stream pauses: The VIP Lounge 2",
+      "passed": true,
+      "at": 1794327468417
+    }
+  ],
+  "states": [
+    {
+      "state": "buffering",
+      "at": 1794327394419
+    },
+    {
+      "state": "playing",
+      "at": 1794327397036
+    },
+    {
+      "state": "paused",
+      "at": 1794327404550
+    },
+    {
+      "state": "stopped",
+      "at": 1794327408573
+    },
+    {
+      "state": "buffering",
+      "at": 1794327410663
+    },
+    {
+      "state": "playing",
+      "at": 1794327410680
+    },
+    {
+      "state": "stopped",
+      "at": 1794327412686
+    },
+    {
+      "state": "buffering",
+      "at": 1794327412784
+    },
+    {
+      "state": "playing",
+      "at": 1794327415237
+    },
+    {
+      "state": "stopped",
+      "at": 1794327417816
+    },
+    {
+      "state": "buffering",
+      "at": 1794327417915
+    },
+    {
+      "state": "playing",
+      "at": 1794327420301
+    },
+    {
+      "state": "stopped",
+      "at": 1794327422948
+    },
+    {
+      "state": "buffering",
+      "at": 1794327423046
+    },
+    {
+      "state": "paused",
+      "at": 1794327424082
+    },
+    {
+      "state": "stopped",
+      "at": 1794327429109
+    },
+    {
+      "state": "buffering",
+      "at": 1794327429130
+    },
+    {
+      "state": "playing",
+      "at": 1794327429796
+    },
+    {
+      "state": "paused",
+      "at": 1794327441169
+    },
+    {
+      "state": "stopped",
+      "at": 1794327442190
+    },
+    {
+      "state": "buffering",
+      "at": 1794327442258
+    },
+    {
+      "state": "playing",
+      "at": 1794327444400
+    },
+    {
+      "state": "paused",
+      "at": 1794327454298
+    },
+    {
+      "state": "stopped",
+      "at": 1794327455319
+    },
+    {
+      "state": "buffering",
+      "at": 1794327455375
+    },
+    {
+      "state": "playing",
+      "at": 1794327459968
+    },
+    {
+      "state": "paused",
+      "at": 1794327467419
+    },
+    {
+      "state": "stopped",
+      "at": 1794327468440
+    }
+  ],
+  "metadata": [
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "I Wanna Be The Only One",
+      "artist": "Eternal feat. Be Be Winans"
+    },
+    {
+      "title": "One Day In Your Life - Love",
+      "artist": "Michael Jackson"
+    }
+  ],
+  "errors": [],
+  "publicStreams": [
+    {
+      "title": "Radio Paradise",
+      "metadata": []
+    },
+    {
+      "title": "Heart London HLS",
+      "metadata": [
+        {
+          "title": "I Wanna Be The Only One",
+          "artist": "Eternal feat. Be Be Winans"
+        }
+      ]
+    },
+    {
+      "title": "The VIP Lounge 2",
+      "metadata": [
+        {
+          "title": "One Day In Your Life - Love",
+          "artist": "Michael Jackson"
+        }
+      ]
+    }
+  ],
+  "complete": true
+}

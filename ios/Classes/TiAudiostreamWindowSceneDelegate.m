@@ -5,6 +5,7 @@
  * Licensed under the MIT License
  */
 
+#import "TiAudiostreamDiagnostics.h"
 #import "TiAudiostreamWindowSceneDelegate.h"
 
 // Adaptive across Titanium SDKs so the SAME tiapp.xml scene manifest boots on
@@ -47,7 +48,7 @@
       [rootViewController.view layoutIfNeeded];
     }
 
-    NSLog(@"[ti.audiostream] Window scene attached to Titanium window (legacy path)");
+    TiAudiostreamDebugLog(@"[ti.audiostream] Window scene attached to Titanium window (legacy path)");
   }
 }
 

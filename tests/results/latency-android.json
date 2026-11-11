@@ -1,0 +1,355 @@
+{
+  "platform": "android",
+  "samples": [
+    {
+      "name": "cold 1: buffering",
+      "elapsedMs": 256,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 1: playing",
+      "elapsedMs": 1073,
+      "budgetMs": null
+    },
+    {
+      "name": "cold 1: metadata belongs to selected station",
+      "passed": true
+    },
+    {
+      "name": "cold 1: received metadata",
+      "elapsedMs": 966,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 1",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: buffering",
+      "elapsedMs": 75,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: playing",
+      "elapsedMs": 4830,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: no previous-station metadata during HTTP resolution",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: metadata belongs to selected station",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: received metadata",
+      "elapsedMs": 4302,
+      "budgetMs": null
+    },
+    {
+      "name": "pause 1",
+      "elapsedMs": 61,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 1",
+      "elapsedMs": 15,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 2: buffering",
+      "elapsedMs": 193,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 2: playing",
+      "elapsedMs": 787,
+      "budgetMs": null
+    },
+    {
+      "name": "cold 2: metadata belongs to selected station",
+      "passed": true
+    },
+    {
+      "name": "cold 2: received metadata",
+      "elapsedMs": 325,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 2",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: buffering",
+      "elapsedMs": 136,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: playing",
+      "elapsedMs": 4777,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: no previous-station metadata during HTTP resolution",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: metadata belongs to selected station",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: received metadata",
+      "elapsedMs": 4321,
+      "budgetMs": null
+    },
+    {
+      "name": "pause 2",
+      "elapsedMs": 53,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 2",
+      "elapsedMs": 13,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 3: buffering",
+      "elapsedMs": 197,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 3: playing",
+      "elapsedMs": 803,
+      "budgetMs": null
+    },
+    {
+      "name": "cold 3: metadata belongs to selected station",
+      "passed": true
+    },
+    {
+      "name": "cold 3: received metadata",
+      "elapsedMs": 349,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 3",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: buffering",
+      "elapsedMs": 126,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: playing",
+      "elapsedMs": 4765,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: no previous-station metadata during HTTP resolution",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: metadata belongs to selected station",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: received metadata",
+      "elapsedMs": 4298,
+      "budgetMs": null
+    },
+    {
+      "name": "pause 3",
+      "elapsedMs": 49,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 3",
+      "elapsedMs": 15,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "pending HTTP: buffering",
+      "elapsedMs": 223,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "pause during HTTP resolution",
+      "elapsedMs": 29,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "late HTTP response cannot resume paused playback",
+      "passed": true
+    },
+    {
+      "name": "stop after pending pause",
+      "elapsedMs": 35,
+      "budgetMs": 300,
+      "passed": true
+    }
+  ],
+  "events": [
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333600510
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333601220
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333601327
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333601718
+    },
+    {
+      "kind": "metadata",
+      "value": "New Fixture Song",
+      "at": 1794333605945
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333606473
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333606535
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333606551
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333607049
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333607181
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333607643
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333608095
+    },
+    {
+      "kind": "metadata",
+      "value": "New Fixture Song",
+      "at": 1794333612280
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333612736
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333612789
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333612804
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333613308
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333613460
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333613914
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333614346
+    },
+    {
+      "kind": "metadata",
+      "value": "New Fixture Song",
+      "at": 1794333618518
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333618985
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333619044
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333619059
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333619587
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333619626
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333621649
+    },
+    {
+      "kind": "metadata",
+      "value": "New Fixture Song",
+      "at": 1794333623887
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333624662
+    }
+  ],
+  "complete": true
+}

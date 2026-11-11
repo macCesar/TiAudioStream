@@ -12,6 +12,8 @@
 // Public API
 - (void)setStream:(id)args;
 - (void)start:(id)unused;
+- (void)play:(id)unused;
+- (void)hardStop:(id)unused;
 - (void)pause:(id)unused;
 - (void)stop:(id)unused;
 - (void)setMetadata:(id)args;

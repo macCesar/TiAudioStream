@@ -1,0 +1,979 @@
+{
+  "fixture": "silent-usb",
+  "stopAssertion": "Reevaluated from device snapshots. Original assertion incorrectly compared timestamps across two clocks.",
+  "cases": [
+    {
+      "command": "inspect",
+      "checks": {
+        "controllerConnected": true,
+        "noReaderErrors": true,
+        "embeddedArtworkPresentAndUnchanged": true,
+        "uriArtworkPresentAndUnchanged": true,
+        "embeddedHashPresentAndUnchanged": true,
+        "uriHashPresentAndUnchanged": true,
+        "embedded512": true,
+        "uri1024": true
+      },
+      "initial": {
+        "started": 1794349786625,
+        "mode": "normal",
+        "events": [
+          {
+            "type": "state",
+            "value": "buffering",
+            "at": 1794349787854
+          },
+          {
+            "type": "metadata",
+            "value": "Station A",
+            "at": 1794349788340
+          },
+          {
+            "type": "state",
+            "value": "playing",
+            "at": 1794349788484
+          }
+        ],
+        "ready": true
+      },
+      "targetEventsAfterSnapshot": [],
+      "controllerEvents": [
+        {
+          "at": 1794349790457,
+          "type": "connection",
+          "value": "connected"
+        },
+        {
+          "at": 1794349790472,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349790472,
+          "type": "title",
+          "value": "Station A"
+        },
+        {
+          "at": 1794349790472,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349790493,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349790507,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349790521,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        },
+        {
+          "at": 1794349790523,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349790555,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349793171,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349793233,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349793282,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349795035,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349795035,
+          "type": "title",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349795035,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349795052,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349795059,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349795067,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        }
+      ]
+    },
+    {
+      "command": "prepareB",
+      "checks": {
+        "controllerConnected": true,
+        "noReaderErrors": true,
+        "BRequested": true,
+        "BMetadata": true,
+        "BPlaying": true
+      },
+      "initial": {
+        "started": 1794349797564,
+        "mode": "normal",
+        "events": [
+          {
+            "type": "state",
+            "value": "buffering",
+            "at": 1794349798174
+          },
+          {
+            "type": "metadata",
+            "value": "Station A",
+            "at": 1794349798500
+          },
+          {
+            "type": "state",
+            "value": "playing",
+            "at": 1794349798595
+          }
+        ],
+        "ready": true
+      },
+      "targetEventsAfterSnapshot": [
+        {
+          "type": "state",
+          "value": "paused",
+          "at": 1794349801745
+        },
+        {
+          "type": "state",
+          "value": "buffering",
+          "at": 1794349802000
+        },
+        {
+          "type": "metadata",
+          "value": "Station B",
+          "at": 1794349802166
+        },
+        {
+          "type": "state",
+          "value": "playing",
+          "at": 1794349802580
+        }
+      ],
+      "controllerEvents": [
+        {
+          "at": 1794349801403,
+          "type": "connection",
+          "value": "connected"
+        },
+        {
+          "at": 1794349801412,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349801412,
+          "type": "title",
+          "value": "Station A"
+        },
+        {
+          "at": 1794349801412,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349801433,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349801443,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349801452,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        },
+        {
+          "at": 1794349801460,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349801460,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349801493,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349801624,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349801626,
+          "type": "callbackState",
+          "value": 2
+        },
+        {
+          "at": 1794349801773,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349801958,
+          "type": "command",
+          "value": "play after prepare B"
+        },
+        {
+          "at": 1794349801965,
+          "type": "callbackState",
+          "value": 6
+        },
+        {
+          "at": 1794349801995,
+          "type": "callbackState",
+          "value": 6
+        },
+        {
+          "at": 1794349802165,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349802549,
+          "type": "callbackState",
+          "value": 3
+        },
+        {
+          "at": 1794349802554,
+          "type": "callbackState",
+          "value": 3
+        },
+        {
+          "at": 1794349804112,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349804171,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349804205,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349805970,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349805970,
+          "type": "title",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349805970,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349805987,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349805995,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349806002,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        }
+      ]
+    },
+    {
+      "command": "playB",
+      "checks": {
+        "controllerConnected": true,
+        "noReaderErrors": true,
+        "BRequested": true,
+        "BMetadata": true,
+        "BPlaying": true
+      },
+      "initial": {
+        "started": 1794349808318,
+        "mode": "normal",
+        "events": [
+          {
+            "type": "state",
+            "value": "buffering",
+            "at": 1794349808919
+          },
+          {
+            "type": "metadata",
+            "value": "Station A",
+            "at": 1794349809252
+          },
+          {
+            "type": "state",
+            "value": "playing",
+            "at": 1794349809344
+          }
+        ],
+        "ready": true
+      },
+      "targetEventsAfterSnapshot": [
+        {
+          "type": "state",
+          "value": "buffering",
+          "at": 1794349812395
+        },
+        {
+          "type": "metadata",
+          "value": "Station B",
+          "at": 1794349812504
+        },
+        {
+          "type": "state",
+          "value": "playing",
+          "at": 1794349812895
+        }
+      ],
+      "controllerEvents": [
+        {
+          "at": 1794349812000,
+          "type": "connection",
+          "value": "connected"
+        },
+        {
+          "at": 1794349812013,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349812013,
+          "type": "title",
+          "value": "Station A"
+        },
+        {
+          "at": 1794349812013,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349812033,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349812044,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349812058,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        },
+        {
+          "at": 1794349812072,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349812072,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349812089,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349812178,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349812270,
+          "type": "callbackState",
+          "value": 6
+        },
+        {
+          "at": 1794349812274,
+          "type": "callbackState",
+          "value": 6
+        },
+        {
+          "at": 1794349812310,
+          "type": "callbackState",
+          "value": 6
+        },
+        {
+          "at": 1794349812367,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349812517,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349812864,
+          "type": "callbackState",
+          "value": 3
+        },
+        {
+          "at": 1794349812864,
+          "type": "callbackState",
+          "value": 3
+        },
+        {
+          "at": 1794349814863,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349814928,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349814967,
+          "type": "callbackTitle",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349816583,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349816584,
+          "type": "title",
+          "value": "Repeated artwork"
+        },
+        {
+          "at": 1794349816584,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349816601,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349816608,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349816614,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        }
+      ]
+    },
+    {
+      "command": "stop",
+      "checks": {
+        "controllerConnected": true,
+        "noReaderErrors": true,
+        "lateSourceCannotResume": true
+      },
+      "initial": {
+        "started": 1794349818913,
+        "mode": "slow",
+        "events": [
+          {
+            "type": "state",
+            "value": "buffering",
+            "at": 1794349819487
+          }
+        ],
+        "ready": true
+      },
+      "targetEventsAfterSnapshot": [
+        {
+          "type": "state",
+          "value": "stopped",
+          "at": 1794349820507
+        },
+        {
+          "type": "metadata",
+          "value": "Station B",
+          "at": 1794349823670
+        }
+      ],
+      "controllerEvents": [
+        {
+          "at": 1794349820432,
+          "type": "connection",
+          "value": "connected"
+        },
+        {
+          "at": 1794349820448,
+          "type": "state",
+          "value": 6
+        },
+        {
+          "at": 1794349820448,
+          "type": "title",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349820448,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349820469,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349820481,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349820488,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        },
+        {
+          "at": 1794349820492,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349820492,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349820502,
+          "type": "callbackState",
+          "value": 1
+        },
+        {
+          "at": 1794349823678,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349825003,
+          "type": "state",
+          "value": 1
+        },
+        {
+          "at": 1794349825003,
+          "type": "title",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349825003,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349825020,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349825028,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349825035,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        }
+      ]
+    },
+    {
+      "command": "focusTransient",
+      "checks": {
+        "controllerConnected": true,
+        "noReaderErrors": true,
+        "focusGranted": true,
+        "pausedDuringFocusLoss": true,
+        "noPlayingDuringFocusLoss": true,
+        "focusGainResumes": true
+      },
+      "initial": {
+        "started": 1794349827281,
+        "mode": "slow",
+        "events": [
+          {
+            "type": "state",
+            "value": "buffering",
+            "at": 1794349827880
+          }
+        ],
+        "ready": true
+      },
+      "targetEventsAfterSnapshot": [
+        {
+          "type": "state",
+          "value": "paused",
+          "at": 1794349828895
+        },
+        {
+          "type": "metadata",
+          "value": "Station B",
+          "at": 1794349832083
+        },
+        {
+          "type": "state",
+          "value": "playing",
+          "at": 1794349834985
+        }
+      ],
+      "controllerEvents": [
+        {
+          "at": 1794349828772,
+          "type": "connection",
+          "value": "connected"
+        },
+        {
+          "at": 1794349828787,
+          "type": "state",
+          "value": 6
+        },
+        {
+          "at": 1794349828788,
+          "type": "title",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349828788,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349828809,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349828833,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349828843,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        },
+        {
+          "at": 1794349828863,
+          "type": "focusRequested",
+          "value": 1
+        },
+        {
+          "at": 1794349828865,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349828866,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349828871,
+          "type": "callbackState",
+          "value": 2
+        },
+        {
+          "at": 1794349832073,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349834884,
+          "type": "focusReleased",
+          "value": 1
+        },
+        {
+          "at": 1794349834893,
+          "type": "callbackState",
+          "value": 6
+        },
+        {
+          "at": 1794349834947,
+          "type": "callbackState",
+          "value": 3
+        },
+        {
+          "at": 1794349837393,
+          "type": "state",
+          "value": 3
+        },
+        {
+          "at": 1794349837393,
+          "type": "title",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349837393,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349837450,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349837473,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349837485,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        }
+      ]
+    },
+    {
+      "command": "focusPause",
+      "checks": {
+        "controllerConnected": true,
+        "noReaderErrors": true,
+        "focusGranted": true,
+        "pausedDuringFocusLoss": true,
+        "noPlayingDuringFocusLoss": true,
+        "manualPauseWins": true
+      },
+      "initial": {
+        "started": 1794349839963,
+        "mode": "slow",
+        "events": [
+          {
+            "type": "state",
+            "value": "buffering",
+            "at": 1794349840532
+          }
+        ],
+        "ready": true
+      },
+      "targetEventsAfterSnapshot": [
+        {
+          "type": "state",
+          "value": "paused",
+          "at": 1794349841466
+        },
+        {
+          "type": "metadata",
+          "value": "Station B",
+          "at": 1794349844739
+        }
+      ],
+      "controllerEvents": [
+        {
+          "at": 1794349841363,
+          "type": "connection",
+          "value": "connected"
+        },
+        {
+          "at": 1794349841376,
+          "type": "state",
+          "value": 6
+        },
+        {
+          "at": 1794349841376,
+          "type": "title",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349841377,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349841396,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349841411,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349841420,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        },
+        {
+          "at": 1794349841434,
+          "type": "focusRequested",
+          "value": 1
+        },
+        {
+          "at": 1794349841436,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349841436,
+          "type": "catalog",
+          "value": [
+            "__resume__",
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        {
+          "at": 1794349841441,
+          "type": "callbackState",
+          "value": 2
+        },
+        {
+          "at": 1794349843444,
+          "type": "callbackState",
+          "value": 2
+        },
+        {
+          "at": 1794349844720,
+          "type": "callbackTitle",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349847444,
+          "type": "focusReleased",
+          "value": 1
+        },
+        {
+          "at": 1794349849970,
+          "type": "state",
+          "value": 2
+        },
+        {
+          "at": 1794349849970,
+          "type": "title",
+          "value": "Station B"
+        },
+        {
+          "at": 1794349849970,
+          "type": "embeddedArtwork",
+          "value": "512x512"
+        },
+        {
+          "at": 1794349850027,
+          "type": "embeddedHash",
+          "value": "c80acec3aa36c2081f98f61fa96e53ac5c9d6da32410f30a1087d28f461ad001"
+        },
+        {
+          "at": 1794349850051,
+          "type": "uriHash",
+          "value": "e40150f9d8ddcf90e7eedfc85547774ee72bee3a6a103a748f9bba16160e361a"
+        },
+        {
+          "at": 1794349850061,
+          "type": "uriArtwork",
+          "value": "1024x1024"
+        }
+      ]
+    }
+  ]
+}

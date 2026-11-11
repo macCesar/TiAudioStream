@@ -1,15 +1,26 @@
 
 dependencies {
-	// Media3 (ExoPlayer moderno) - Última versión estable
-	implementation 'androidx.media3:media3-exoplayer:1.5.1'
-	implementation 'androidx.media3:media3-exoplayer-hls:1.5.1'
-	implementation 'androidx.media3:media3-session:1.5.1'
+	// Keep all Media3 artifacts on the current stable release.
+	// Requires compileSdk 36; validated with Titanium 13.4.1.GA.
+	implementation 'androidx.media3:media3-exoplayer:1.11.1'
+	implementation 'androidx.media3:media3-exoplayer-hls:1.11.1'
+	implementation 'androidx.media3:media3-session:1.11.1'
+
+	// Current stable Android Guava, including upstream security fixes.
+	implementation 'com.google.guava:guava:33.8.0-android'
 
 	// Android Auto: MediaBrowserServiceCompat
-	implementation 'androidx.media:media:1.7.0'
+	implementation 'androidx.media:media:1.8.0'
+
+	// Older Titanium Gradle templates align compile/runtime configurations. Keep
+	// annotation versions consistent when Guava also brings them at runtime.
+	constraints {
+		implementation 'com.google.errorprone:error_prone_annotations:2.52.0'
+		implementation 'org.checkerframework:checker-qual:4.4.0'
+	}
 
 	// Resolver warnings de anotaciones faltantes (InlineMe, DoNotCall, Nullable, etc)
-	compileOnly 'com.google.errorprone:error_prone_annotations:2.15.0'
+	compileOnly 'com.google.errorprone:error_prone_annotations:2.52.0'
 	compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
-	compileOnly 'org.checkerframework:checker-qual:3.33.0'
+	compileOnly 'org.checkerframework:checker-qual:4.4.0'
 }

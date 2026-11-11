@@ -1,0 +1,261 @@
+{
+  "platform": "ipad",
+  "samples": [
+    {
+      "name": "cold 1: buffering",
+      "elapsedMs": 24,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 1: playing",
+      "elapsedMs": 2504,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 1",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: buffering",
+      "elapsedMs": 2,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: playing",
+      "elapsedMs": 8592,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: no previous-station metadata during HTTP resolution",
+      "passed": true
+    },
+    {
+      "name": "pause 1",
+      "elapsedMs": 1,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 1",
+      "elapsedMs": 0,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 2: buffering",
+      "elapsedMs": 7,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 2: playing",
+      "elapsedMs": 2473,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 2",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: buffering",
+      "elapsedMs": 2,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: playing",
+      "elapsedMs": 8470,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: no previous-station metadata during HTTP resolution",
+      "passed": true
+    },
+    {
+      "name": "pause 2",
+      "elapsedMs": 0,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 2",
+      "elapsedMs": 0,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 3: buffering",
+      "elapsedMs": 8,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 3: playing",
+      "elapsedMs": 2514,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 3",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: buffering",
+      "elapsedMs": 2,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: playing",
+      "elapsedMs": 8575,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: no previous-station metadata during HTTP resolution",
+      "passed": true
+    },
+    {
+      "name": "pause 3",
+      "elapsedMs": 0,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 3",
+      "elapsedMs": 0,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "pending HTTP: buffering",
+      "elapsedMs": 7,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "pause during HTTP resolution",
+      "elapsedMs": 1,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "late HTTP response cannot resume paused playback",
+      "passed": true
+    },
+    {
+      "name": "stop after pending pause",
+      "elapsedMs": 0,
+      "budgetMs": 300,
+      "passed": true
+    }
+  ],
+  "events": [
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333573003
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333575483
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333575799
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333584389
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333584401
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333584412
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333584796
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333587262
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333587579
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333596047
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333596049
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333596060
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333596426
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333598932
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333599243
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333607816
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333607823
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333607834
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333608222
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333608223
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333613236
+    }
+  ],
+  "complete": true
+}

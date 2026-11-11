@@ -1,0 +1,2563 @@
+{
+  "platform": "android",
+  "started": 1794353355759,
+  "fixtureBase": "http://192.168.100.4:18768",
+  "checks": [
+    {
+      "name": "cold playing 0",
+      "passed": true,
+      "at": 1794353357443
+    },
+    {
+      "name": "cold buffering under 300ms 0",
+      "passed": false,
+      "at": 1794353357449
+    },
+    {
+      "name": "cold playing 1",
+      "passed": true,
+      "at": 1794353358419
+    },
+    {
+      "name": "cold buffering under 300ms 1",
+      "passed": true,
+      "at": 1794353358422
+    },
+    {
+      "name": "cold playing 2",
+      "passed": true,
+      "at": 1794353359424
+    },
+    {
+      "name": "cold buffering under 300ms 2",
+      "passed": true,
+      "at": 1794353359427
+    },
+    {
+      "name": "cold playing 3",
+      "passed": true,
+      "at": 1794353360523
+    },
+    {
+      "name": "cold buffering under 300ms 3",
+      "passed": true,
+      "at": 1794353360525
+    },
+    {
+      "name": "cold playing 4",
+      "passed": true,
+      "at": 1794353361394
+    },
+    {
+      "name": "cold buffering under 300ms 4",
+      "passed": true,
+      "at": 1794353361397
+    },
+    {
+      "name": "cold playing 5",
+      "passed": true,
+      "at": 1794353362255
+    },
+    {
+      "name": "cold buffering under 300ms 5",
+      "passed": true,
+      "at": 1794353362258
+    },
+    {
+      "name": "cold playing 6",
+      "passed": true,
+      "at": 1794353363240
+    },
+    {
+      "name": "cold buffering under 300ms 6",
+      "passed": true,
+      "at": 1794353363245
+    },
+    {
+      "name": "cold playing 7",
+      "passed": true,
+      "at": 1794353364484
+    },
+    {
+      "name": "cold buffering under 300ms 7",
+      "passed": true,
+      "at": 1794353364488
+    },
+    {
+      "name": "cold playing 8",
+      "passed": true,
+      "at": 1794353365423
+    },
+    {
+      "name": "cold buffering under 300ms 8",
+      "passed": true,
+      "at": 1794353365430
+    },
+    {
+      "name": "cold playing 9",
+      "passed": true,
+      "at": 1794353366350
+    },
+    {
+      "name": "cold buffering under 300ms 9",
+      "passed": true,
+      "at": 1794353366358
+    },
+    {
+      "name": "cold playing 10",
+      "passed": true,
+      "at": 1794353367428
+    },
+    {
+      "name": "cold buffering under 300ms 10",
+      "passed": true,
+      "at": 1794353367438
+    },
+    {
+      "name": "cold playing 11",
+      "passed": true,
+      "at": 1794353368681
+    },
+    {
+      "name": "cold buffering under 300ms 11",
+      "passed": true,
+      "at": 1794353368689
+    },
+    {
+      "name": "cold playing 12",
+      "passed": true,
+      "at": 1794353369632
+    },
+    {
+      "name": "cold buffering under 300ms 12",
+      "passed": true,
+      "at": 1794353369641
+    },
+    {
+      "name": "cold playing 13",
+      "passed": true,
+      "at": 1794353370575
+    },
+    {
+      "name": "cold buffering under 300ms 13",
+      "passed": true,
+      "at": 1794353370584
+    },
+    {
+      "name": "cold playing 14",
+      "passed": true,
+      "at": 1794353371587
+    },
+    {
+      "name": "cold buffering under 300ms 14",
+      "passed": true,
+      "at": 1794353371596
+    },
+    {
+      "name": "cold playing 15",
+      "passed": true,
+      "at": 1794353372807
+    },
+    {
+      "name": "cold buffering under 300ms 15",
+      "passed": true,
+      "at": 1794353372816
+    },
+    {
+      "name": "cold playing 16",
+      "passed": true,
+      "at": 1794353373633
+    },
+    {
+      "name": "cold buffering under 300ms 16",
+      "passed": true,
+      "at": 1794353373642
+    },
+    {
+      "name": "cold playing 17",
+      "passed": true,
+      "at": 1794353374551
+    },
+    {
+      "name": "cold buffering under 300ms 17",
+      "passed": true,
+      "at": 1794353374559
+    },
+    {
+      "name": "cold playing 18",
+      "passed": true,
+      "at": 1794353375582
+    },
+    {
+      "name": "cold buffering under 300ms 18",
+      "passed": true,
+      "at": 1794353375594
+    },
+    {
+      "name": "cold playing 19",
+      "passed": true,
+      "at": 1794353376875
+    },
+    {
+      "name": "cold buffering under 300ms 19",
+      "passed": true,
+      "at": 1794353376884
+    },
+    {
+      "name": "cold playing 20",
+      "passed": true,
+      "at": 1794353377664
+    },
+    {
+      "name": "cold buffering under 300ms 20",
+      "passed": true,
+      "at": 1794353377673
+    },
+    {
+      "name": "cold playing 21",
+      "passed": true,
+      "at": 1794353378603
+    },
+    {
+      "name": "cold buffering under 300ms 21",
+      "passed": true,
+      "at": 1794353378612
+    },
+    {
+      "name": "cold playing 22",
+      "passed": true,
+      "at": 1794353379647
+    },
+    {
+      "name": "cold buffering under 300ms 22",
+      "passed": true,
+      "at": 1794353379653
+    },
+    {
+      "name": "cold playing 23",
+      "passed": true,
+      "at": 1794353380855
+    },
+    {
+      "name": "cold buffering under 300ms 23",
+      "passed": true,
+      "at": 1794353380864
+    },
+    {
+      "name": "cold playing 24",
+      "passed": true,
+      "at": 1794353381779
+    },
+    {
+      "name": "cold buffering under 300ms 24",
+      "passed": true,
+      "at": 1794353381792
+    },
+    {
+      "name": "cold playing 25",
+      "passed": true,
+      "at": 1794353382736
+    },
+    {
+      "name": "cold buffering under 300ms 25",
+      "passed": true,
+      "at": 1794353382749
+    },
+    {
+      "name": "cold playing 26",
+      "passed": true,
+      "at": 1794353383742
+    },
+    {
+      "name": "cold buffering under 300ms 26",
+      "passed": true,
+      "at": 1794353383752
+    },
+    {
+      "name": "cold playing 27",
+      "passed": true,
+      "at": 1794353384963
+    },
+    {
+      "name": "cold buffering under 300ms 27",
+      "passed": true,
+      "at": 1794353384967
+    },
+    {
+      "name": "cold playing 28",
+      "passed": true,
+      "at": 1794353385772
+    },
+    {
+      "name": "cold buffering under 300ms 28",
+      "passed": true,
+      "at": 1794353385782
+    },
+    {
+      "name": "cold playing 29",
+      "passed": true,
+      "at": 1794353386690
+    },
+    {
+      "name": "cold buffering under 300ms 29",
+      "passed": true,
+      "at": 1794353386703
+    },
+    {
+      "name": "cold playing 30",
+      "passed": true,
+      "at": 1794353387715
+    },
+    {
+      "name": "cold buffering under 300ms 30",
+      "passed": true,
+      "at": 1794353387725
+    },
+    {
+      "name": "cold playing 31",
+      "passed": true,
+      "at": 1794353388990
+    },
+    {
+      "name": "cold buffering under 300ms 31",
+      "passed": true,
+      "at": 1794353389003
+    },
+    {
+      "name": "cold playing 32",
+      "passed": true,
+      "at": 1794353389940
+    },
+    {
+      "name": "cold buffering under 300ms 32",
+      "passed": true,
+      "at": 1794353389954
+    },
+    {
+      "name": "cold playing 33",
+      "passed": true,
+      "at": 1794353390946
+    },
+    {
+      "name": "cold buffering under 300ms 33",
+      "passed": true,
+      "at": 1794353390958
+    },
+    {
+      "name": "cold playing 34",
+      "passed": true,
+      "at": 1794353391977
+    },
+    {
+      "name": "cold buffering under 300ms 34",
+      "passed": true,
+      "at": 1794353391987
+    },
+    {
+      "name": "cold playing 35",
+      "passed": true,
+      "at": 1794353393259
+    },
+    {
+      "name": "cold buffering under 300ms 35",
+      "passed": true,
+      "at": 1794353393272
+    },
+    {
+      "name": "cold playing 36",
+      "passed": true,
+      "at": 1794353394182
+    },
+    {
+      "name": "cold buffering under 300ms 36",
+      "passed": true,
+      "at": 1794353394187
+    },
+    {
+      "name": "cold playing 37",
+      "passed": true,
+      "at": 1794353395140
+    },
+    {
+      "name": "cold buffering under 300ms 37",
+      "passed": true,
+      "at": 1794353395154
+    },
+    {
+      "name": "cold playing 38",
+      "passed": true,
+      "at": 1794353396183
+    },
+    {
+      "name": "cold buffering under 300ms 38",
+      "passed": true,
+      "at": 1794353396196
+    },
+    {
+      "name": "cold playing 39",
+      "passed": true,
+      "at": 1794353397461
+    },
+    {
+      "name": "cold buffering under 300ms 39",
+      "passed": false,
+      "at": 1794353397474
+    },
+    {
+      "name": "cold playing 40",
+      "passed": true,
+      "at": 1794353398410
+    },
+    {
+      "name": "cold buffering under 300ms 40",
+      "passed": true,
+      "at": 1794353398424
+    },
+    {
+      "name": "cold playing 41",
+      "passed": true,
+      "at": 1794353399364
+    },
+    {
+      "name": "cold buffering under 300ms 41",
+      "passed": true,
+      "at": 1794353399377
+    },
+    {
+      "name": "cold playing 42",
+      "passed": true,
+      "at": 1794353400423
+    },
+    {
+      "name": "cold buffering under 300ms 42",
+      "passed": true,
+      "at": 1794353400427
+    },
+    {
+      "name": "cold playing 43",
+      "passed": true,
+      "at": 1794353401566
+    },
+    {
+      "name": "cold buffering under 300ms 43",
+      "passed": true,
+      "at": 1794353401571
+    },
+    {
+      "name": "cold playing 44",
+      "passed": true,
+      "at": 1794353402484
+    },
+    {
+      "name": "cold buffering under 300ms 44",
+      "passed": true,
+      "at": 1794353402497
+    },
+    {
+      "name": "cold playing 45",
+      "passed": true,
+      "at": 1794353403469
+    },
+    {
+      "name": "cold buffering under 300ms 45",
+      "passed": true,
+      "at": 1794353403484
+    },
+    {
+      "name": "cold playing 46",
+      "passed": true,
+      "at": 1794353404515
+    },
+    {
+      "name": "cold buffering under 300ms 46",
+      "passed": true,
+      "at": 1794353404533
+    },
+    {
+      "name": "cold playing 47",
+      "passed": true,
+      "at": 1794353405794
+    },
+    {
+      "name": "cold buffering under 300ms 47",
+      "passed": true,
+      "at": 1794353405807
+    },
+    {
+      "name": "cold playing 48",
+      "passed": true,
+      "at": 1794353406759
+    },
+    {
+      "name": "cold buffering under 300ms 48",
+      "passed": true,
+      "at": 1794353406776
+    },
+    {
+      "name": "cold playing 49",
+      "passed": true,
+      "at": 1794353407731
+    },
+    {
+      "name": "cold buffering under 300ms 49",
+      "passed": true,
+      "at": 1794353407746
+    },
+    {
+      "name": "cold playing 50",
+      "passed": true,
+      "at": 1794353408783
+    },
+    {
+      "name": "cold buffering under 300ms 50",
+      "passed": true,
+      "at": 1794353408790
+    },
+    {
+      "name": "cold playing 51",
+      "passed": true,
+      "at": 1794353409994
+    },
+    {
+      "name": "cold buffering under 300ms 51",
+      "passed": true,
+      "at": 1794353410010
+    },
+    {
+      "name": "cold playing 52",
+      "passed": true,
+      "at": 1794353410957
+    },
+    {
+      "name": "cold buffering under 300ms 52",
+      "passed": true,
+      "at": 1794353410976
+    },
+    {
+      "name": "cold playing 53",
+      "passed": true,
+      "at": 1794353411935
+    },
+    {
+      "name": "cold buffering under 300ms 53",
+      "passed": true,
+      "at": 1794353411951
+    },
+    {
+      "name": "cold playing 54",
+      "passed": true,
+      "at": 1794353413006
+    },
+    {
+      "name": "cold buffering under 300ms 54",
+      "passed": true,
+      "at": 1794353413026
+    },
+    {
+      "name": "cold playing 55",
+      "passed": true,
+      "at": 1794353414289
+    },
+    {
+      "name": "cold buffering under 300ms 55",
+      "passed": true,
+      "at": 1794353414303
+    },
+    {
+      "name": "cold playing 56",
+      "passed": true,
+      "at": 1794353415208
+    },
+    {
+      "name": "cold buffering under 300ms 56",
+      "passed": true,
+      "at": 1794353415222
+    },
+    {
+      "name": "cold playing 57",
+      "passed": true,
+      "at": 1794353416212
+    },
+    {
+      "name": "cold buffering under 300ms 57",
+      "passed": true,
+      "at": 1794353416226
+    },
+    {
+      "name": "cold playing 58",
+      "passed": true,
+      "at": 1794353417223
+    },
+    {
+      "name": "cold buffering under 300ms 58",
+      "passed": true,
+      "at": 1794353417236
+    },
+    {
+      "name": "cold playing 59",
+      "passed": true,
+      "at": 1794353418362
+    },
+    {
+      "name": "cold buffering under 300ms 59",
+      "passed": true,
+      "at": 1794353418374
+    },
+    {
+      "name": "immediate soft restart 0",
+      "passed": true,
+      "at": 1794353418558
+    },
+    {
+      "name": "immediate soft restart 1",
+      "passed": true,
+      "at": 1794353418664
+    },
+    {
+      "name": "immediate soft restart 2",
+      "passed": true,
+      "at": 1794353418777
+    },
+    {
+      "name": "immediate soft restart 3",
+      "passed": true,
+      "at": 1794353418892
+    },
+    {
+      "name": "immediate soft restart 4",
+      "passed": true,
+      "at": 1794353419004
+    },
+    {
+      "name": "immediate soft restart 5",
+      "passed": true,
+      "at": 1794353419120
+    },
+    {
+      "name": "immediate soft restart 6",
+      "passed": true,
+      "at": 1794353419235
+    },
+    {
+      "name": "immediate soft restart 7",
+      "passed": true,
+      "at": 1794353419343
+    },
+    {
+      "name": "immediate soft restart 8",
+      "passed": true,
+      "at": 1794353419478
+    },
+    {
+      "name": "immediate soft restart 9",
+      "passed": true,
+      "at": 1794353419584
+    },
+    {
+      "name": "A active",
+      "passed": true,
+      "at": 1794353420342
+    },
+    {
+      "name": "buffering during delayed playlist",
+      "passed": true,
+      "at": 1794353420441
+    },
+    {
+      "name": "pause survives delayed source",
+      "passed": true,
+      "at": 1794353422949
+    },
+    {
+      "name": "resume selected B",
+      "passed": true,
+      "at": 1794353423067
+    },
+    {
+      "name": "rapid selection reaches C",
+      "passed": true,
+      "at": 1794353423925
+    },
+    {
+      "name": "latest received title C",
+      "passed": true,
+      "at": 1794353424939
+    },
+    {
+      "name": "finite starts",
+      "passed": true,
+      "at": 1794353425889
+    },
+    {
+      "name": "finite ends as stopped",
+      "passed": true,
+      "at": 1794353434098
+    },
+    {
+      "name": "finite stays stopped",
+      "passed": true,
+      "at": 1794353434628
+    },
+    {
+      "name": "finite restart plays again",
+      "passed": true,
+      "at": 1794353435054
+    }
+  ],
+  "timings": [
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=0",
+      "at": 1794353356494,
+      "buffering": 396,
+      "playing": 939
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=1",
+      "at": 1794353357630,
+      "buffering": 230,
+      "playing": 778
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=2",
+      "at": 1794353358654,
+      "buffering": 218,
+      "playing": 770
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=3",
+      "at": 1794353359806,
+      "buffering": 179,
+      "playing": 707
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=4",
+      "at": 1794353360677,
+      "buffering": 187,
+      "playing": 716
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=5",
+      "at": 1794353361554,
+      "buffering": 167,
+      "playing": 701
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=6",
+      "at": 1794353362487,
+      "buffering": 173,
+      "playing": 752
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=7",
+      "at": 1794353363667,
+      "buffering": 252,
+      "playing": 817
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=8",
+      "at": 1794353364639,
+      "buffering": 201,
+      "playing": 774
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=9",
+      "at": 1794353365585,
+      "buffering": 195,
+      "playing": 765
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=10",
+      "at": 1794353366629,
+      "buffering": 233,
+      "playing": 798
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=11",
+      "at": 1794353367826,
+      "buffering": 253,
+      "playing": 855
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=12",
+      "at": 1794353368837,
+      "buffering": 214,
+      "playing": 795
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=13",
+      "at": 1794353369831,
+      "buffering": 176,
+      "playing": 743
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=14",
+      "at": 1794353370821,
+      "buffering": 200,
+      "playing": 765
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=15",
+      "at": 1794353371988,
+      "buffering": 242,
+      "playing": 819
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=16",
+      "at": 1794353372984,
+      "buffering": 63,
+      "playing": 649
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=17",
+      "at": 1794353373804,
+      "buffering": 178,
+      "playing": 747
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=18",
+      "at": 1794353374796,
+      "buffering": 211,
+      "playing": 776
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=19",
+      "at": 1794353376002,
+      "buffering": 275,
+      "playing": 863
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=20",
+      "at": 1794353377020,
+      "buffering": 56,
+      "playing": 644
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=21",
+      "at": 1794353377854,
+      "buffering": 184,
+      "playing": 739
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=22",
+      "at": 1794353378872,
+      "buffering": 203,
+      "playing": 766
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=23",
+      "at": 1794353380037,
+      "buffering": 248,
+      "playing": 808
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=24",
+      "at": 1794353381013,
+      "buffering": 196,
+      "playing": 766
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=25",
+      "at": 1794353381987,
+      "buffering": 181,
+      "playing": 749
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=26",
+      "at": 1794353382987,
+      "buffering": 184,
+      "playing": 754
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=27",
+      "at": 1794353384140,
+      "buffering": 258,
+      "playing": 812
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=28",
+      "at": 1794353385118,
+      "buffering": 69,
+      "playing": 644
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=29",
+      "at": 1794353385947,
+      "buffering": 179,
+      "playing": 743
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=30",
+      "at": 1794353386940,
+      "buffering": 187,
+      "playing": 765
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=31",
+      "at": 1794353388130,
+      "buffering": 261,
+      "playing": 859
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=32",
+      "at": 1794353389148,
+      "buffering": 200,
+      "playing": 792
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=33",
+      "at": 1794353390122,
+      "buffering": 221,
+      "playing": 814
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=34",
+      "at": 1794353391211,
+      "buffering": 173,
+      "playing": 756
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=35",
+      "at": 1794353392378,
+      "buffering": 274,
+      "playing": 881
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=36",
+      "at": 1794353393431,
+      "buffering": 212,
+      "playing": 751
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=37",
+      "at": 1794353394356,
+      "buffering": 189,
+      "playing": 775
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=38",
+      "at": 1794353395400,
+      "buffering": 202,
+      "playing": 773
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=39",
+      "at": 1794353396585,
+      "buffering": 307,
+      "playing": 876
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=40",
+      "at": 1794353397632,
+      "buffering": 191,
+      "playing": 767
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=41",
+      "at": 1794353398594,
+      "buffering": 190,
+      "playing": 769
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=42",
+      "at": 1794353399617,
+      "buffering": 238,
+      "playing": 805
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=43",
+      "at": 1794353400821,
+      "buffering": 193,
+      "playing": 745
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=44",
+      "at": 1794353401707,
+      "buffering": 187,
+      "playing": 767
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=45",
+      "at": 1794353402670,
+      "buffering": 199,
+      "playing": 799
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=46",
+      "at": 1794353403740,
+      "buffering": 177,
+      "playing": 775
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=47",
+      "at": 1794353404927,
+      "buffering": 277,
+      "playing": 857
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=48",
+      "at": 1794353405958,
+      "buffering": 210,
+      "playing": 800
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=49",
+      "at": 1794353406952,
+      "buffering": 179,
+      "playing": 768
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=50",
+      "at": 1794353407991,
+      "buffering": 208,
+      "playing": 792
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=51",
+      "at": 1794353409169,
+      "buffering": 214,
+      "playing": 815
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=52",
+      "at": 1794353410179,
+      "buffering": 201,
+      "playing": 778
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=53",
+      "at": 1794353411145,
+      "buffering": 199,
+      "playing": 790
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=54",
+      "at": 1794353412189,
+      "buffering": 225,
+      "playing": 816
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=55",
+      "at": 1794353413427,
+      "buffering": 257,
+      "playing": 851
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=56",
+      "at": 1794353414450,
+      "buffering": 190,
+      "playing": 758
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=57",
+      "at": 1794353415407,
+      "buffering": 202,
+      "playing": 795
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/C.mp3?fix2=58",
+      "at": 1794353416482,
+      "buffering": 176,
+      "playing": 741
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3?fix2=59",
+      "at": 1794353417628,
+      "buffering": 170,
+      "playing": 733
+    },
+    {
+      "url": "http://192.168.100.4:18768/stream/A.mp3",
+      "at": 1794353419643,
+      "buffering": 85,
+      "playing": 699
+    }
+  ],
+  "events": [
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353356605
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353356890
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353357237
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353357433
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353357590
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353357612
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353357860
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353357989
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353358408
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353358539
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353358872
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353358990
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353359424
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353359568
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353359985
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353360070
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353360513
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353360663
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353360687
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353360864
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353360958
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353361393
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353361514
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353361721
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353361799
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353362255
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353362403
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353362660
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353362744
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353363239
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353363412
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353363429
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353363919
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353364050
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353364484
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353364629
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353364840
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353364926
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353365413
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353365571
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353365780
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353365888
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353366350
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353366523
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353366540
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353366862
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353366971
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353367427
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353367564
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353368079
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353368234
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353368681
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353368845
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353369051
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353369187
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353369632
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353369800
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353369818
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353370007
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353370157
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353370574
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353370709
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353371021
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353371157
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353371586
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353371758
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353372230
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353372361
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353372807
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353372975
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353373044
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353373047
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353373150
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353373633
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353373766
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353373982
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353374071
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353374551
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353374718
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353375007
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353375123
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353375572
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353375746
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353375764
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353376277
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353376408
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353376865
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353377004
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353377076
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353377194
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353377664
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353377833
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353378038
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353378146
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353378593
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353378767
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353378792
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353379075
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353379209
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353379638
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353379771
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353380285
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353380428
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353380845
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353381022
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353381209
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353381321
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353381779
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353381956
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353381975
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353382168
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353382306
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353382736
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353382874
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353383171
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353383296
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353383741
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353383910
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353384398
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353384549
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353384952
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353385113
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353385185
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353385187
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353385289
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353385762
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353385913
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353386126
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353386231
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353386690
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353386856
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353387127
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353387323
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353387705
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353387876
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353387891
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353388391
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353388653
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353388989
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353389129
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353389348
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353389546
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353389940
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353390104
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353390343
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353390554
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353390936
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353391107
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353391120
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353391384
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353391616
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353391967
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353392121
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353392652
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353392865
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353393259
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353393441
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353393643
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353393779
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353394182
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353394327
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353394339
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353394545
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353394692
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353395131
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353395292
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353395602
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353395783
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353396173
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353396363
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353396892
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353397102
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353397461
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353397619
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353397640
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353397823
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353397991
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353398399
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353398562
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353398784
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353398993
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353399363
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353399536
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353399855
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353400083
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353400422
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353400567
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353400580
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353401014
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353401156
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353401566
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353401689
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353401894
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353402012
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353402474
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353402650
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353402869
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353403060
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353403469
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353403635
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353403652
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353403917
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353404115
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353404515
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353404667
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353405204
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353405444
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353405784
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353405969
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353406168
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353406389
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353406758
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353406922
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353406936
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353407131
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353407295
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353407720
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353407885
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353408199
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353408429
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353408783
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353408929
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353409383
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353409585
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353409984
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353410163
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353410188
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353410380
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353410540
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353410957
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353411109
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353411344
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353411535
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353411935
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353412106
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353412414
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353412607
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353413005
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353413173
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353413187
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353413684
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353413909
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353414278
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353414431
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353414640
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353414840
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353415208
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353415386
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353415609
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353415840
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353416202
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353416378
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353416391
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353416658
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353416842
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353417223
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353417366
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353417798
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353417979
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353418361
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353418516
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353418564
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353418626
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353418669
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353418735
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353418783
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353418846
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353418899
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353418965
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353419010
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353419075
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353419125
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353419189
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353419240
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353419303
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353419348
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353419414
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353419484
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353419547
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353419593
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353419728
+    },
+    {
+      "type": "metadata",
+      "value": "Station A",
+      "at": 1794353419922
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353420342
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353420431
+    },
+    {
+      "type": "state",
+      "value": "paused",
+      "at": 1794353420479
+    },
+    {
+      "type": "metadata",
+      "value": "Station B",
+      "at": 1794353422671
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353422990
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353423085
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353423165
+    },
+    {
+      "type": "metadata",
+      "value": "Station C",
+      "at": 1794353423468
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353423925
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353424987
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353425553
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353425889
+    },
+    {
+      "type": "state",
+      "value": "stopped",
+      "at": 1794353434088
+    },
+    {
+      "type": "state",
+      "value": "buffering",
+      "at": 1794353434695
+    },
+    {
+      "type": "state",
+      "value": "playing",
+      "at": 1794353435054
+    }
+  ],
+  "complete": true
+}

@@ -4,6 +4,10 @@ Platform-specific details for the Android implementation of `ti.audiostream`.
 
 For the full API reference, see the [main README](../README.md).
 
+## Build requirements
+
+Use Titanium SDK **13.4.1.GA+** and Android **compileSdk 36+**. The minimum device version is **API 24**. This build uses Media3 1.11.1 and Guava 33.8.0-android. Upgrade older Titanium apps before installing it.
+
 ## Android-specific behavior
 
 ### Background playback
@@ -14,6 +18,8 @@ Audio runs inside a **Foreground Service** with a persistent media notification.
 - **Expanded** - notification drawer
 - **System media player** - Quick Settings panel
 
+Start playback from a visible activity or a supported system media control. Android can reject a new foreground service started from the background. If a restart after `hardStop()` is rejected, handle the `error` event and let the user start again from the app. [Android foreground service rules](https://developer.android.com/develop/background-work/services/fgs/launch)
+
 ### MediaSession
 
 The module creates a `MediaSession` that exposes playback state and metadata to:
@@ -22,17 +28,30 @@ The module creates a `MediaSession` that exposes playback state and metadata to:
 - Android Auto head units
 - The system output switcher (media routing)
 
+### Station transitions
+
+When you select a source, the module stops the previous audio and reports `buffering` while it loads the new one. If you pause or stop while the module is resolving the URL, the response leaves playback in the state you requested. When an external controller prepares a station by ID, the module selects it and clears the old item without taking audio focus. Play then loads the selected station.
+
+Media3 opens audio and HLS URLs with recognized suffixes directly. The module resolves `.pls`, `.m3u` and extensionless HTTP URLs, including relative playlist entries and mixed-case MIME types. It can cancel a playlist request without cancelling the artwork download.
+
+The initial connection and an in-app station change show a foreground notification with Pause while the source loads. The SystemUI media card is linked when native audio starts. Browsers can read buffering state and cancel loading. Explicit SystemUI resume or play also establishes transport control immediately. Stopping playback or selecting a station in the app retires the current card so a delayed Stop from it cannot cancel the new load.
+
+If Android temporarily takes audio focus while a source is loading, the module reports paused. It holds the prepared item until focus returns, then resumes if playback is still requested. A manual pause, a stop or permanent loss of focus cancels the resume. The module uses `isPlaying` to confirm playback after Media3 reaches READY.
+
 ### Auto-retry on stream failure
 
-When a stream connection drops, the engine retries automatically: **5 attempts** with a **3-second delay** between each. The `error` event only fires after all retries are exhausted.
+When a stream connection drops, the engine retries automatically: **5 attempts** with a **3-second delay** between each. Player failures can emit `error` before a retry and then return to `buffering`. Follow `state` to distinguish recovery from a terminal failure.
 
 ### Audio focus handling
 
 | Scenario                                               | Behavior                                                          |
 | :----------------------------------------------------- | :---------------------------------------------------------------- |
-| Transient loss (notification sound, navigation prompt) | Volume ducks to 20%                                               |
-| Full loss (phone call, another media app)              | Playback pauses                                                   |
-| Focus regained                                         | Playback resumes (only if it was playing before the interruption) |
+| Transient loss with permission to duck | Volume ducks to 20% |
+| Transient loss without ducking | Playback pauses. It can resume on focus gain while playback is still requested. |
+| Permanent loss | Playback pauses and requires a new playback request. |
+| Manual pause or stop during an interruption | The manual command cancels automatic resume. |
+
+Android exposes the focus change via [`audiofocuschange`](../README.md#audiofocuschange-android).
 
 ### Permissions
 
@@ -60,7 +79,7 @@ When connected to an Android Auto head unit, the car display shows:
 
 - App icon
 - Stream title and artist
-- Artwork (scaled to 512x512)
+- Artwork when supplied. The receiver can choose between the embedded bitmap and the cached URI.
 - Transport controls: play, pause, stop, next, previous
 
 ### Handling controls from Android Auto
@@ -118,8 +137,10 @@ loadStation(0)
 ### Artwork notes
 
 - Artwork is scaled to **512x512** for MediaSession metadata to stay within Binder IPC transaction limits.
-- The full-size bitmap remains on the phone notification.
+- The module limits network artwork to 8 MiB and decodes it near 1024 pixels for the notification. It scales a separate copy to 512 pixels for MediaSession. Catalog and resume entries use local cached URIs with read grants. The FileProvider stays private.
 - If artwork does not show over Bluetooth, the car stereo likely uses AVRCP 1.3 or below, which only transmits title and artist.
+
+Registered catalog stations also support native next/previous and voice search without a live JavaScript handler. Search selects only registered stations.
 
 ## Testing
 
@@ -138,9 +159,9 @@ Without this, your app will not appear on the car head unit even if the module i
 ### Desktop Head Unit (DHU)
 
 1. Install DHU: Android Studio > SDK Manager > SDK Tools > check "Android Auto Desktop Head Unit Emulator"
-2. Enable developer mode on the phone (steps above)
-3. Connect the phone via USB and launch the DHU from the command line
-4. Your app should appear as an audio source on the DHU
+2. Enable developer mode on the phone, unlock it, and connect it by USB.
+3. Start DHU 2.x with `./desktop-head-unit --usb`. If you use ADB tunneling, start the head unit server on the phone and follow Google's port forwarding steps. [Official DHU setup](https://developer.android.com/training/cars/testing/dhu)
+4. Open your app from the DHU's audio sources and exercise the station list and playback controls.
 
 ## Troubleshooting
 
@@ -158,5 +179,5 @@ Without this, your app will not appear on the car head unit even if the module i
 
 ### Controls do not respond
 
-- Make sure you have a `remotecontrol` event listener set up
-- `NEXT` and `PREV` require your app code to handle them. The module only handles play, pause, and stop automatically.
+- If your app listens for `remotecontrol`, handle `NEXT` and `PREV` in that listener. Without a listener, the module uses the registered automotive catalog to choose the adjacent station.
+- Play, pause, and stop are handled automatically.

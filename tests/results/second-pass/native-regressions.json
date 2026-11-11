@@ -1,0 +1,34 @@
+{
+  "android-final-tests.log": {
+    "passed": 63,
+    "failed": 0
+  },
+  "buffering-final.log": {
+    "passed": 12,
+    "failed": 0
+  },
+  "transitions-fix2.log": {
+    "passed": 26,
+    "failed": 0
+  },
+  "receiver-final.log": {
+    "passed": 6,
+    "failed": 0
+  },
+  "focus-fix2.log": {
+    "passed": 8,
+    "failed": 0
+  },
+  "ios-fix2-tests.log": {
+    "passed": 29,
+    "failed": 0
+  },
+  "content-fix2.log": {
+    "passed": 17,
+    "failed": 0
+  },
+  "carplay-fix2.log": {
+    "passed": 7,
+    "failed": 0
+  }
+}

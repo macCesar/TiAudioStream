@@ -1,0 +1,249 @@
+{
+  "platform": "android",
+  "checks": [
+    {
+      "name": "direct stream plays",
+      "passed": true,
+      "at": 1794328781546
+    },
+    {
+      "name": "repeated start keeps playing",
+      "passed": true,
+      "at": 1794328782565
+    },
+    {
+      "name": "repeated start does not prepare again",
+      "passed": true,
+      "at": 1794328782570
+    },
+    {
+      "name": "metadata event with automatic publication disabled",
+      "passed": true,
+      "at": 1794328784586
+    },
+    {
+      "name": "manual pause remains paused",
+      "passed": true,
+      "at": 1794328788604
+    },
+    {
+      "name": "soft stop remains stopped",
+      "passed": true,
+      "at": 1794328790622
+    },
+    {
+      "name": "play alias resumes after soft stop",
+      "passed": true,
+      "at": 1794328792641
+    },
+    {
+      "name": "relative PLS plays after hard stop",
+      "passed": true,
+      "at": 1794328797671
+    },
+    {
+      "name": "relative M3U plays",
+      "passed": true,
+      "at": 1794328802705
+    },
+    {
+      "name": "pause cancels pending retry",
+      "passed": true,
+      "at": 1794328808740
+    },
+    {
+      "name": "public stream plays: Radio Paradise",
+      "passed": true,
+      "at": 1794328820787
+    },
+    {
+      "name": "public stream pauses: Radio Paradise",
+      "passed": true,
+      "at": 1794328821806
+    },
+    {
+      "name": "public stream plays: Heart London HLS",
+      "passed": true,
+      "at": 1794328833846
+    },
+    {
+      "name": "public stream pauses: Heart London HLS",
+      "passed": true,
+      "at": 1794328834869
+    },
+    {
+      "name": "public stream plays: The VIP Lounge 2",
+      "passed": true,
+      "at": 1794328846913
+    },
+    {
+      "name": "public stream pauses: The VIP Lounge 2",
+      "passed": true,
+      "at": 1794328847932
+    }
+  ],
+  "states": [
+    {
+      "state": "buffering",
+      "at": 1794328774882
+    },
+    {
+      "state": "playing",
+      "at": 1794328775797
+    },
+    {
+      "state": "paused",
+      "at": 1794328784651
+    },
+    {
+      "state": "stopped",
+      "at": 1794328788639
+    },
+    {
+      "state": "playing",
+      "at": 1794328790705
+    },
+    {
+      "state": "stopped",
+      "at": 1794328792733
+    },
+    {
+      "state": "buffering",
+      "at": 1794328792766
+    },
+    {
+      "state": "playing",
+      "at": 1794328793365
+    },
+    {
+      "state": "stopped",
+      "at": 1794328797777
+    },
+    {
+      "state": "buffering",
+      "at": 1794328797799
+    },
+    {
+      "state": "playing",
+      "at": 1794328798393
+    },
+    {
+      "state": "stopped",
+      "at": 1794328802794
+    },
+    {
+      "state": "buffering",
+      "at": 1794328802808
+    },
+    {
+      "state": "paused",
+      "at": 1794328803781
+    },
+    {
+      "state": "stopped",
+      "at": 1794328805918
+    },
+    {
+      "state": "buffering",
+      "at": 1794328809164
+    },
+    {
+      "state": "playing",
+      "at": 1794328809665
+    },
+    {
+      "state": "paused",
+      "at": 1794328820890
+    },
+    {
+      "state": "stopped",
+      "at": 1794328821939
+    },
+    {
+      "state": "buffering",
+      "at": 1794328822530
+    },
+    {
+      "state": "playing",
+      "at": 1794328824633
+    },
+    {
+      "state": "paused",
+      "at": 1794328833931
+    },
+    {
+      "state": "stopped",
+      "at": 1794328835009
+    },
+    {
+      "state": "buffering",
+      "at": 1794328835757
+    },
+    {
+      "state": "playing",
+      "at": 1794328836963
+    },
+    {
+      "state": "paused",
+      "at": 1794328846978
+    },
+    {
+      "state": "stopped",
+      "at": 1794328847974
+    }
+  ],
+  "metadata": [
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "Fixture Song",
+      "artist": "Fixture Artist"
+    },
+    {
+      "title": "Bell",
+      "artist": "Kerala Dust"
+    },
+    {
+      "title": "One Day In Your Life",
+      "artist": "Michael Jackson"
+    }
+  ],
+  "errors": [],
+  "publicStreams": [
+    {
+      "title": "Radio Paradise",
+      "metadata": [
+        {
+          "title": "Bell",
+          "artist": "Kerala Dust"
+        }
+      ]
+    },
+    {
+      "title": "Heart London HLS",
+      "metadata": []
+    },
+    {
+      "title": "The VIP Lounge 2",
+      "metadata": [
+        {
+          "title": "One Day In Your Life",
+          "artist": "Michael Jackson"
+        }
+      ]
+    }
+  ],
+  "complete": true,
+  "build": {
+    "titanium": "13.4.1.GA",
+    "media3": "1.11.1",
+    "guava": "33.8.0-android",
+    "compileSdk": 36
+  }
+}

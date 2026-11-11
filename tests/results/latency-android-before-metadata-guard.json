@@ -1,0 +1,272 @@
+{
+  "platform": "android",
+  "samples": [
+    {
+      "name": "cold 1: buffering",
+      "elapsedMs": 337,
+      "budgetMs": 300,
+      "passed": false
+    },
+    {
+      "name": "cold 1: playing",
+      "elapsedMs": 1116,
+      "budgetMs": null
+    },
+    {
+      "name": "cold 1: received metadata",
+      "elapsedMs": 1009,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 1",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: buffering",
+      "elapsedMs": 76,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: playing",
+      "elapsedMs": 4690,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 1: received metadata",
+      "elapsedMs": 777,
+      "budgetMs": null
+    },
+    {
+      "name": "pause 1",
+      "elapsedMs": 48,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 1",
+      "elapsedMs": 13,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 2: buffering",
+      "elapsedMs": 163,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 2: playing",
+      "elapsedMs": 752,
+      "budgetMs": null
+    },
+    {
+      "name": "cold 2: received metadata",
+      "elapsedMs": 294,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 2",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: buffering",
+      "elapsedMs": 105,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: playing",
+      "elapsedMs": 4745,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 2: received metadata",
+      "elapsedMs": 683,
+      "budgetMs": null
+    },
+    {
+      "name": "pause 2",
+      "elapsedMs": 49,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 2",
+      "elapsedMs": 65,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 3: buffering",
+      "elapsedMs": 208,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "cold 3: playing",
+      "elapsedMs": 812,
+      "budgetMs": null
+    },
+    {
+      "name": "cold 3: received metadata",
+      "elapsedMs": 353,
+      "budgetMs": null
+    },
+    {
+      "name": "repeated start 3",
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: buffering",
+      "elapsedMs": 138,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: playing",
+      "elapsedMs": 4784,
+      "budgetMs": null
+    },
+    {
+      "name": "switch with 2s HTTP delay 3: received metadata",
+      "elapsedMs": 689,
+      "budgetMs": null
+    },
+    {
+      "name": "pause 3",
+      "elapsedMs": 55,
+      "budgetMs": 300,
+      "passed": true
+    },
+    {
+      "name": "stop 3",
+      "elapsedMs": 13,
+      "budgetMs": 300,
+      "passed": true
+    }
+  ],
+  "events": [
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333278268
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333278940
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333279047
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333279428
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333280129
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333284042
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333284091
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333284105
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333284573
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333284704
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333285162
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333285584
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333286162
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333290224
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333290273
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333290339
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333290855
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333291000
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333291459
+    },
+    {
+      "kind": "state",
+      "value": "buffering",
+      "at": 1794333291914
+    },
+    {
+      "kind": "metadata",
+      "value": "Fixture Song",
+      "at": 1794333292465
+    },
+    {
+      "kind": "state",
+      "value": "playing",
+      "at": 1794333296560
+    },
+    {
+      "kind": "state",
+      "value": "paused",
+      "at": 1794333296625
+    },
+    {
+      "kind": "state",
+      "value": "stopped",
+      "at": 1794333296639
+    }
+  ],
+  "complete": true
+}

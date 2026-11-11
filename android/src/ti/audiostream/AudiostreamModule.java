@@ -18,7 +18,6 @@ import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.KrollRuntime;
 import org.appcelerator.kroll.annotations.Kroll;
-import org.appcelerator.kroll.common.Log;
 import org.appcelerator.kroll.common.TiConfig;
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.util.TiConvert;
@@ -67,7 +66,6 @@ public class AudiostreamModule extends KrollModule
 	private static AudiostreamModule activeModule;
 
 	// State
-	private boolean serviceStarted = false;
 	private boolean isPlaying = false;
 	private static String lastEmittedState = null;
 
@@ -221,7 +219,7 @@ public class AudiostreamModule extends KrollModule
 	public static void onAppCreate(TiApplication app)
 	{
 		if (DBG) {
-			Log.d(LCAT, "onAppCreate");
+			if (DBG) DiagnosticLog.d(LCAT, "onAppCreate");
 		}
 	}
 
@@ -235,20 +233,20 @@ public class AudiostreamModule extends KrollModule
 	public void setStream(KrollDict args)
 	{
 		if (args == null) {
-			Log.e(LCAT, "setStream: args is null");
+			DiagnosticLog.e(LCAT, "setStream: args is null");
 			return;
 		}
 
 		String url = TiConvert.toString(args.get("url"), null);
 		if (url == null || url.isEmpty()) {
-			Log.e(LCAT, "setStream: url is required");
+			DiagnosticLog.e(LCAT, "setStream: url is required");
 			return;
 		}
 
 		boolean isLive = TiConvert.toBoolean(args.get("isLive"), true);
 		boolean autoUpdateMetadata = TiConvert.toBoolean(args.get("autoUpdateMetadata"), true);
 
-		Log.d(LCAT, "setStream: " + url + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
+		if (DBG) DiagnosticLog.d(LCAT, "setStream: " + url + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_SET_STREAM);
@@ -293,14 +291,14 @@ public class AudiostreamModule extends KrollModule
 						json.put("artist", serializeMetadataRulesArray(artistRules));
 					}
 
-					Log.d(LCAT, "setStream: metadataRules: " + json.toString());
+					if (DBG) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 					intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, json.toString());
 				} catch (Exception e) {
-					Log.e(LCAT, "setStream: failed to serialize metadataRules: " + e.getMessage());
+					DiagnosticLog.e(LCAT, "setStream: failed to serialize metadataRules: " + e.getClass().getSimpleName());
 				}
 			} else {
 				// null → signal clear rules
-				Log.d(LCAT, "setStream: clearing metadataRules");
+				if (DBG) DiagnosticLog.d(LCAT, "setStream: clearing metadataRules");
 				intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, "");
 			}
 		}
@@ -315,13 +313,12 @@ public class AudiostreamModule extends KrollModule
 	@Kroll.method
 	public void start()
 	{
-		Log.d(LCAT, "start");
-		isPlaying = true;
+		if (DBG) DiagnosticLog.d(LCAT, "start");
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_PLAY);
 
-		if (serviceStarted) {
+		if (MediaPlaybackService.isForegroundReady()) {
 			// Service already in foreground — just deliver the play intent.
 			// Avoids Android 12+ background startForegroundService() restriction.
 			startServiceSafely(intent);
@@ -330,13 +327,19 @@ public class AudiostreamModule extends KrollModule
 		}
 	}
 
+	@Kroll.method
+	public void play()
+	{
+		start();
+	}
+
 	/**
 	 * Pause playback
 	 */
 	@Kroll.method
 	public void pause()
 	{
-		Log.d(LCAT, "pause");
+		if (DBG) DiagnosticLog.d(LCAT, "pause");
 		isPlaying = false;
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
@@ -351,12 +354,9 @@ public class AudiostreamModule extends KrollModule
 	@Kroll.method
 	public void stop(@Kroll.argument(optional = true) KrollDict args)
 	{
-		Log.d(LCAT, "stop");
+		if (DBG) DiagnosticLog.d(LCAT, "stop");
 		isPlaying = false;
 		boolean hardStop = args != null && TiConvert.toBoolean(args.get("hard"), false);
-		if (hardStop) {
-			serviceStarted = false;
-		}
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_STOP);
@@ -371,9 +371,8 @@ public class AudiostreamModule extends KrollModule
 	@Kroll.method
 	public void hardStop()
 	{
-		Log.d(LCAT, "hardStop");
+		if (DBG) DiagnosticLog.d(LCAT, "hardStop");
 		isPlaying = false;
-		serviceStarted = false;
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_STOP);
@@ -397,14 +396,14 @@ public class AudiostreamModule extends KrollModule
 		String artist = TiConvert.toString(args.get("artist"), "");
 		String artwork = TiConvert.toString(args.get("artwork"), null);
 
-		Log.d(LCAT, "setMetadata: " + title + " - " + artist);
+		if (DBG) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_SET_METADATA);
-		intent.putExtra(MediaPlaybackService.EXTRA_TITLE, title);
-		intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
+		if (args.containsKey("title")) intent.putExtra(MediaPlaybackService.EXTRA_TITLE, title);
+		if (args.containsKey("artist")) intent.putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
 
-		if (artwork != null) {
+		if (args.containsKey("artwork")) {
 			intent.putExtra(MediaPlaybackService.EXTRA_ARTWORK_URL, artwork);
 		}
 
@@ -418,7 +417,7 @@ public class AudiostreamModule extends KrollModule
 	@Kroll.method
 	public void setAutoUpdateMetadata(boolean enabled)
 	{
-		Log.d(LCAT, "setAutoUpdateMetadata: " + enabled);
+		if (DBG) DiagnosticLog.d(LCAT, "setAutoUpdateMetadata: " + enabled);
 
 		Intent intent = new Intent(getContext(), MediaPlaybackService.class);
 		intent.setAction(MediaPlaybackService.ACTION_SET_AUTO_UPDATE_METADATA);
@@ -441,7 +440,7 @@ public class AudiostreamModule extends KrollModule
 		intent.setAction(MediaPlaybackService.ACTION_SET_METADATA_RULES);
 
 		if (args == null) {
-			Log.d(LCAT, "setMetadataRules: clearing rules");
+			if (DBG) DiagnosticLog.d(LCAT, "setMetadataRules: clearing rules");
 			// Send empty string to signal "clear rules"
 			intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, "");
 		} else {
@@ -456,10 +455,10 @@ public class AudiostreamModule extends KrollModule
 					json.put("artist", serializeMetadataRulesArray(args.get("artist")));
 				}
 
-				Log.d(LCAT, "setMetadataRules: " + json.toString());
+				if (DBG) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 				intent.putExtra(MediaPlaybackService.EXTRA_METADATA_RULES, json.toString());
 			} catch (Exception e) {
-				Log.e(LCAT, "setMetadataRules: failed to serialize rules: " + e.getMessage());
+				DiagnosticLog.e(LCAT, "setMetadataRules: failed to serialize rules: " + e.getClass().getSimpleName());
 				return;
 			}
 		}
@@ -474,7 +473,7 @@ public class AudiostreamModule extends KrollModule
 		intent.setAction(MediaPlaybackService.ACTION_SET_AUTOMOTIVE_STATIONS);
 
 		if (stations == null) {
-			Log.d(LCAT, "setAutomotiveStations: clearing stations");
+			if (DBG) DiagnosticLog.d(LCAT, "setAutomotiveStations: clearing stations");
 			intent.putExtra(MediaPlaybackService.EXTRA_AUTOMOTIVE_STATIONS, "");
 			startServiceSafely(intent);
 			return;
@@ -482,11 +481,11 @@ public class AudiostreamModule extends KrollModule
 
 		try {
 			JSONArray json = serializeAutomotiveStationsArray(stations);
-			Log.d(LCAT, "setAutomotiveStations: " + json.length() + " stations");
+			if (DBG) DiagnosticLog.d(LCAT, "setAutomotiveStations: " + json.length() + " stations");
 			intent.putExtra(MediaPlaybackService.EXTRA_AUTOMOTIVE_STATIONS, json.toString());
 			startServiceSafely(intent);
 		} catch (Exception e) {
-			Log.e(LCAT, "setAutomotiveStations: failed to serialize stations: " + e.getMessage());
+			DiagnosticLog.e(LCAT, "setAutomotiveStations: failed to serialize stations: " + e.getClass().getSimpleName());
 		}
 	}
 
@@ -497,7 +496,7 @@ public class AudiostreamModule extends KrollModule
 		intent.setAction(MediaPlaybackService.ACTION_SET_CURRENT_AUTOMOTIVE_STATION);
 
 		if (station == null) {
-			Log.d(LCAT, "setCurrentAutomotiveStation: clearing current station");
+			if (DBG) DiagnosticLog.d(LCAT, "setCurrentAutomotiveStation: clearing current station");
 			intent.putExtra(MediaPlaybackService.EXTRA_CURRENT_AUTOMOTIVE_STATION, "");
 			startServiceSafely(intent);
 			return;
@@ -506,13 +505,13 @@ public class AudiostreamModule extends KrollModule
 		try {
 			Object serialized = serializeJsonValue(station);
 			if (!(serialized instanceof JSONObject)) {
-				Log.e(LCAT, "setCurrentAutomotiveStation: station must serialize to an object");
+				DiagnosticLog.e(LCAT, "setCurrentAutomotiveStation: station must serialize to an object");
 				return;
 			}
 			intent.putExtra(MediaPlaybackService.EXTRA_CURRENT_AUTOMOTIVE_STATION, serialized.toString());
 			startServiceSafely(intent);
 		} catch (Exception e) {
-			Log.e(LCAT, "setCurrentAutomotiveStation: failed to serialize station: " + e.getMessage());
+			DiagnosticLog.e(LCAT, "setCurrentAutomotiveStation: failed to serialize station: " + e.getClass().getSimpleName());
 		}
 	}
 
@@ -542,7 +541,7 @@ public class AudiostreamModule extends KrollModule
 	public void setAllowCrossProtocolRedirects(boolean value)
 	{
 		MediaPlaybackService.sAllowCrossProtocolRedirects = value;
-		Log.d(LCAT, "allowCrossProtocolRedirects set to " + value);
+		if (DBG) DiagnosticLog.d(LCAT, "allowCrossProtocolRedirects set to " + value);
 	}
 
 	// ========== Service Helpers ==========
@@ -550,10 +549,12 @@ public class AudiostreamModule extends KrollModule
 	private void startServiceSafely(Intent intent)
 	{
 		try {
-			getContext().startService(intent);
-			serviceStarted = true;
+			getContext().startService(MediaPlaybackService.authorizeCommand(intent));
 		} catch (Exception e) {
-			Log.e(LCAT, "Failed to start service: " + e.getMessage());
+			MediaPlaybackService.releaseHardStopRequest(intent);
+			DiagnosticLog.e(LCAT, "Failed to start service: " + e.getClass().getSimpleName());
+			fireState("error");
+			fireError("Cannot deliver playback command: " + e.getMessage());
 		}
 	}
 
@@ -561,13 +562,14 @@ public class AudiostreamModule extends KrollModule
 	{
 		try {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-				getContext().startForegroundService(intent);
+				getContext().startForegroundService(MediaPlaybackService.authorizeCommand(intent));
 			} else {
-				getContext().startService(intent);
+				getContext().startService(MediaPlaybackService.authorizeCommand(intent));
 			}
-			serviceStarted = true;
 		} catch (Exception e) {
-			Log.e(LCAT, "Failed to start foreground service: " + e.getMessage());
+			MediaPlaybackService.releaseHardStopRequest(intent);
+			DiagnosticLog.e(LCAT, "Failed to start foreground service: " + e.getClass().getSimpleName());
+			fireState("error");
 			fireError("Cannot start playback from background: " + e.getMessage());
 		}
 	}
@@ -611,7 +613,7 @@ public class AudiostreamModule extends KrollModule
 		activeModule.fireEvent("state", event);
 
 		if (DBG) {
-			Log.d(LCAT, "State event fired: " + state);
+			if (DBG) DiagnosticLog.d(LCAT, "State event fired: " + state);
 		}
 	}
 
@@ -629,7 +631,7 @@ public class AudiostreamModule extends KrollModule
 		activeModule.fireEvent("error", event);
 
 		if (DBG) {
-			Log.d(LCAT, "Error event fired: " + message);
+			if (DBG) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 		}
 	}
 
@@ -648,7 +650,7 @@ public class AudiostreamModule extends KrollModule
 		activeModule.fireEvent("audiofocuschange", event);
 
 		if (DBG) {
-			Log.d(LCAT, "Audio focus event fired: " + focusChange);
+			if (DBG) DiagnosticLog.d(LCAT, "Audio focus event fired: " + focusChange);
 		}
 	}
 
@@ -677,7 +679,7 @@ public class AudiostreamModule extends KrollModule
 		activeModule.fireEvent("remotecontrol", event);
 
 		if (DBG) {
-			Log.d(LCAT, "Remote control event fired: " + action + " (" + subtype + ")");
+			if (DBG) DiagnosticLog.d(LCAT, "Remote control event fired: " + action + " (" + subtype + ")");
 		}
 	}
 
@@ -714,7 +716,7 @@ public class AudiostreamModule extends KrollModule
 		activeModule.fireEvent("metadata", event);
 
 		if (DBG) {
-			Log.d(LCAT, "Metadata event fired: " + title + " - " + artist);
+			if (DBG) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 		}
 	}
 
@@ -732,7 +734,7 @@ public class AudiostreamModule extends KrollModule
 		activeModule.fireEvent("automotivestationselected", event);
 
 		if (DBG) {
-			Log.d(LCAT, "Automotive station selected event fired");
+			if (DBG) DiagnosticLog.d(LCAT, "Automotive station selected event fired");
 		}
 	}
 

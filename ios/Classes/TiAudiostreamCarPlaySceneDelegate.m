@@ -5,8 +5,12 @@
  * Licensed under the MIT License
  */
 
+#import "TiAudiostreamDiagnostics.h"
 #import "TiAudiostreamCarPlaySceneDelegate.h"
 #import "TiAudiostreamModule.h"
+#import "TiAudiostreamContentLoader.h"
+#import "TiAudiostreamArtwork.h"
+#import <objc/runtime.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 
@@ -27,6 +31,9 @@ static NSString *const TiAudiostreamAutomotiveStationsDidChangeNotification = @"
 @end
 
 typedef void (^TiAudiostreamCarPlayCompletion)(void);
+static NSString *TiAudiostreamStationString(id value) {
+  return [value isKindOfClass:[NSString class]] ? value : nil;
+}
 
 @implementation TiAudiostreamCarPlaySceneDelegate {
   CPInterfaceController *_interfaceController;
@@ -35,6 +42,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   NSMutableArray<CPListItem *> *_stationItems;
   NSArray<NSString *> *_stationItemIdentifiers;
   NSCache<NSString *, UIImage *> *_artworkCache;
+  NSMutableDictionary<NSString *, NSHashTable<CPListItem *> *> *_pendingArtwork;
   CPListItem *_playPauseItem;
 }
 
@@ -46,53 +54,44 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   return TiAudiostreamLocalized(@"ti_audiostream_play", @"Play");
 }
 
-// Sets the station artwork (remote URL) as the item's leading thumbnail. Cached
-// hits apply synchronously; misses download in the background then set on main.
-// ponytail: NSData dataWithContentsOfURL is a blocking download off the main
-// queue — fine for a handful of small station photos; switch to NSURLSession if
-// the list ever grows large.
+// Associate every assignment with the row. A reused row invalidates the old URL
+// even when it remains in the same station or the replacement has no artwork.
 - (void)applyArtworkForStation:(NSDictionary *)station toItem:(CPListItem *)item API_AVAILABLE(ios(14.0))
 {
   NSString *artworkURL = [station objectForKey:@"artwork"];
-  if (![artworkURL isKindOfClass:[NSString class]] || artworkURL.length == 0) {
-    [item setImage:nil];
-    return;
-  }
-
+  if (![artworkURL isKindOfClass:[NSString class]]) artworkURL = nil;
+  objc_setAssociatedObject(item, @selector(applyArtworkForStation:toItem:), artworkURL, OBJC_ASSOCIATION_COPY_NONATOMIC);
+  [item setImage:nil];
+  if (artworkURL.length == 0) return;
   if (!_artworkCache) {
     _artworkCache = [[NSCache alloc] init];
     _artworkCache.countLimit = 64;
+    _artworkCache.totalCostLimit = 16 * 1024 * 1024;
   }
-
   UIImage *cached = [_artworkCache objectForKey:artworkURL];
-  if (cached) {
-    [item setImage:cached];
-    return;
-  }
-
-  [item setImage:nil];
-
-  NSURL *url = [NSURL URLWithString:artworkURL];
-  if (!url) {
-    return;
-  }
-
+  if (cached) { [item setImage:cached]; return; }
+  if (!_pendingArtwork) _pendingArtwork = [NSMutableDictionary new];
+  NSHashTable *waiters = _pendingArtwork[artworkURL];
+  if (waiters) { [waiters addObject:item]; return; }
+  waiters = [NSHashTable weakObjectsHashTable];
+  [waiters addObject:item];
+  _pendingArtwork[artworkURL] = waiters;
   __weak TiAudiostreamCarPlaySceneDelegate *weakSelf = self;
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    NSData *data = [NSData dataWithContentsOfURL:url];
-    UIImage *image = data ? [UIImage imageWithData:data] : nil;
-    if (!image) {
-      return;
-    }
-    dispatch_async(dispatch_get_main_queue(), ^{
-      TiAudiostreamCarPlaySceneDelegate *strongSelf = weakSelf;
-      if (!strongSelf) {
-        return;
-      }
-      [strongSelf->_artworkCache setObject:image forKey:artworkURL];
-      [item setImage:image];
+  [TiAudiostreamContentLoader fetchURL:[NSURL URLWithString:artworkURL] maxBytes:8 * 1024 * 1024 completion:^(NSData *data, NSURLResponse *response, NSError *error) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      UIImage *image = TiAudiostreamDecodeArtwork(data);
+      dispatch_async(dispatch_get_main_queue(), ^{
+        TiAudiostreamCarPlaySceneDelegate *strongSelf = weakSelf;
+        if (!strongSelf) return;
+        NSHashTable *rows = strongSelf->_pendingArtwork[artworkURL];
+        [strongSelf->_pendingArtwork removeObjectForKey:artworkURL];
+        if (image) [strongSelf->_artworkCache setObject:image forKey:artworkURL cost:(NSUInteger)(image.size.width * image.size.height * 4)];
+        for (CPListItem *row in rows) {
+          if ([artworkURL isEqual:objc_getAssociatedObject(row, @selector(applyArtworkForStation:toItem:))]) [row setImage:image];
+        }
+      });
     });
-  });
+  }];
 }
 
 - (NSString *)stationIdentifier:(NSDictionary *)station
@@ -101,13 +100,13 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     return @"";
   }
 
-  NSString *streamURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
+  NSString *streamURL = TiAudiostreamStationString([station objectForKey:@"streamUrl"]) ?: TiAudiostreamStationString([station objectForKey:@"url"]);
   if (streamURL.length > 0) {
     return [@"url:" stringByAppendingString:streamURL];
   }
 
-  NSString *title = [station objectForKey:@"stationName"] ?: [station objectForKey:@"title"] ?: @"";
-  NSString *subtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"artist"] ?: @"";
+  NSString *title = TiAudiostreamStationString([station objectForKey:@"stationName"]) ?: TiAudiostreamStationString([station objectForKey:@"title"]) ?: @"";
+  NSString *subtitle = TiAudiostreamStationString([station objectForKey:@"subtitle"]) ?: TiAudiostreamStationString([station objectForKey:@"artist"]) ?: @"";
   return [NSString stringWithFormat:@"meta:%@|%@", title, subtitle];
 }
 
@@ -125,7 +124,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 
 - (NSString *)displaySubtitleForStation:(NSDictionary *)station isCurrent:(BOOL)isCurrent
 {
-  NSString *subtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"stationName"] ?: [station objectForKey:@"artist"] ?: @"";
+  NSString *subtitle = TiAudiostreamStationString([station objectForKey:@"subtitle"]) ?: TiAudiostreamStationString([station objectForKey:@"stationName"]) ?: TiAudiostreamStationString([station objectForKey:@"artist"]) ?: @"";
   if (isCurrent) {
     NSString *onAir = TiAudiostreamLocalized(@"ti_audiostream_on_air", @"On Air");
     if (subtitle.length > 0) {
@@ -150,11 +149,11 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   NSString *currentTitle = nil;
   NSString *currentSubtitle = nil;
   if ([currentStation isKindOfClass:[NSDictionary class]]) {
-    currentURL = [currentStation objectForKey:@"streamUrl"] ?: [currentStation objectForKey:@"url"];
+    currentURL = TiAudiostreamStationString([currentStation objectForKey:@"streamUrl"]) ?: TiAudiostreamStationString([currentStation objectForKey:@"url"]);
     id rawID = [currentStation objectForKey:@"id"];
-    currentID = rawID ? [NSString stringWithFormat:@"%@", rawID] : nil;
-    currentTitle = [currentStation objectForKey:@"stationName"] ?: [currentStation objectForKey:@"title"];
-    currentSubtitle = [currentStation objectForKey:@"subtitle"] ?: [currentStation objectForKey:@"artist"];
+    currentID = ([rawID isKindOfClass:[NSString class]] || [rawID isKindOfClass:[NSNumber class]]) ? [NSString stringWithFormat:@"%@", rawID] : nil;
+    currentTitle = TiAudiostreamStationString([currentStation objectForKey:@"stationName"]) ?: TiAudiostreamStationString([currentStation objectForKey:@"title"]);
+    currentSubtitle = TiAudiostreamStationString([currentStation objectForKey:@"subtitle"]) ?: TiAudiostreamStationString([currentStation objectForKey:@"artist"]);
   }
   NSString *moduleURL = [[TiAudiostreamModule activeModule] carPlayCurrentStreamURL];
 
@@ -168,7 +167,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     if (![station isKindOfClass:[NSDictionary class]]) {
       continue;
     }
-    NSString *stationURL = [station objectForKey:@"streamUrl"] ?: [station objectForKey:@"url"];
+    NSString *stationURL = TiAudiostreamStationString([station objectForKey:@"streamUrl"]) ?: TiAudiostreamStationString([station objectForKey:@"url"]);
 
     if (byPersistedURL == NSNotFound && stationURL.length > 0 && currentURL.length > 0 &&
         [stationURL isEqualToString:currentURL]) {
@@ -176,7 +175,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     }
     if (byID == NSNotFound && currentID.length > 0) {
       id rawID = [station objectForKey:@"id"];
-      NSString *stationID = rawID ? [NSString stringWithFormat:@"%@", rawID] : nil;
+      NSString *stationID = ([rawID isKindOfClass:[NSString class]] || [rawID isKindOfClass:[NSNumber class]]) ? [NSString stringWithFormat:@"%@", rawID] : nil;
       if (stationID.length > 0 && [stationID isEqualToString:currentID]) {
         byID = i;
       }
@@ -186,8 +185,8 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
       byLiveURL = i;
     }
     if (byTitle == NSNotFound && currentTitle.length > 0) {
-      NSString *stationTitle = [station objectForKey:@"stationName"] ?: [station objectForKey:@"title"];
-      NSString *stationSubtitle = [station objectForKey:@"subtitle"] ?: [station objectForKey:@"artist"];
+      NSString *stationTitle = TiAudiostreamStationString([station objectForKey:@"stationName"]) ?: TiAudiostreamStationString([station objectForKey:@"title"]);
+      NSString *stationSubtitle = TiAudiostreamStationString([station objectForKey:@"subtitle"]) ?: TiAudiostreamStationString([station objectForKey:@"artist"]);
       if (stationTitle.length > 0 && [stationTitle isEqualToString:currentTitle] &&
           ((stationSubtitle.length == 0 && currentSubtitle.length == 0) ||
            [stationSubtitle isEqualToString:currentSubtitle])) {
@@ -267,7 +266,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     }
 
     BOOL isCurrent = (stationIndex == currentIndex);
-    NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
+    NSString *title = TiAudiostreamStationString([station objectForKey:@"title"]) ?: TiAudiostreamStationString([station objectForKey:@"programName"]) ?: TiAudiostreamStationString([station objectForKey:@"stationName"]) ?: @"Station";
     NSString *subtitle = [self displaySubtitleForStation:station isCurrent:isCurrent];
     CPListItem *stationItem = [[CPListItem alloc] initWithText:title detailText:subtitle];
     stationItem.playing = isCurrent && [self isPlaybackActive];
@@ -363,7 +362,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     }
 
     BOOL isCurrent = (idx == currentIndex);
-    NSString *title = [station objectForKey:@"title"] ?: [station objectForKey:@"programName"] ?: [station objectForKey:@"stationName"] ?: @"Station";
+    NSString *title = TiAudiostreamStationString([station objectForKey:@"title"]) ?: TiAudiostreamStationString([station objectForKey:@"programName"]) ?: TiAudiostreamStationString([station objectForKey:@"stationName"]) ?: @"Station";
     NSString *subtitle = [self displaySubtitleForStation:station isCurrent:isCurrent];
     [item setText:title];
     [item setDetailText:subtitle];
@@ -380,7 +379,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 {
   TiAudiostreamModule *module = [TiAudiostreamModule activeModule];
   if (!module) {
-    NSLog(@"[ti.audiostream] No active module available for station selection (%@)", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] No active module available for station selection (%@)", reason);
     if (completion) {
       completion();
     }
@@ -399,7 +398,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
       [self refreshStationItemsInPlace];
     });
   }
-  NSLog(@"[ti.audiostream] Staying on CarPlay station list after selection (%@)", reason ?: @"unknown");
+  TiAudiostreamDebugLog(@"[ti.audiostream] Staying on CarPlay station list after selection (%@)", reason ?: @"unknown");
 }
 
 - (void)presentNowPlayingTemplateAnimated:(BOOL)animated
@@ -407,7 +406,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                                 completion:(TiAudiostreamCarPlayCompletion)completion API_AVAILABLE(ios(14.0))
 {
   if (!_interfaceController) {
-    NSLog(@"[ti.audiostream] Cannot push Now Playing (%@): no CarPlay interface controller", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] Cannot push Now Playing (%@): no CarPlay interface controller", reason);
     if (completion) {
       completion();
     }
@@ -419,7 +418,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   template.albumArtistButtonEnabled = NO;
 
   if (_interfaceController.topTemplate == template) {
-    NSLog(@"[ti.audiostream] Now Playing template already visible (%@)", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] Now Playing template already visible (%@)", reason);
     [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidPresentNowPlayingNotification object:nil];
     if (completion) {
       completion();
@@ -428,7 +427,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   }
 
   if ([_interfaceController.templates containsObject:template]) {
-    NSLog(@"[ti.audiostream] Returning to existing Now Playing template (%@)", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] Returning to existing Now Playing template (%@)", reason);
     [_interfaceController popToTemplate:template
                                animated:animated
                              completion:^(BOOL success, NSError *error) {
@@ -440,7 +439,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                                  return;
                                }
 
-                               NSLog(@"[ti.audiostream] Failed to return to Now Playing template (%@): %@",
+                               TiAudiostreamDebugLog(@"[ti.audiostream] Failed to return to Now Playing template (%@): %@",
                                  reason,
                                  error.localizedDescription ?: error);
                                if (completion) {
@@ -450,7 +449,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     return;
   }
 
-  NSLog(@"[ti.audiostream] Pushing Now Playing template (%@)", reason);
+  TiAudiostreamDebugLog(@"[ti.audiostream] Pushing Now Playing template (%@)", reason);
   [_interfaceController pushTemplate:template
                              animated:animated
                            completion:^(BOOL success, NSError *error) {
@@ -462,7 +461,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                                return;
                              }
 
-                             NSLog(@"[ti.audiostream] Failed to push Now Playing template (%@): %@",
+                             TiAudiostreamDebugLog(@"[ti.audiostream] Failed to push Now Playing template (%@): %@",
                                reason,
                                error.localizedDescription ?: error);
                              if (completion) {
@@ -487,13 +486,13 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
   if ([self isNowPlayingReady]) {
     TiAudiostreamModule *module = [TiAudiostreamModule activeModule];
     [module refreshCarPlayNowPlayingItemForReason:[NSString stringWithFormat:@"%@-preflight", reason ?: @"unknown"]];
-    NSLog(@"[ti.audiostream] Presenting Now Playing immediately (%@)", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] Presenting Now Playing immediately (%@)", reason);
     [self presentNowPlayingTemplateAnimated:animated reason:reason completion:completion];
     return;
   }
 
   if (attempt >= 24) {
-    NSLog(@"[ti.audiostream] Skipping delayed Now Playing push (%@): playback never became ready", reason);
+    TiAudiostreamDebugLog(@"[ti.audiostream] Skipping delayed Now Playing push (%@): playback never became ready", reason);
     if (completion) {
       completion();
     }
@@ -513,12 +512,12 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
 
 - (void)scene:(UIScene *)scene willConnectToSession:(UISceneSession *)session options:(UISceneConnectionOptions *)connectionOptions
 {
-  NSLog(@"[ti.audiostream] CarPlay scene willConnect");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay scene willConnect");
 }
 
 - (void)sceneDidDisconnect:(UIScene *)scene
 {
-  NSLog(@"[ti.audiostream] CarPlay scene didDisconnect");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay scene didDisconnect");
   [[NSNotificationCenter defaultCenter] removeObserver:self name:TiAudiostreamAutomotiveStationsDidChangeNotification object:nil];
 }
 
@@ -528,7 +527,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     didConnectInterfaceController:(CPInterfaceController *)interfaceController
 {
   _interfaceController = interfaceController;
-  NSLog(@"[ti.audiostream] CarPlay didConnectInterfaceController scenes=%lu", (unsigned long)[UIApplication sharedApplication].connectedScenes.count);
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay didConnectInterfaceController scenes=%lu", (unsigned long)[UIApplication sharedApplication].connectedScenes.count);
 
   // CarPlay asks MediaRemote for the active player almost immediately during
   // scene setup. Reassert before setRootTemplate so that first lookup resolves
@@ -551,15 +550,15 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                                    if (!strongSelf) {
                                      return;
                                    }
-                                   NSLog(@"[ti.audiostream] CarPlay root template set");
+                                   TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay root template set");
 
                                  } else {
-                                   NSLog(@"[ti.audiostream] Failed to set CarPlay root template: %@", error.localizedDescription ?: error);
+                                   TiAudiostreamDebugLog(@"[ti.audiostream] Failed to set CarPlay root template: %@", error.localizedDescription ?: error);
                                  }
                                }];
   }
 
-  NSLog(@"[ti.audiostream] CarPlay connected");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay connected");
 }
 
 - (void)handleAutomotiveStationsDidChange:(NSNotification *)notification API_AVAILABLE(ios(14.0))
@@ -585,7 +584,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
                                animated:NO
                              completion:^(BOOL success, NSError *error) {
                                if (!success) {
-                                 NSLog(@"[ti.audiostream] Failed to refresh CarPlay root template: %@", error.localizedDescription ?: error);
+                                 TiAudiostreamDebugLog(@"[ti.audiostream] Failed to refresh CarPlay root template: %@", error.localizedDescription ?: error);
                                  return;
                                }
                              }];
@@ -595,14 +594,14 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     didConnectInterfaceController:(CPInterfaceController *)interfaceController
                         toWindow:(CPWindow *)window
 {
-  NSLog(@"[ti.audiostream] CarPlay connected to window");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay connected to window");
 }
 
 - (void)templateApplicationScene:(CPTemplateApplicationScene *)templateApplicationScene
     didDisconnectInterfaceController:(CPInterfaceController *)interfaceController
 {
   _interfaceController = nil;
-  NSLog(@"[ti.audiostream] CarPlay disconnected");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay disconnected");
   [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidDisconnectNotification object:nil];
 }
 
@@ -610,7 +609,7 @@ typedef void (^TiAudiostreamCarPlayCompletion)(void);
     didDisconnectInterfaceController:(CPInterfaceController *)interfaceController
                          fromWindow:(CPWindow *)window
 {
-  NSLog(@"[ti.audiostream] CarPlay disconnected from window");
+  TiAudiostreamDebugLog(@"[ti.audiostream] CarPlay disconnected from window");
   [[NSNotificationCenter defaultCenter] postNotificationName:TiAudiostreamCarPlayDidDisconnectNotification object:nil];
 }
 

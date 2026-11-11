@@ -50,7 +50,6 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
-import org.appcelerator.kroll.common.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -79,6 +78,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	// Service actions
 	public static final String ACTION_SET_STREAM = "ti.audiostream.SET_STREAM";
+	public static final String ACTION_PLAY_PAUSE = "ti.audiostream.PLAY_PAUSE";
 	public static final String ACTION_PLAY = "ti.audiostream.PLAY";
 	public static final String ACTION_PAUSE = "ti.audiostream.PAUSE";
 	public static final String ACTION_STOP = "ti.audiostream.STOP";
@@ -112,6 +112,44 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	        // Media3 ExoPlayer
 	        private ExoPlayer player;
+	static volatile boolean foregroundActive = false;
+	private static volatile boolean hardStopPending = false;
+	private static long nextHardStopMarker;
+	private static final java.util.Set<Long> pendingHardStopMarkers = new java.util.HashSet<>();
+	private static final String EXTRA_HARD_STOP_MARKER = "ti.audiostream.hardStopMarker";
+	private int lastStartId;
+	static boolean isForegroundReady() { return foregroundActive && !hardStopPending; }
+	private boolean playbackRequested = false;
+	private boolean playbackFailed = false;
+	private volatile boolean serviceDestroyed = false;
+	private boolean controlsVisible = false;
+	private boolean sessionPublishedToSystemUi = false;
+	private boolean playlistPending = false;
+	private final AtomicLong playbackGeneration = new AtomicLong(0);
+	private String receivedTitle = "", receivedArtist = "";
+	private Bitmap receivedArtwork;
+	private static final String COMMAND_TOKEN = java.util.UUID.randomUUID().toString();
+	private static final String EXTRA_COMMAND_TOKEN = "ti.audiostream.commandToken";
+	static synchronized Intent authorizeCommand(Intent intent) {
+		if (ACTION_STOP.equals(intent.getAction()) && intent.getBooleanExtra(EXTRA_HARD_STOP, false)) {
+			long marker = ++nextHardStopMarker;
+			pendingHardStopMarkers.add(marker);
+			hardStopPending = true;
+			intent.putExtra(EXTRA_HARD_STOP_MARKER, marker);
+		}
+		return intent.putExtra(EXTRA_COMMAND_TOKEN, COMMAND_TOKEN);
+	}
+	static synchronized void releaseHardStopRequest(Intent intent) {
+		long marker = intent.getLongExtra(EXTRA_HARD_STOP_MARKER, 0);
+		if (marker != 0) pendingHardStopMarkers.remove(marker);
+		hardStopPending = !pendingHardStopMarkers.isEmpty();
+	}
+
+	private final android.content.BroadcastReceiver noisyReceiver = new android.content.BroadcastReceiver() {
+		@Override public void onReceive(Context context, Intent intent) {
+			if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction())) pause();
+		}
+	};
 	        // Whether the HTTP data source follows cross-protocol redirects (HTTPS<->HTTP).
 	        // Default true for parity with iOS/AVPlayer and browsers (needed by CDNs like
 	        // radiojar that redirect an HTTPS entry URL to an HTTP edge node). Apps that want
@@ -119,6 +157,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	        // property; read when the player is built, so set it before the first play.
 	        static volatile boolean sAllowCrossProtocolRedirects = true;
 	        private String currentUrl;
+		private String currentMimeType;
+		private static final class PlaybackSource {
+			final String url;
+			final String mimeType;
+			PlaybackSource(String url, String mimeType) { this.url = url; this.mimeType = mimeType; }
+		}
 	        private boolean isLive = true;
 	        private boolean autoUpdateMetadata = true;
 	        private boolean resumeOnFocusGain = false;
@@ -135,12 +179,31 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	// Android Auto reads album art by content:// URI (it ignores http and caches embedded
 	// bitmaps), so we cache each cover to a file and expose it through a FileProvider.
 	private android.net.Uri currentArtworkUri = null;
+	private final Map<String, Bitmap> artworkCache = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<String, Bitmap>(8, 0.75f, true) {
+		@Override protected boolean removeEldestEntry(Map.Entry<String, Bitmap> entry) { return size() > 8; }
+	});
+	private final Map<Bitmap, android.net.Uri> bitmapUris = java.util.Collections.synchronizedMap(new java.util.WeakHashMap<Bitmap, android.net.Uri>());
+	private final Map<String, android.net.Uri> catalogArtwork = new HashMap<>();
+	private final Map<String, Long> catalogArtworkRetryAfter = new HashMap<>();
+	private final java.util.Set<String> catalogArtworkPending = new java.util.HashSet<>();
+	private final long serviceCreatedAt = System.currentTimeMillis();
+	private Bitmap publishedArtwork;
+	private android.net.Uri publishedArtworkUri;
+	private final java.util.Set<android.net.Uri> publishedArtworkUris = new java.util.concurrent.CopyOnWriteArraySet<>();
 	private final AtomicLong artworkFileCounter = new AtomicLong(0);
+	// System controls may read metadata artwork without first opening the browser.
+	// Grants are limited to this image URI and these installed media consumers.
+	private static final String[] SYSTEM_ARTWORK_READERS = {
+		"com.android.systemui", "com.google.android.projection.gearhead",
+		"com.android.car.media", "com.google.android.carassistant",
+		"com.google.android.googlequicksearchbox"
+	};
 	private final java.util.Set<String> browserClients = new java.util.concurrent.CopyOnWriteArraySet<>();
 	private Bitmap transparentArtwork = null;
 	private Bitmap appIconBitmap = null;
 	private boolean sessionHadArtwork = false;
 	private final AtomicLong artworkGeneration = new AtomicLong(0);
+	private final AtomicLong autoMetadataGeneration = new AtomicLong(0);
 	// Bumped on every stream change so a late playlist resolution can't clobber a newer stream
 	private final AtomicLong streamGeneration = new AtomicLong(0);
 	private String lastEmittedTitle = null;
@@ -162,6 +225,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	// Executor for background tasks
 	private ExecutorService executor;
 	private Handler mainHandler;
+	private final ExecutorService playlistExecutor = Executors.newSingleThreadExecutor();
+	private Future<?> playlistTask;
+	private HttpURLConnection playlistConnection;
+	private final Object playlistConnectionLock = new Object();
 
 	// Metadata rules for regex-based cleanup
 	private static class MetadataRule {
@@ -178,80 +245,82 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	private final List<JSONObject> automotiveStations = new ArrayList<>();
 	private JSONObject currentAutomotiveStation;
 
-	        // Audio focus listener
-	        private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
-	                switch (focusChange) {
-	                        case AudioManager.AUDIOFOCUS_GAIN:
-	                                Log.d(LCAT, "Audio focus gained");
-	                                hasAudioFocus = true;
-	                                if (player != null) {
-	                                        player.setVolume(1.0f);
-	                                        if (resumeOnFocusGain) {
-	                                                player.play();
-	                                                resumeOnFocusGain = false;
-	                                        }
-	                                }
-	                                AudiostreamModule.fireAudioFocusChange(focusChange);
-	                                break;
-	
-	                        case AudioManager.AUDIOFOCUS_LOSS:
-	                                Log.d(LCAT, "Audio focus lost permanently");
-	                                hasAudioFocus = false;
-	                                resumeOnFocusGain = false;
-	                                if (player != null) {
-	                                        player.pause();
-	                                }
-	                                AudiostreamModule.fireAudioFocusChange(focusChange);
-	                                break;
-	
-	                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-	                                Log.d(LCAT, "Audio focus lost temporarily");
-	                                hasAudioFocus = false;
-	                                if (player != null) {
-	                                        resumeOnFocusGain = player.getPlayWhenReady();
-	                                        player.pause();
-	                                }
-	                                AudiostreamModule.fireAudioFocusChange(focusChange);
-	                                break;
-	
-	                        case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-	                                Log.d(LCAT, "Audio focus lost - ducking");
-	                                if (player != null) {
-	                                        player.setVolume(0.2f);
-	                                }
-	                                AudiostreamModule.fireAudioFocusChange(focusChange);
-	                                break;
-	                }
-	        };
+	// Audio focus listener
+	private final AudioManager.OnAudioFocusChangeListener audioFocusListener = focusChange -> {
+		if (serviceDestroyed) return;
+		switch (focusChange) {
+			case AudioManager.AUDIOFOCUS_GAIN:
+				hasAudioFocus = true;
+				if (player != null) {
+					player.setVolume(1.0f);
+					if (resumeOnFocusGain && playbackRequested) {
+						resumeOnFocusGain = false;
+						play();
+					}
+				}
+				break;
+			case AudioManager.AUDIOFOCUS_LOSS:
+				hasAudioFocus = false;
+				pause();
+				break;
+			case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+				hasAudioFocus = false;
+				if (player != null) {
+					resumeOnFocusGain = playbackRequested;
+					cancelPendingReconnect();
+					player.pause();
+					if (controlsVisible) {
+						updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+						AudiostreamModule.fireState("paused");
+						updateNotification();
+					}
+				}
+				break;
+			case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+				if (player != null) player.setVolume(0.2f);
+				break;
+		}
+		AudiostreamModule.fireAudioFocusChange(focusChange);
+	};
 		// Media3 Player listener
-	private final Player.Listener playerListener = new Player.Listener() {
+	private Player.Listener playerListener;
+	private Player.Listener createPlayerListener(final long generation)
+	{
+		return new Player.Listener() {
 		@Override
 		public void onPlaybackStateChanged(int playbackState)
 		{
+			if (this != playerListener || serviceDestroyed || generation != streamGeneration.get() || playlistPending) return;
+			if (!controlsVisible || (playbackFailed && playbackState == Player.STATE_IDLE)) return;
 			switch (playbackState) {
 				case Player.STATE_BUFFERING:
-					Log.d(LCAT, "Player state: BUFFERING");
+					if (!playbackRequested || !hasAudioFocus) return;
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Player state: BUFFERING");
 					updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
 					AudiostreamModule.fireState("buffering");
 					break;
 
 				case Player.STATE_READY:
-					Log.d(LCAT, "Player state: READY");
-					if (player != null && player.getPlayWhenReady()) {
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Player state: READY");
+					if (player != null && playbackRequested && hasAudioFocus && player.isPlaying()) {
 						updatePlaybackState(PlaybackStateCompat.STATE_PLAYING);
 						AudiostreamModule.fireState("playing");
 					}
 					break;
 
 				case Player.STATE_ENDED:
-					Log.d(LCAT, "Player state: ENDED");
+					playbackRequested = false;
+					resumeOnFocusGain = false;
+					resetRetryLogic();
+					abandonAudioFocus();
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Player state: ENDED");
 					updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
 					AudiostreamModule.fireState("stopped");
 					break;
 
 				                                case Player.STATE_IDLE:
 
-				                                        Log.d(LCAT, "Player state: IDLE");
+				                                        if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Player state: IDLE");
 
 				                                        updatePlaybackState(PlaybackStateCompat.STATE_STOPPED);
 
@@ -263,60 +332,46 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			}
 		}
 
-		                @Override
-		                public void onIsPlayingChanged(boolean isPlaying)
-		                {
-		                        Log.d(LCAT, "isPlaying changed: " + isPlaying);
-		                        if (isPlaying) {
-		                                resetRetryLogic();
-		                                updatePlaybackState(PlaybackStateCompat.STATE_PLAYING);
-		                                AudiostreamModule.fireState("playing");
-		                        } else {
-		                                int state = player != null ? player.getPlaybackState() : Player.STATE_IDLE;
-		                                // Only fire paused if we are not IDLE or ENDED (which are 'stopped')
-		                                if (state != Player.STATE_IDLE && state != Player.STATE_ENDED && state != Player.STATE_BUFFERING) {
-		                                        updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
-		                                        AudiostreamModule.fireState("paused");
-		                                }
-		                        }
-		                        updateNotification();
-		                }
+		@Override
+		public void onIsPlayingChanged(boolean isPlaying)
+		{
+			if (this != playerListener || serviceDestroyed || generation != streamGeneration.get() || playlistPending) return;
+			if (!controlsVisible || playbackFailed) {
+				return;
+			}
+			if (isPlaying) {
+				if (!playbackRequested || !hasAudioFocus) return;
+				sessionPublishedToSystemUi = true;
+				resetRetryLogic();
+				updatePlaybackState(PlaybackStateCompat.STATE_PLAYING);
+				if (mediaSession != null && !mediaSession.isActive()) mediaSession.setActive(true);
+				AudiostreamModule.fireState("playing");
+			} else {
+				int state = player != null ? player.getPlaybackState() : Player.STATE_IDLE;
+				if (state != Player.STATE_IDLE && state != Player.STATE_ENDED && state != Player.STATE_BUFFERING) {
+					updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+					AudiostreamModule.fireState("paused");
+				}
+			}
+			updateNotification();
+		}
 				@Override
 		public void onPlayerError(PlaybackException error)
 		{
-			Log.e(LCAT, "Player error (" + error.errorCode + "): " + error.getMessage());
+			if (this != playerListener || serviceDestroyed || generation != streamGeneration.get() || playlistPending) return;
+			if (!playbackRequested) return;
+			playbackFailed = true;
+			DiagnosticLog.e(LCAT, "Player error (" + error.errorCode + "): " + error.getClass().getSimpleName());
 			
 			updatePlaybackState(PlaybackStateCompat.STATE_ERROR);
 			AudiostreamModule.fireState("error");
 			AudiostreamModule.fireError("Stream error: " + error.getMessage());
 
-			// Terminal errors — things that won't change on retry
-			boolean isTerminalError =
-				error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
-				error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
-				error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE ||
-				// Unparseable content (e.g. a SHOUTcast/Icecast "Stream is Offline" HTML page, or any
-				// non-audio response): retrying the same URL just returns the same bytes. Treat as
-				// terminal so we stop cleanly with a single error, matching iOS's AVPlayer behavior.
-				error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ||
-				error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED;
-
-			// For generic network errors (code 2001), inspect the cause chain
-			// to distinguish permanent failures from transient ones
-			if (!isTerminalError && error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED) {
-				Throwable rootCause = error;
-				while (rootCause.getCause() != null) {
-					rootCause = rootCause.getCause();
-				}
-				if (rootCause instanceof java.net.UnknownHostException ||
-					rootCause instanceof javax.net.ssl.SSLException) {
-					Log.w(LCAT, "Permanent network error (" + rootCause.getClass().getSimpleName() + "): " + rootCause.getMessage());
-					isTerminalError = true;
-				}
-			}
+			boolean isTerminalError = isTerminalPlaybackError(error);
 
 			if (isTerminalError) {
-				Log.w(LCAT, "Terminal source error detected. Stopping player but keeping notification controls.");
+				playbackRequested = false;
+				DiagnosticLog.w(LCAT, "Terminal source error detected. Stopping player but keeping notification controls.");
 
 				// REFINEMENT: Stop player but DO NOT kill the service/notification
 				resetRetryLogic();
@@ -334,7 +389,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				@Override
 				public void onMediaMetadataChanged(androidx.media3.common.MediaMetadata mediaMetadata)
 				{
-					Log.d(LCAT, "onMediaMetadataChanged triggered");
+					if (this != playerListener || serviceDestroyed || generation != streamGeneration.get() || playlistPending) return;
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "onMediaMetadataChanged triggered");
 					boolean changed = false;
 					String incomingTitle = mediaMetadata.title != null ? mediaMetadata.title.toString() : null;
 					String incomingArtist = null;
@@ -352,8 +408,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 							}
 						} else {
 							String cleanedTitle = applyRules(titleRules, incomingTitle);
-							if (!cleanedTitle.equals(currentTitle)) {
-								currentTitle = cleanedTitle;
+							if (!cleanedTitle.equals(receivedTitle)) {
+								receivedTitle = cleanedTitle;
 								changed = true;
 							}
 						}
@@ -361,8 +417,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 					if (incomingArtist != null && !incomingArtist.isEmpty()) {
 						String cleanedArtist = applyRules(artistRules, incomingArtist);
-						if (!cleanedArtist.equals(currentArtist)) {
-							currentArtist = cleanedArtist;
+						if (!cleanedArtist.equals(receivedArtist)) {
+							receivedArtist = cleanedArtist;
 							changed = true;
 						}
 					}
@@ -370,18 +426,18 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 					// Intelligence: Extract artwork from stream if available
 					if (mediaMetadata.artworkData != null) {
 						try {
-							Log.i(LCAT, "Artwork data found in stream! Updating notification icon.");
+							if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "Artwork data found in stream! Updating notification icon.");
 							byte[] data = mediaMetadata.artworkData;
-							currentArtwork = BitmapFactory.decodeByteArray(data, 0, data.length);
+							receivedArtwork = decodeArtwork(new java.io.ByteArrayInputStream(data));
 							changed = true;
 						} catch (Exception e) {
-							Log.e(LCAT, "Failed to decode artwork from stream: " + e.getMessage());
+							DiagnosticLog.e(LCAT, "Failed to decode artwork from stream: " + e.getClass().getSimpleName());
 						}
 					}
 
 					// Only update remote controls if auto-update is enabled
 					if (changed && autoUpdateMetadata) {
-						updateMediaSessionMetadata();
+						publishReceivedMetadata();
 						updateNotification();
 					}
 					
@@ -405,7 +461,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		
 				@Override
 				public void onMetadata(androidx.media3.common.Metadata metadata) {
-					Log.d(LCAT, "onMetadata received (" + metadata.length() + " entries)");
+					if (this != playerListener || serviceDestroyed || generation != streamGeneration.get() || playlistPending) return;
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "onMetadata received (" + metadata.length() + " entries)");
 					boolean changed = false;
 					java.util.Map<String, Object> rawData = new java.util.HashMap<>();
 
@@ -417,20 +474,20 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 							androidx.media3.extractor.metadata.id3.TextInformationFrame frame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
 							String value = (frame.values != null && !frame.values.isEmpty()) ? frame.values.get(0) : "";
 							rawData.put(frame.id, value);
-							Log.d(LCAT, "RAW ID3: " + frame.id + "=" + value);
+							if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 						} else if (entry instanceof androidx.media3.extractor.metadata.icy.IcyInfo) {
 							androidx.media3.extractor.metadata.icy.IcyInfo frame = (androidx.media3.extractor.metadata.icy.IcyInfo) entry;
 							rawData.put("ICY_TITLE", frame.title);
 							rawData.put("ICY_URL", frame.url);
-							Log.d(LCAT, "RAW ICY: " + frame.title);
-							if (frame.url != null) Log.d(LCAT, "RAW ICY URL: " + frame.url);
+							if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
+							if (frame.url != null) if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 						} else if (entry instanceof androidx.media3.extractor.metadata.id3.CommentFrame) {
 							androidx.media3.extractor.metadata.id3.CommentFrame frame = (androidx.media3.extractor.metadata.id3.CommentFrame) entry;
 							rawData.put("COMM_" + frame.description, frame.text);
-							Log.d(LCAT, "RAW COMM: " + frame.text);
+							if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 						} else {
 							rawData.put(entry.getClass().getSimpleName(), entry.toString());
-							Log.d(LCAT, "RAW UNKNOWN: " + entry.toString());
+							if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 						}
 
 						// 1. Check for standard ICY info (Shoutcast/Icecast)
@@ -447,7 +504,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 								if (artworkUrl.contains(".jpg") || artworkUrl.contains(".jpeg") ||
 									artworkUrl.contains(".png") || artworkUrl.contains(".gif") ||
 									artworkUrl.contains(".webp")) {
-									Log.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
+									if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "Found artwork URL in ICY_URL: " + artworkUrl);
 									pendingArtworkUrl = artworkUrl;
 								}
 							}
@@ -457,10 +514,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 							androidx.media3.extractor.metadata.id3.TextInformationFrame textFrame = (androidx.media3.extractor.metadata.id3.TextInformationFrame) entry;
 							String value = (textFrame.values != null && !textFrame.values.isEmpty()) ? textFrame.values.get(0) : "";
 							if ("TIT2".equals(textFrame.id)) {
-								currentTitle = applyRules(titleRules, value);
+								receivedTitle = applyRules(titleRules, value);
 								changed = true;
 							} else if ("TPE1".equals(textFrame.id)) {
-								currentArtist = applyRules(artistRules, value);
+								receivedArtist = applyRules(artistRules, value);
 								changed = true;
 							} else {
                                 // Deep inspect other text frames for embedded JSON/StreamTitle
@@ -480,7 +537,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 					if (changed || pendingArtworkUrl != null) {
 						if (autoUpdateMetadata) {
-							updateMediaSessionMetadata();
+							publishReceivedMetadata();
 							updateNotification();
 						}
 						metadataDirty = true;
@@ -494,6 +551,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 				@Override
 				public void onEvents(Player player, Player.Events events) {
+					if (this != playerListener || serviceDestroyed || generation != streamGeneration.get() || playlistPending) return;
 					if (!metadataDirty) return;
 
 					metadataDirty = false;
@@ -504,8 +562,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 					emitMetadataIfChanged(artworkUrl, rawData);
 
-					if (artworkUrl != null) {
-						fetchArtworkFromUrl(artworkUrl, artworkGeneration.get());
+					if (artworkUrl != null && autoUpdateMetadata) {
+						fetchArtworkFromUrl(artworkUrl, artworkGeneration.incrementAndGet());
 					}
 				}
 
@@ -521,7 +579,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 							int end = rawText.indexOf("';", start);
 							if (end != -1) {
 								title = rawText.substring(start, end);
-								Log.d(LCAT, "Extracted Title: " + title);
+								if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 							}
 						}
 					}
@@ -539,24 +597,29 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 					artist = applyRules(artistRules, artist);
 
 					boolean changed = false;
-					if (!title.equals(currentTitle)) {
-						currentTitle = title;
+					if (!title.equals(receivedTitle)) {
+						receivedTitle = title;
 						changed = true;
 					}
-					if (!artist.isEmpty() && !artist.equals(currentArtist)) {
-						currentArtist = artist;
+					if (!artist.isEmpty() && !artist.equals(receivedArtist)) {
+						receivedArtist = artist;
 						changed = true;
 					}
 					return changed;
 				}
-			};
+		};
+	}
+
 	@Override
 	public void onCreate()
 	{
 		super.onCreate();
-		Log.d(LCAT, "Service created");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Service created");
 
-		executor = Executors.newSingleThreadExecutor();
+		executor = Executors.newFixedThreadPool(3);
+		androidx.core.content.ContextCompat.registerReceiver(this, noisyReceiver,
+			new android.content.IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+			androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
 		mainHandler = new Handler(Looper.getMainLooper());
 		audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
@@ -588,15 +651,26 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		// which redirects an HTTPS entry URL to a tokenized HTTP edge node) rely on this, and it
 		// is what browsers and iOS/AVPlayer do — so this brings Android to parity.
 		DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
-			.setUserAgent("ti.audiostream (Android) ExoPlayerLib/1.5.1")
+			.setUserAgent("ti.audiostream (Android) ExoPlayerLib/" + androidx.media3.common.MediaLibraryInfo.VERSION)
 			.setAllowCrossProtocolRedirects(sAllowCrossProtocolRedirects);
 		DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(this)
 			.setDataSourceFactory(httpFactory);
 		player = new ExoPlayer.Builder(this)
 			.setMediaSourceFactory(mediaSourceFactory)
 			.build();
+		player.setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK);
+		playerListener = createPlayerListener(streamGeneration.get());
 		player.addListener(playerListener);
-		Log.d(LCAT, "Media3 ExoPlayer initialized");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Media3 ExoPlayer initialized");
+	}
+
+	private boolean isSystemUiController() {
+		return mediaSession != null && "com.android.systemui".equals(
+			mediaSession.getCurrentControllerInfo().getPackageName());
+	}
+
+	private void rememberSystemUiPlayRequest() {
+		if (isSystemUiController()) sessionPublishedToSystemUi = true;
 	}
 
 	@SuppressWarnings("deprecation")
@@ -612,6 +686,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onPlay()
 			{
+				if (serviceDestroyed) return;
+				rememberSystemUiPlayRequest();
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PLAY);
 				play();
 			}
@@ -619,6 +695,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onPause()
 			{
+				if (serviceDestroyed) return;
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PAUSE);
 				pause();
 			}
@@ -626,6 +703,16 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onStop()
 			{
+				if (serviceDestroyed) return;
+				// This new token has no SystemUI card yet. Its normal loading notification
+				// uses an explicit Pause action; an unsolicited SystemUI Stop still belongs
+				// to the retired card. Explicit SystemUI resume/play grants control immediately.
+				if (playbackRequested && !sessionPublishedToSystemUi && isSystemUiController()) {
+					DiagnosticLog.d(LCAT, "Ignored stale SystemUI stop for unpublished session");
+
+					return;
+				}
+
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_STOP);
 				stop();
 			}
@@ -633,6 +720,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onSkipToNext()
 			{
+				if (serviceDestroyed) return;
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_NEXT);
 				// App JS not running (e.g. launched from the car)? Advance natively.
 				if (!AudiostreamModule.hasRemoteControlListeners()) {
@@ -643,6 +731,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onSkipToPrevious()
 			{
+				if (serviceDestroyed) return;
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PREV);
 				if (!AudiostreamModule.hasRemoteControlListeners()) {
 					playAdjacentAutomotiveStation(-1);
@@ -652,6 +741,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onPlayFromMediaId(String mediaId, Bundle extras)
 			{
+				if (serviceDestroyed) return;
+				rememberSystemUiPlayRequest();
 				if (RESUME_MEDIA_ID.equals(mediaId)) {
 					if (currentAutomotiveStation != null && playAutomotiveStation(currentAutomotiveStation, true)) {
 						return;
@@ -669,8 +760,26 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			}
 
 			@Override
+			public void onPlayFromSearch(String query, Bundle extras) {
+				if (serviceDestroyed) return;
+				rememberSystemUiPlayRequest();
+				String term = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+				if (term.isEmpty()) { play(); return; }
+				for (JSONObject station : automotiveStations) {
+					String title = getStationString(station, "title", getStationString(station, "stationName", ""));
+					if (title.toLowerCase(Locale.ROOT).contains(term)) {
+						playAutomotiveStation(station, true);
+						return;
+					}
+				}
+				AudiostreamModule.fireError("No matching station for voice search");
+			}
+
+			@Override
 			public void onPrepare()
 			{
+				if (serviceDestroyed) return;
+				if (playbackRequested) return; // A resumption probe must not overwrite active playback.
 				// Resumption handshake: publish the last station's metadata in a paused, ready
 				// state so the car shows it. We deliberately do NOT pre-buffer here — the async
 				// ExoPlayer prepare would flip the session to BUFFERING (a spinner on the head
@@ -687,42 +796,74 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			@Override
 			public void onPrepareFromMediaId(String mediaId, Bundle extras)
 			{
+				if (serviceDestroyed) return;
 				JSONObject station = RESUME_MEDIA_ID.equals(mediaId)
 					? currentAutomotiveStation
 					: findAutomotiveStation(mediaId);
-				if (station == null) {
+				if (station == null || getStationString(station, "streamUrl", "").isEmpty()) {
 					return;
 				}
 				currentAutomotiveStation = station;
+				playbackRequested = false;
+				streamGeneration.incrementAndGet();
+				cancelPlaylistResolution();
+				playlistPending = false;
+				resetRetryLogic();
+				abandonAudioFocus();
+				if (player != null) {
+					if (playerListener != null) player.removeListener(playerListener);
+					player.stop();
+					player.clearMediaItems();
+				}
 				seedPlaybackFieldsFromStation(station);
+				resetMetadataEventDedup();
+				persistCurrentAutomotiveStation();
+				long artworkVersion = artworkGeneration.incrementAndGet();
+				currentArtwork = null;
+				String artworkUrl = normalizeArtworkUrl(getStationString(station, "artwork", null));
+				if (artworkUrl != null) loadArtworkAsync(artworkUrl, artworkVersion);
 				// Metadata + paused state only; the stream is prepared lazily on play (see onPrepare).
 				updateMediaSessionMetadata();
 				updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+				AudiostreamModule.fireState("paused");
+				updateNotification();
 			}
 		});
 
-		mediaSession.setActive(true);
-		Log.d(LCAT, "MediaSession initialized");
+		mediaSession.setActive(false);
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "MediaSession initialized");
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId)
 	{
+		lastStartId = startId;
 		if (intent == null) {
-			Log.w(LCAT, "Service started with null intent");
+			DiagnosticLog.w(LCAT, "Service started with null intent");
 			return START_NOT_STICKY;
 		}
 
 		String action = intent.getAction();
-		Log.d(LCAT, "onStartCommand: " + action);
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "onStartCommand: " + action);
 
 		if (action == null) {
 			return START_STICKY;
 		}
 
+		// The browser/session remains exported for Android Auto. Configuration intents
+		// require the process-private capability; external transport uses MediaSession.
+		if (action.startsWith("ti.audiostream.") && !COMMAND_TOKEN.equals(intent.getStringExtra(EXTRA_COMMAND_TOKEN))) {
+			DiagnosticLog.w(LCAT, "Rejected unauthorized service command");
+			if (!foregroundActive) stopSelf(startId);
+			return START_NOT_STICKY;
+		}
 		switch (action) {
 			case ACTION_SET_STREAM:
 				handleSetStream(intent);
+				break;
+
+			case ACTION_PLAY_PAUSE:
+				if (playbackRequested) pause(); else play();
 				break;
 
 			case ACTION_PLAY:
@@ -757,10 +898,12 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				break;
 
 			case ACTION_NEXT:
+				if (!AudiostreamModule.hasRemoteControlListeners()) playAdjacentAutomotiveStation(1);
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_NEXT);
 				break;
 
 			case ACTION_PREV:
+				if (!AudiostreamModule.hasRemoteControlListeners()) playAdjacentAutomotiveStation(-1);
 				AudiostreamModule.fireRemoteControl(AudiostreamModule.REMOTE_CONTROL_PREV);
 				break;
 		}
@@ -771,16 +914,25 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	private void handleSetStream(Intent intent)
 	{
 		currentUrl = intent.getStringExtra(EXTRA_URL);
+		currentMimeType = null;
 		isLive = intent.getBooleanExtra(EXTRA_IS_LIVE, true);
 		autoUpdateMetadata = intent.getBooleanExtra(EXTRA_AUTO_UPDATE_METADATA, true);
 		long generation = artworkGeneration.incrementAndGet();
+		currentArtwork = null;
 
 		if (currentUrl == null || currentUrl.isEmpty()) {
-			Log.e(LCAT, "No URL provided");
+			DiagnosticLog.e(LCAT, "No URL provided");
 			return;
 		}
 
-		Log.d(LCAT, "Setting stream: " + currentUrl + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
+		// The current card represents the previous item. During a host selection
+		// expose the loading notification until this item actually starts playing.
+		sessionPublishedToSystemUi = false;
+		if (mediaSession != null && mediaSession.isActive()) {
+			mediaSession.setActive(false);
+		}
+
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Setting stream: " + currentUrl + " (live: " + isLive + ", autoUpdateMetadata: " + autoUpdateMetadata + ")");
 		resetMetadataEventDedup();
 
 			// Check if metadata (title, artist, artwork) are provided in setStream
@@ -795,7 +947,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			currentTitle = title;
 			currentArtist = artist;
 
-			Log.d(LCAT, "Setting metadata from setStream: " + title + " - " + artist);
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata or error event processed");
 
 				// Always clear previous artwork first when switching streams.
 				currentArtwork = null;
@@ -808,6 +960,9 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				updateMediaSessionMetadata();
 				updateNotification();
 		}
+
+		updateMediaSessionMetadata();
+		updateNotification();
 
 		// Handle metadataRules if present in setStream intent
 		if (intent.hasExtra(EXTRA_METADATA_RULES)) {
@@ -823,7 +978,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	 * Prepare playback for the current URL. SHOUTcast/Icecast playlist files (.pls/.m3u)
 	 * are resolved to the underlying audio URL on a background thread, because ExoPlayer
 	 * only parses .m3u8 (HLS) natively — it treats .pls/.m3u as raw audio and fails.
-	 * Non-playlist URLs are normalized synchronously.
+	 * HTTP URLs are also probed for extensionless playlists before Media3 preparation.
 	 */
 	private void preparePlayback()
 	{
@@ -832,30 +987,66 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			return;
 		}
 		final long generation = streamGeneration.incrementAndGet();
+		cancelPlaylistResolution();
+		playlistPending = true;
+		if (player != null) {
+			if (playerListener != null) player.removeListener(playerListener);
+			player.stop();
+			player.clearMediaItems();
+		}
 
-		if (isPlaylistUrl(requested)) {
-			Log.d(LCAT, "Resolving playlist URL: " + requested);
-			executor.execute(() -> {
-				String resolved = resolvePlaylist(requested);
+		if ((requested.startsWith("http://") || requested.startsWith("https://")) && !isNativeAudioUrl(requested)) {
+			playlistPending = true;
+			// Source resolution is part of loading, even before Media3 has a media item.
+			if (playbackRequested && controlsVisible) {
+				updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
+				AudiostreamModule.fireState("buffering");
+			}
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Resolving playlist URL: " + requested);
+			playlistTask = playlistExecutor.submit(() -> {
+				if (generation != streamGeneration.get() || Thread.currentThread().isInterrupted()) return;
+				PlaybackSource resolved = resolvePlaylist(requested);
 				final boolean ok = resolved != null;
-				final String playUrl = ok ? resolved : requested;
+				final String playUrl = ok ? resolved.url : requested;
+				final String mimeType = ok ? resolved.mimeType : null;
 				mainHandler.post(() -> {
-					if (streamGeneration.get() != generation) {
-						Log.d(LCAT, "Ignoring stale playlist resolution for: " + requested);
+					if (serviceDestroyed || streamGeneration.get() != generation) {
+						if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Ignoring stale playlist resolution for: " + requested);
 						return;
 					}
 					if (ok) {
-						Log.i(LCAT, "Playlist resolved to: " + playUrl);
+						if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "Playlist resolved to: " + playUrl);
 					} else {
-						Log.e(LCAT, "Could not resolve playlist, trying original URL: " + requested);
+						DiagnosticLog.e(LCAT, "Could not resolve playlist, trying original URL: " + requested);
 					}
+					playlistPending = false;
 					currentUrl = playUrl;
+					currentMimeType = mimeType;
 					setMediaItemAndPrepare(playUrl);
 				});
 			});
 		} else {
+			playlistPending = false;
+			currentMimeType = requested.toLowerCase(Locale.ROOT).split("[?#]", 2)[0].endsWith(".m3u8") ? androidx.media3.common.MimeTypes.APPLICATION_M3U8 : null;
 			setMediaItemAndPrepare(requested);
 		}
+	}
+
+	private void cancelPlaylistResolution() {
+		if (playlistTask != null) { playlistTask.cancel(true); playlistTask = null; }
+		HttpURLConnection connection;
+		synchronized (playlistConnectionLock) {
+			connection = playlistConnection;
+			playlistConnection = null;
+		}
+		if (connection != null) connection.disconnect();
+	}
+
+	private boolean isNativeAudioUrl(String url) {
+		try {
+			String path = new java.net.URI(url).getPath().toLowerCase(Locale.ROOT);
+			return path.matches(".*\\.(mp3|aac|aacp|m4a|mp4|ogg|oga|opus|wav|flac|m3u8)$");
+		} catch (Exception ignored) { return false; }
 	}
 
 	private void setMediaItemAndPrepare(String url)
@@ -863,9 +1054,18 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		if (player == null || url == null || url.isEmpty()) {
 			return;
 		}
-		MediaItem mediaItem = MediaItem.fromUri(url);
+		if (playerListener != null) player.removeListener(playerListener);
+		playerListener = createPlayerListener(streamGeneration.get());
+		player.addListener(playerListener);
+		MediaItem.Builder itemBuilder = new MediaItem.Builder().setUri(url);
+		if (currentMimeType != null) {
+			itemBuilder.setMimeType(currentMimeType);
+		}
+		MediaItem mediaItem = itemBuilder.build();
+		if (!playbackRequested || !hasAudioFocus) player.pause(); // stop() retains PlayWhenReady.
 		player.setMediaItem(mediaItem);
 		player.prepare();
+		if (playbackRequested && hasAudioFocus) player.play();
 	}
 
 	/**
@@ -877,48 +1077,68 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		if (url == null) {
 			return false;
 		}
-		String lower = url.toLowerCase();
-		int q = lower.indexOf('?');
-		if (q >= 0) {
-			lower = lower.substring(0, q);
-		}
-		return lower.endsWith(".pls") || lower.endsWith(".m3u");
+		try {
+			String path = new java.net.URI(url).getPath().toLowerCase(Locale.ROOT);
+			return path.endsWith(".pls") || path.endsWith(".m3u");
+		} catch (Exception ignored) { return false; }
 	}
 
 	/**
 	 * Download a .pls/.m3u playlist and return the first audio stream URL it references,
 	 * or null if it could not be fetched or parsed. Runs on a background thread.
 	 */
-	private String resolvePlaylist(String urlString)
+	private PlaybackSource resolvePlaylist(String urlString)
 	{
 		HttpURLConnection connection = null;
 		try {
 			URL url = new URL(urlString);
 			connection = (HttpURLConnection) url.openConnection();
+			synchronized (playlistConnectionLock) {
+				if (Thread.currentThread().isInterrupted()) return null;
+				playlistConnection = connection;
+			}
 			connection.setConnectTimeout(5000);
 			connection.setReadTimeout(8000);
 			connection.setInstanceFollowRedirects(true);
+			connection.setRequestProperty("User-Agent", "ti.audiostream (Android)");
 			connection.connect();
+			String type = connection.getContentType();
+			if (type != null) type = type.toLowerCase(Locale.ROOT);
+			boolean playlistType = type != null && (type.contains("mpegurl") || type.contains("scpls") || type.contains("text/"));
+			if (!isPlaylistUrl(urlString) && !playlistType) return new PlaybackSource(urlString, null);
 
-			java.io.BufferedReader reader =
-				new java.io.BufferedReader(new java.io.InputStreamReader(connection.getInputStream()));
-			StringBuilder body = new StringBuilder();
-			String line;
-			int count = 0;
-			while ((line = reader.readLine()) != null && count < 200) {
-				body.append(line).append('\n');
-				count++;
-			}
-			reader.close();
-			return parsePlaylist(body.toString());
+			String text;
+			try (InputStream input = connection.getInputStream()) { text = readPlaylistBody(input); }
+			// HLS can use .m3u too: preserve the manifest URL and let Media3 parse it.
+			if (text.contains("#EXT-X-")) return new PlaybackSource(connection.getURL().toString(), androidx.media3.common.MimeTypes.APPLICATION_M3U8);
+			String entry = parsePlaylist(text);
+			if (entry == null) return null;
+			URL resolved = new URL(connection.getURL(), entry);
+			String protocol = resolved.getProtocol();
+			return "http".equals(protocol) || "https".equals(protocol) ? new PlaybackSource(resolved.toString(), null) : null;
 		} catch (Exception e) {
-			Log.e(LCAT, "Error resolving playlist: " + e.getMessage());
+			if (!serviceDestroyed && !Thread.currentThread().isInterrupted())
+				DiagnosticLog.e(LCAT, "Error resolving playlist: " + e.getClass().getSimpleName());
 			return null;
 		} finally {
+			synchronized (playlistConnectionLock) {
+				if (playlistConnection == connection) playlistConnection = null;
+			}
 			if (connection != null) {
 				connection.disconnect();
 			}
 		}
+	}
+
+	private String readPlaylistBody(InputStream input) throws java.io.IOException {
+		ByteArrayOutputStream body = new ByteArrayOutputStream();
+		byte[] buffer = new byte[8192];
+		int count;
+		while ((count = input.read(buffer)) != -1) {
+			if (body.size() + count > 262144) throw new java.io.IOException("Playlist exceeds 256 KB");
+			body.write(buffer, 0, count);
+		}
+		return new String(body.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
 	}
 
 	/**
@@ -927,30 +1147,32 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	 */
 	private String parsePlaylist(String body)
 	{
-		if (body == null) {
-			return null;
-		}
+		if (body == null || body.contains("#EXT-X-")) return null;
+		if (body.startsWith("\uFEFF")) body = body.substring(1);
 		String[] lines = body.split("\\r?\\n");
+		boolean isPls = body.trim().toLowerCase(Locale.ROOT).startsWith("[playlist]")
+			|| (!body.contains("#EXTM3U") && Pattern.compile("(?mi)^\\s*File[0-9]+\\s*=").matcher(body).find());
 		// PLS: FileN=http://...
 		for (String raw : lines) {
 			String line = raw.trim();
-			if (line.regionMatches(true, 0, "File", 0, 4)) {
+			if (isPls && line.matches("(?i)File[0-9]+\\s*=.*")) {
 				int eq = line.indexOf('=');
 				if (eq > 0) {
 					String value = line.substring(eq + 1).trim();
-					if (value.startsWith("http://") || value.startsWith("https://")) {
+					if (!value.isEmpty()) {
 						return value;
 					}
 				}
 			}
 		}
-		// M3U: first non-comment URL line
+		if (isPls) return null;
+		// M3U: first non-comment URL line (query parameters may contain =).
 		for (String raw : lines) {
 			String line = raw.trim();
 			if (line.isEmpty() || line.startsWith("#")) {
 				continue;
 			}
-			if (line.startsWith("http://") || line.startsWith("https://")) {
+			if (!line.startsWith("[") && !line.contains("<") && !line.matches(".*\\s.*")) {
 				return line;
 			}
 		}
@@ -959,35 +1181,27 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void handleSetMetadata(Intent intent)
 	{
-		currentTitle = intent.getStringExtra(EXTRA_TITLE);
-		currentArtist = intent.getStringExtra(EXTRA_ARTIST);
-
+		if (intent.hasExtra(EXTRA_TITLE)) currentTitle = intent.getStringExtra(EXTRA_TITLE);
+		if (intent.hasExtra(EXTRA_ARTIST)) currentArtist = intent.getStringExtra(EXTRA_ARTIST);
 		if (currentTitle == null) currentTitle = "";
 		if (currentArtist == null) currentArtist = "";
-
-		Log.d(LCAT, "Setting metadata: " + currentTitle + " - " + currentArtist);
-
-		// Check if artwork key exists in intent
 		if (intent.hasExtra(EXTRA_ARTWORK_URL)) {
+			long generation = artworkGeneration.incrementAndGet();
 			String artworkUrl = normalizeArtworkUrl(intent.getStringExtra(EXTRA_ARTWORK_URL));
-			// null, empty, or whitespace-only → clear artwork
-			if (artworkUrl == null) {
-				currentArtwork = null;
-				updateMediaSessionMetadata();
-				updateNotification();
-			} else {
-				// Valid URL → load it
-				loadArtworkAsync(artworkUrl, artworkGeneration.get());
-			}
+			currentArtwork = null;
+			if (artworkUrl != null) loadArtworkAsync(artworkUrl, generation);
 		}
-		// If artwork key doesn't exist → keep current artwork (do nothing)
+		updateMediaSessionMetadata();
+		updateNotification();
 	}
 
 	private void handleSetAutoUpdateMetadata(Intent intent)
 	{
 		boolean value = intent.getBooleanExtra(EXTRA_AUTO_UPDATE_METADATA, true);
 		autoUpdateMetadata = value;
-		Log.d(LCAT, "Auto-update metadata set to: " + autoUpdateMetadata);
+		autoMetadataGeneration.incrementAndGet();
+		receivedArtwork = null;
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Auto-update metadata set to: " + autoUpdateMetadata);
 	}
 
 	private void handleSetMetadataRules(Intent intent)
@@ -997,7 +1211,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		if (jsonStr == null || jsonStr.isEmpty()) {
 			titleRules = null;
 			artistRules = null;
-			Log.d(LCAT, "Metadata rules cleared");
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata rules cleared");
 			return;
 		}
 
@@ -1028,10 +1242,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				artistRules = null;
 			}
 
-			Log.d(LCAT, "Metadata rules set: title=" + (titleRules != null ? titleRules.size() : 0)
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Metadata rules set: title=" + (titleRules != null ? titleRules.size() : 0)
 				+ ", artist=" + (artistRules != null ? artistRules.size() : 0));
 		} catch (Exception e) {
-			Log.e(LCAT, "Failed to parse metadata rules: " + e.getMessage());
+			DiagnosticLog.e(LCAT, "Failed to parse metadata rules: " + e.getClass().getSimpleName());
 			titleRules = null;
 			artistRules = null;
 		}
@@ -1082,7 +1296,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				}
 			}
 		} catch (Exception e) {
-			Log.e(LCAT, "Failed to restore automotive stations: " + e.getMessage());
+			DiagnosticLog.e(LCAT, "Failed to restore automotive stations: " + e.getClass().getSimpleName());
 		}
 	}
 
@@ -1102,7 +1316,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 				seedPlaybackFieldsFromStation(currentAutomotiveStation);
 			}
 		} catch (Exception e) {
-			Log.e(LCAT, "Failed to restore current automotive station: " + e.getMessage());
+			DiagnosticLog.e(LCAT, "Failed to restore current automotive station: " + e.getClass().getSimpleName());
 		}
 	}
 
@@ -1121,6 +1335,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			return;
 		}
 		currentUrl = streamUrl;
+		currentMimeType = null;
 		isLive = getStationBoolean(station, "isLive", true);
 		currentTitle = getStationString(station, "title", getStationString(station, "programName", localized("ti_audiostream_live_stream", "Live Stream")));
 		currentArtist = getStationString(station, "artist", getStationString(station, "stationName", getStationString(station, "subtitle", "")));
@@ -1132,7 +1347,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		restoreAutomotiveStations(json);
 		persistAutomotiveStations();
 		notifyChildrenChanged(ROOT_ID);
-		Log.d(LCAT, "Automotive stations updated: " + automotiveStations.size());
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Automotive stations updated: " + automotiveStations.size());
 	}
 
 	private void handleSetCurrentAutomotiveStation(Intent intent)
@@ -1141,7 +1356,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		restoreCurrentAutomotiveStation(json);
 		persistCurrentAutomotiveStation();
 		notifyChildrenChanged(ROOT_ID);
-		Log.d(LCAT, "Current automotive station updated: " + (currentAutomotiveStation != null));
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Current automotive station updated: " + (currentAutomotiveStation != null));
 	}
 
 	/**
@@ -1237,9 +1452,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		}
 
 		currentAutomotiveStation = station;
+		resetMetadataEventDedup();
 		persistCurrentAutomotiveStation();
 
 		currentUrl = streamUrl;
+		currentMimeType = null;
 		isLive = getStationBoolean(station, "isLive", true);
 		currentTitle = getStationString(station, "title", getStationString(station, "programName", localized("ti_audiostream_live_stream", "Live Stream")));
 		currentArtist = getStationString(station, "artist", getStationString(station, "stationName", getStationString(station, "subtitle", "")));
@@ -1297,13 +1514,46 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		playAutomotiveStation(automotiveStations.get(nextIndex), true);
 	}
 
+	private void publishReceivedMetadata() {
+		if (!autoUpdateMetadata) return;
+		currentTitle = receivedTitle;
+		currentArtist = receivedArtist;
+		if (receivedArtwork != null) {
+			artworkGeneration.incrementAndGet();
+			currentArtwork = receivedArtwork;
+			receivedArtwork = null;
+		}
+		updateMediaSessionMetadata();
+	}
+
+	private boolean isTerminalPlaybackError(PlaybackException error) {
+		java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Throwable, Boolean>());
+		for (Throwable cause = error; cause != null && seen.add(cause); cause = cause.getCause()) {
+			if (cause instanceof androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+				int status = ((androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) cause).responseCode;
+				return status != 408 && status != 429 && status < 500;
+			}
+			if (cause instanceof javax.net.ssl.SSLHandshakeException || cause instanceof java.security.cert.CertificateException) return true;
+			if (cause instanceof java.net.SocketTimeoutException || cause instanceof java.net.UnknownHostException) return false;
+		}
+		return error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+			|| error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND
+			|| error.errorCode == PlaybackException.ERROR_CODE_IO_INVALID_HTTP_CONTENT_TYPE
+			|| error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED
+			|| error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED;
+	}
+
 	private String applyRules(List<MetadataRule> rules, String input)
 	{
 		if (rules == null || rules.isEmpty() || input == null) return input;
 
 		String result = input;
 		for (MetadataRule rule : rules) {
-			result = rule.pattern.matcher(result).replaceAll(rule.replace);
+			try {
+				result = rule.pattern.matcher(result).replaceAll(rule.replace);
+			} catch (IllegalArgumentException | IndexOutOfBoundsException e) {
+				DiagnosticLog.w(LCAT, "Ignoring invalid metadata replacement: " + e.getClass().getSimpleName());
+			}
 		}
 		return result;
 	}
@@ -1315,7 +1565,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		if (value.isEmpty()) return null;
 		String lower = value.toLowerCase(Locale.ROOT);
 		if ("null".equals(lower) || "undefined".equals(lower)) {
-			Log.i(LCAT, "Ignoring invalid artwork value: " + artworkUrl);
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "Ignoring invalid artwork value: " + artworkUrl);
 			return null;
 		}
 		return value;
@@ -1323,6 +1573,9 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void resetMetadataEventDedup()
 	{
+		receivedTitle = "";
+		receivedArtist = "";
+		receivedArtwork = null;
 		lastEmittedTitle = null;
 		lastEmittedArtist = null;
 		lastEmittedArtwork = null;
@@ -1339,8 +1592,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void emitMetadataIfChanged(String artwork, java.util.Map<String, Object> rawData)
 	{
-		String title = currentTitle != null ? currentTitle : "";
-		String artist = currentArtist != null ? currentArtist : "";
+		String title = receivedTitle != null ? receivedTitle : "";
+		String artist = receivedArtist != null ? receivedArtist : "";
 
 		if (sameString(lastEmittedTitle, title)
 			&& sameString(lastEmittedArtist, artist)
@@ -1357,23 +1610,57 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	private void play()
 	{
 		if (player == null) return;
+		// A startForegroundService request must be acknowledged even when playback is
+		// already active or configuration is missing. Do this before every early exit.
+		controlsVisible = true;
+		playbackRequested = true;
+		// SystemUI reads the session as soon as the notification appears. Publish the
+		// new transport intent first, so it cannot attach using a stale STOPPED/PAUSED state.
+		if (!player.isPlaying() && currentUrl != null && !currentUrl.isEmpty()) {
+			updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
+		}
+		if (!startForegroundWithNotification()) {
+			updatePlaybackState(PlaybackStateCompat.STATE_ERROR);
+			playbackRequested = false;
+			controlsVisible = false;
+			stopSelfResult(lastStartId);
+			return;
+		}
+		if (currentUrl == null || currentUrl.isEmpty()) {
+			playbackRequested = false;
+			AudiostreamModule.fireError("No stream URL configured");
+			AudiostreamModule.fireState("error");
+			controlsVisible = false;
+			removeNotification();
+			stopSelfResult(lastStartId);
+			return;
+		}
+		playbackRequested = true;
+		playbackFailed = false;
+		controlsVisible = true;
+		// setStream may have begun resolving while playback was stopped or paused.
+		if (playlistPending || player.getPlaybackState() == Player.STATE_BUFFERING) {
+			updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING);
+			AudiostreamModule.fireState("buffering");
+		}
 
 		// Guard clause: If already playing, don't re-prepare or interrupt current playback
 		if (player.isPlaying()) {
-			Log.d(LCAT, "Play command ignored: Player is already playing.");
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Play command ignored: Player is already playing.");
 			return;
 		}
 
-		Log.i(LCAT, "Play command received. URL: " + currentUrl + " (Live: " + isLive + ")");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "Play command received. URL: " + currentUrl + " (Live: " + isLive + ")");
 
-		if (mediaSession != null && !mediaSession.isActive()) {
-			mediaSession.setActive(true);
-		}
 
-		startForegroundWithNotification();
 
 		if (!requestAudioFocus()) {
-			Log.w(LCAT, "Could not get audio focus");
+			DiagnosticLog.w(LCAT, "Could not get audio focus");
+			playbackRequested = false;
+			AudiostreamModule.fireError("Could not get audio focus");
+			AudiostreamModule.fireState("paused");
+			updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+			removeNotification();
 			return;
 		}
 
@@ -1381,16 +1668,9 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		// Intelligence: Only re-prepare if truly necessary (IDLE, ENDED, or URL changed)
 		// Do NOT re-prepare if just BUFFERING or PAUSED to avoid audio repeats
 		if (state == Player.STATE_IDLE || state == Player.STATE_ENDED) {
-			Log.i(LCAT, "Player is IDLE/ENDED, preparing source.");
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "Player is IDLE/ENDED, preparing source.");
 			if (currentUrl != null && !currentUrl.isEmpty()) {
-				if (isPlaylistUrl(currentUrl)) {
-					// Playlist resolution is already in flight (kicked off by setStream/station
-					// selection). player.play() below sets playWhenReady, so playback auto-starts
-					// once the resolved source is prepared — no second network fetch.
-					Log.d(LCAT, "Playlist resolution pending; will auto-start when ready.");
-				} else {
-					setMediaItemAndPrepare(currentUrl);
-				}
+				if (!playlistPending) preparePlayback();
 			}
 		}
 		// For live streams that are PAUSED/BUFFERING, just resume without re-preparing
@@ -1401,24 +1681,23 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void pause()
 	{
-		if (player == null) return;
-
-		// Guard clause: If already paused or stopped, do nothing
-		if (!player.isPlaying() && player.getPlaybackState() != Player.STATE_BUFFERING) {
-			Log.d(LCAT, "Pause command ignored: Player is not playing.");
-			return;
-		}
-
+		playbackRequested = false;
 		resumeOnFocusGain = false;
+		resetRetryLogic();
+		if (player == null) return;
 		player.pause();
-		updateNotification();
+		if (controlsVisible) {
+			updatePlaybackState(PlaybackStateCompat.STATE_PAUSED);
+			AudiostreamModule.fireState("paused");
+			updateNotification();
+		}
 	}
 
 	private void handleStop(Intent intent)
 	{
 		boolean hardStop = intent != null && intent.getBooleanExtra(EXTRA_HARD_STOP, false);
 		if (hardStop) {
-			hardStop();
+			try { hardStop(); } finally { releaseHardStopRequest(intent); }
 			return;
 		}
 		stop();
@@ -1426,7 +1705,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void stop()
 	{
-		Log.d(LCAT, "Soft stop: pausing playback and hiding controls");
+		sessionPublishedToSystemUi = false;
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Soft stop: pausing playback and hiding controls");
+		playbackRequested = false;
+		controlsVisible = false;
 		artworkGeneration.incrementAndGet();
 
 		resumeOnFocusGain = false;
@@ -1448,7 +1730,13 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void hardStop()
 	{
-		Log.d(LCAT, "Hard stop: tearing down playback and service");
+		sessionPublishedToSystemUi = false;
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Hard stop: tearing down playback and service");
+		playbackRequested = false;
+		controlsVisible = false;
+		streamGeneration.incrementAndGet();
+		cancelPlaylistResolution();
+		playlistPending = false;
 		artworkGeneration.incrementAndGet();
 
 		resumeOnFocusGain = false;
@@ -1498,7 +1786,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		}
 
 		hasAudioFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
-		Log.d(LCAT, "Audio focus request: " + (hasAudioFocus ? "granted" : "denied"));
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Audio focus request: " + (hasAudioFocus ? "granted" : "denied"));
 		return hasAudioFocus;
 	}
 
@@ -1519,13 +1807,16 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		}
 
 		hasAudioFocus = false;
-		Log.d(LCAT, "Audio focus abandoned");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Audio focus abandoned");
 	}
 
 	private void attemptReconnect()
 	{
+		if (!playbackRequested) return;
 		if (retryCount >= MAX_RETRIES) {
-			Log.w(LCAT, "Max retries reached, stopping player logic");
+			playbackRequested = false;
+			abandonAudioFocus();
+			DiagnosticLog.w(LCAT, "Max retries reached, stopping player logic");
 			// Stop player but keep service so user can skip
 			if (player != null) player.stop();
 			updatePlaybackState(PlaybackStateCompat.STATE_ERROR);
@@ -1534,10 +1825,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		}
 
 		retryCount++;
-		Log.d(LCAT, "Attempting reconnect (" + retryCount + "/" + MAX_RETRIES + ")");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Attempting reconnect (" + retryCount + "/" + MAX_RETRIES + ")");
 
 		final String targetUrl = currentUrl;
 		cancelPendingReconnect();
+		final long generation = playbackGeneration.get();
 
 		pendingReconnectTask = executor.submit(() -> {
 			try {
@@ -1547,14 +1839,13 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			}
 
 			mainHandler.post(() -> {
-				if (player != null && currentUrl != null && currentUrl.equals(targetUrl)) {
-					Log.d(LCAT, "Executing scheduled reconnect for: " + currentUrl);
-					MediaItem item = MediaItem.fromUri(currentUrl);
-					player.setMediaItem(item);
-					player.prepare();
+				if (playbackRequested && hasAudioFocus && playbackGeneration.get() == generation && player != null && currentUrl != null && currentUrl.equals(targetUrl)) {
+					playbackFailed = false;
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Executing scheduled reconnect for: " + currentUrl);
+					setMediaItemAndPrepare(currentUrl);
 					player.play();
 				} else {
-					Log.d(LCAT, "Scheduled reconnect aborted: URL changed or player stopped");
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Scheduled reconnect aborted: URL changed or player stopped");
 				}
 			});
 		});
@@ -1562,8 +1853,9 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void cancelPendingReconnect()
 	{
+		playbackGeneration.incrementAndGet();
 		if (pendingReconnectTask != null && !pendingReconnectTask.isDone()) {
-			Log.d(LCAT, "Cancelling existing reconnect task");
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Cancelling existing reconnect task");
 			pendingReconnectTask.cancel(true);
 		}
 		pendingReconnectTask = null;
@@ -1641,10 +1933,15 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, sessionArtwork);
 		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, sessionArtwork);
 		metadata.putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, sessionArtwork);
-		if (hasArtwork) {
+		if (effectiveArtwork != null) {
 			// Android Auto caches embedded bitmaps and won't re-render on change; give it a
 			// fresh content:// URI each time so the now-playing cover actually updates.
-			android.net.Uri artUri = publishArtworkUri(sessionArtwork);
+			if (publishedArtwork != effectiveArtwork || publishedArtworkUri == null) {
+				publishedArtwork = effectiveArtwork;
+				publishedArtworkUri = publishArtworkUri(effectiveArtwork);
+			}
+			android.net.Uri artUri = publishedArtworkUri;
+			currentArtworkUri = artUri;
 			if (artUri != null) {
 				String uriString = artUri.toString();
 				metadata.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, uriString);
@@ -1671,11 +1968,20 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	 * Android Auto ignores http artwork URIs and caches embedded bitmaps, so we hand it a
 	 * fresh URI on every change and grant read access to the media browser clients.
 	 */
+	private void grantArtworkRead(String packageName, android.net.Uri uri) {
+		try { grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); }
+		catch (RuntimeException unavailable) {
+			// Optional consumer absent on this device, or no longer installed.
+			if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Artwork reader unavailable");
+		}
+	}
+
 	private synchronized android.net.Uri publishArtworkUri(Bitmap bitmap)
 	{
-		if (bitmap == null) {
-			return null;
-		}
+		if (serviceDestroyed) return null;
+		if (bitmap == null) return null;
+		android.net.Uri cached = bitmapUris.get(bitmap);
+		if (cached != null) return cached;
 		try {
 			java.io.File dir = new java.io.File(getCacheDir(), "artwork");
 			if (!dir.exists()) {
@@ -1690,24 +1996,21 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			out.flush();
 			out.close();
 
-			// Keep the few most recent files; deleting one Android Auto may still be reading
-			// makes it fall back to a stale render. Older ones are safe to remove.
+			// Retain files for late readers for at least a day. Never prune an URI
+			// published during this service lifetime.
 			java.io.File[] existing = dir.listFiles();
-			if (existing != null && existing.length > 5) {
-				java.util.Arrays.sort(existing, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
-				for (int i = 0; i < existing.length - 5; i++) {
-					existing[i].delete();
-				}
+			if (existing != null) for (java.io.File old : existing) {
+				if (old.lastModified() < serviceCreatedAt - 86400000L) old.delete();
 			}
 
 			android.net.Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".tiaudiostream.fileprovider", file);
-			currentArtworkUri = uri;
-			for (String pkg : browserClients) {
-				grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-			}
+			publishedArtworkUris.add(uri);
+			bitmapUris.put(bitmap, uri);
+			for (String pkg : browserClients) grantArtworkRead(pkg, uri);
+			for (String pkg : SYSTEM_ARTWORK_READERS) grantArtworkRead(pkg, uri);
 			return uri;
 		} catch (Exception e) {
-			Log.w(LCAT, "Could not publish artwork URI: " + e.getMessage());
+			DiagnosticLog.w(LCAT, "Could not publish artwork URI: " + e.getClass().getSimpleName());
 			return null;
 		}
 	}
@@ -1715,46 +2018,92 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	/**
 	 * Fetch artwork from a URL asynchronously (for Radio Paradise style streams)
 	 */
-	private void fetchArtworkFromUrl(String urlString, long expectedGeneration) {
-		executor.execute(() -> {
-			if (artworkGeneration.get() != expectedGeneration) {
-				return;
-			}
-			java.net.HttpURLConnection connection = null;
-			try {
-				Log.d(LCAT, "Fetching artwork from: " + urlString);
-				java.net.URL url = new java.net.URL(urlString);
-				connection = (java.net.HttpURLConnection) url.openConnection();
-				// Without timeouts a hung host blocks the single shared executor indefinitely,
-				// stalling every later artwork fetch. Mirror loadArtworkAsync's timeouts.
-				connection.setConnectTimeout(5000);
-				connection.setReadTimeout(8000);
-				connection.setDoInput(true);
-				connection.connect();
-				java.io.InputStream input = connection.getInputStream();
-				Bitmap bitmap = BitmapFactory.decodeStream(input);
-				input.close();
-				if (bitmap != null) {
-					mainHandler.post(() -> {
-							if (artworkGeneration.get() != expectedGeneration) {
-								Log.d(LCAT, "Ignoring stale fetched artwork for old stream: " + urlString);
-								return;
-							}
-							currentArtwork = bitmap;
-							updateMediaSessionMetadata();
-							updateNotification();
-							Log.i(LCAT, "Artwork updated from URL: " + urlString);
-						});
+	private Bitmap decodeArtwork(InputStream input) throws java.io.IOException {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		byte[] buffer = new byte[8192];
+		int count;
+		while ((count = input.read(buffer)) != -1) {
+			if (bytes.size() + count > 8 * 1024 * 1024) throw new java.io.IOException("Artwork exceeds 8 MB");
+			bytes.write(buffer, 0, count);
+		}
+		byte[] data = bytes.toByteArray();
+		BitmapFactory.Options options = new BitmapFactory.Options();
+		options.inJustDecodeBounds = true;
+		BitmapFactory.decodeByteArray(data, 0, data.length, options);
+		options.inSampleSize = 1;
+		while (options.outWidth / options.inSampleSize > 1024 || options.outHeight / options.inSampleSize > 1024) options.inSampleSize *= 2;
+		options.inJustDecodeBounds = false;
+		return BitmapFactory.decodeByteArray(data, 0, data.length, options);
+	}
+
+	private Bitmap readArtwork(String url) throws java.io.IOException {
+		Bitmap cached = artworkCache.get(url);
+		if (cached != null) return cached;
+		Bitmap bitmap;
+		if (url.startsWith("http://") || url.startsWith("https://")) {
+			HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+			connection.setConnectTimeout(5000);
+			connection.setReadTimeout(8000);
+			try (InputStream input = connection.getInputStream()) { bitmap = decodeArtwork(input); }
+			finally { connection.disconnect(); }
+		} else {
+			InputStream asset;
+			try { asset = getAssets().open("Resources/" + url); }
+			catch (java.io.IOException missing) { asset = getAssets().open(url); }
+			try (InputStream input = asset) { bitmap = decodeArtwork(input); }
+		}
+		if (bitmap != null) artworkCache.put(url, bitmap);
+		return bitmap;
+	}
+
+	private android.net.Uri getCatalogArtwork(String url) {
+		android.net.Uri cached = catalogArtwork.get(url);
+		if (cached != null) return cached;
+		long now = android.os.SystemClock.elapsedRealtime();
+		Long retryAfter = catalogArtworkRetryAfter.get(url);
+		if ((retryAfter == null || now >= retryAfter) && catalogArtworkPending.add(url)) executor.execute(() -> {
+			android.net.Uri loaded = null;
+			try { loaded = publishArtworkUri(readArtwork(url)); }
+			catch (Exception e) { DiagnosticLog.w(LCAT, "Could not load catalog artwork"); }
+			final android.net.Uri uri = loaded;
+			mainHandler.post(() -> {
+				// Exact URL identity prevents obsolete completions changing another row.
+				catalogArtworkPending.remove(url);
+				if (serviceDestroyed) return;
+				if (uri != null) {
+					catalogArtwork.put(url, uri);
+					catalogArtworkRetryAfter.remove(url);
+					notifyChildrenChanged(ROOT_ID);
+					notifyChildrenChanged(RESUMPTION_ROOT_ID);
 				} else {
-					Log.w(LCAT, "Failed to decode bitmap from: " + urlString);
+					// A later browse may retry. Do not notify here: that would refetch
+					// failed URLs endlessly as the browser responds to our own refresh.
+					catalogArtworkRetryAfter.put(url, android.os.SystemClock.elapsedRealtime() + 30000L);
 				}
-			} catch (Exception e) {
-				Log.e(LCAT, "Error fetching artwork: " + e.getMessage());
-			} finally {
-				if (connection != null) {
-					connection.disconnect();
-				}
-			}
+			});
+		});
+		return publishArtworkUri(getAppIconBitmap());
+	}
+
+	private void fetchArtworkFromUrl(String urlString, long expectedGeneration) {
+		loadArtworkAsync(urlString, expectedGeneration, true, autoMetadataGeneration.get());
+	}
+
+	private boolean isArtworkRequestCurrent(long generation, boolean automatic, long metadataGeneration) {
+		return artworkGeneration.get() == generation && (!automatic
+			|| (autoUpdateMetadata && autoMetadataGeneration.get() == metadataGeneration));
+	}
+
+	private void clearFailedArtwork(long generation) {
+		clearFailedArtwork(generation, false, 0);
+	}
+
+	private void clearFailedArtwork(long generation, boolean automatic, long metadataGeneration) {
+		mainHandler.post(() -> {
+			if (!isArtworkRequestCurrent(generation, automatic, metadataGeneration)) return;
+			currentArtwork = null;
+			updateMediaSessionMetadata();
+			updateNotification();
 		});
 	}
 
@@ -1772,6 +2121,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			PlaybackStateCompat.ACTION_PAUSE |
 			PlaybackStateCompat.ACTION_STOP |
 			PlaybackStateCompat.ACTION_PLAY_PAUSE |
+			PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH |
 			PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID |
 			PlaybackStateCompat.ACTION_PREPARE |
 			PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID;
@@ -1790,71 +2140,32 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		mediaSession.setPlaybackState(playbackState);
 	}
 
-	private void loadArtworkAsync(String artworkUrl, long expectedGeneration)
+	private void loadArtworkAsync(String artworkUrl, long expectedGeneration) {
+		loadArtworkAsync(artworkUrl, expectedGeneration, false, 0);
+	}
+
+	private void loadArtworkAsync(String artworkUrl, long expectedGeneration, boolean automatic, long metadataGeneration)
 	{
 		executor.execute(() -> {
-			if (artworkGeneration.get() != expectedGeneration) {
-				return;
-			}
+			if (!isArtworkRequestCurrent(expectedGeneration, automatic, metadataGeneration)) return;
 			try {
-				Bitmap bitmap = null;
-				boolean isRemoteURL = artworkUrl.startsWith("http://") || artworkUrl.startsWith("https://");
-
-				if (isRemoteURL) {
-					URL url = new URL(artworkUrl);
-					HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-					connection.setConnectTimeout(5000);
-					connection.setReadTimeout(8000);
-					connection.connect();
-					InputStream is = connection.getInputStream();
-					bitmap = BitmapFactory.decodeStream(is);
-					is.close();
-					connection.disconnect();
-				} else {
-					try {
-						InputStream is = getAssets().open("Resources/" + artworkUrl);
-						bitmap = BitmapFactory.decodeStream(is);
-						is.close();
-					} catch (Exception e) {
-						try {
-							InputStream is = getAssets().open(artworkUrl);
-							bitmap = BitmapFactory.decodeStream(is);
-							is.close();
-						} catch (Exception e2) {
-							Log.w(LCAT, "Could not load local artwork: " + artworkUrl);
-						}
-					}
-				}
-
-				if (bitmap != null) {
-					final Bitmap finalBitmap = bitmap;
-					mainHandler.post(() -> {
-						if (artworkGeneration.get() != expectedGeneration) {
-							Log.d(LCAT, "Ignoring stale artwork load for old stream: " + artworkUrl);
-							return;
-						}
-						currentArtwork = finalBitmap;
-						updateMediaSessionMetadata();
-						updateNotification();
-					});
-				} else {
-					// Failed to load → clear artwork
-					mainHandler.post(() -> {
-						if (artworkGeneration.get() != expectedGeneration) {
-							return;
-						}
-						currentArtwork = null;
-						updateMediaSessionMetadata();
-						updateNotification();
-					});
-				}
+				Bitmap bitmap = readArtwork(artworkUrl);
+				// Compress and write files on the worker; MediaSession publication reuses this URI.
+				publishArtworkUri(bitmap);
+				mainHandler.post(() -> {
+					if (!isArtworkRequestCurrent(expectedGeneration, automatic, metadataGeneration)) return;
+					currentArtwork = bitmap;
+					updateMediaSessionMetadata();
+					updateNotification();
+				});
 			} catch (Exception e) {
-				Log.e(LCAT, "Failed to load artwork: " + e.getMessage());
+				DiagnosticLog.w(LCAT, "Could not load artwork");
+				clearFailedArtwork(expectedGeneration, automatic, metadataGeneration);
 			}
 		});
 	}
 
-	private void startForegroundWithNotification()
+	private boolean startForegroundWithNotification()
 	{
 		Notification notification = buildNotification();
 		try {
@@ -1868,19 +2179,23 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			} else {
 				startForeground(NOTIFICATION_ID, notification);
 			}
-			Log.d(LCAT, "Foreground service started");
+			foregroundActive = true;
+			return true;
 		} catch (Exception e) {
 			// Android 12+/14 can refuse to start a foreground service from the background
 			// (ForegroundServiceStartNotAllowedException). A failed startForeground means playback
 			// won't run, so surface it instead of silently swallowing it.
-			Log.e(LCAT, "Failed to start foreground: " + e.getMessage());
+			DiagnosticLog.e(LCAT, "Failed to start foreground: " + e.getClass().getSimpleName());
 			AudiostreamModule.fireError("Cannot start playback service: " + e.getMessage());
 			AudiostreamModule.fireState("error");
+			foregroundActive = false;
+			return false;
 		}
 	}
 
 	private void updateNotification()
 	{
+		if (!controlsVisible) return;
 		NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		if (manager != null) {
 			manager.notify(NOTIFICATION_ID, buildNotification());
@@ -1909,10 +2224,10 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 					Canvas canvas = new Canvas(appIconBitmap);
 					d.setBounds(0, 0, APP_ICON_SIZE, APP_ICON_SIZE);
 					d.draw(canvas);
-					Log.i(LCAT, "App icon loaded: " + APP_ICON_SIZE + "x" + APP_ICON_SIZE);
+					if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.i(LCAT, "App icon loaded: " + APP_ICON_SIZE + "x" + APP_ICON_SIZE);
 				}
 			} catch (Exception e) {
-				Log.w(LCAT, "Could not load app icon: " + e.getMessage());
+				DiagnosticLog.w(LCAT, "Could not load app icon: " + e.getClass().getSimpleName());
 			}
 		}
 		return appIconBitmap;
@@ -1925,7 +2240,6 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			smallIcon = android.R.drawable.ic_media_play;
 		}
 
-		boolean isPlaying = player != null && player.isPlaying();
 		Bitmap largeIcon = currentArtwork != null ? currentArtwork : (getAppIconBitmap() != null ? getAppIconBitmap() : getTransparentArtwork());
 
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -1935,21 +2249,21 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 			.setLargeIcon(largeIcon)
 			.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 			.setOnlyAlertOnce(true)
-			.setOngoing(isPlaying)
+			.setOngoing(playbackRequested)
 			.addAction(buildAction(android.R.drawable.ic_media_previous, localized("ti_audiostream_previous", "Previous"), ACTION_PREV))
-			.addAction(isPlaying
+			.addAction(playbackRequested
 				? buildAction(android.R.drawable.ic_media_pause, localized("ti_audiostream_pause", "Pause"), ACTION_PAUSE)
 				: buildAction(android.R.drawable.ic_media_play, localized("ti_audiostream_play", "Play"), ACTION_PLAY))
 			.addAction(buildAction(android.R.drawable.ic_media_next, localized("ti_audiostream_next", "Next"), ACTION_NEXT));
 
-		MediaStyle mediaStyle = new MediaStyle()
-			.setShowActionsInCompactView(0, 1, 2);
-
-		if (mediaSession != null) {
+		// A token-less MediaStyle is still classified as a media card by SystemUI.
+		// Keep the loading notification ordinary until the session owns playing audio.
+		if (mediaSession != null && mediaSession.isActive()) {
+			MediaStyle mediaStyle = new MediaStyle()
+				.setShowActionsInCompactView(0, 1, 2);
 			mediaStyle.setMediaSession(mediaSession.getSessionToken());
+			builder.setStyle(mediaStyle);
 		}
-
-		builder.setStyle(mediaStyle);
 
 		Intent launchIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
 		if (launchIntent != null) {
@@ -1976,7 +2290,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void removeNotification()
 	{
-		Log.d(LCAT, "Removing playback notification");
+		foregroundActive = false;
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Removing playback notification");
 		ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE);
 		NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		if (manager != null) {
@@ -1986,9 +2301,11 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 	private void stopForegroundService()
 	{
-		Log.d(LCAT, "Stopping foreground service");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Stopping foreground service");
 		removeNotification();
-		stopSelf();
+		// stopSelf() discards newer commands already queued by ActivityManager. The
+		// startId check keeps this instance alive for immediate setStream()/play().
+		stopSelfResult(lastStartId);
 	}
 
 	private void ensureNotificationChannel()
@@ -2027,8 +2344,8 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		// access to the artwork content:// URI. Grant the current one to a late-joining client.
 		if (clientPackageName != null) {
 			browserClients.add(clientPackageName);
-			if (currentArtworkUri != null) {
-				grantUriPermission(clientPackageName, currentArtworkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+			for (android.net.Uri uri : publishedArtworkUris) {
+				grantArtworkRead(clientPackageName, uri);
 			}
 		}
 
@@ -2055,7 +2372,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 		String resumeArtwork = getStationString(currentAutomotiveStation, "artwork", null);
 		if (resumeArtwork != null && !resumeArtwork.isEmpty()) {
-			resume.setIconUri(android.net.Uri.parse(resumeArtwork));
+			resume.setIconUri(getCatalogArtwork(resumeArtwork));
 		}
 
 		return new MediaBrowserCompat.MediaItem(resume.build(), MediaBrowserCompat.MediaItem.FLAG_PLAYABLE);
@@ -2098,7 +2415,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 
 				String artworkUrl = getStationString(station, "artwork", null);
 				if (artworkUrl != null && !artworkUrl.isEmpty()) {
-					desc.setIconUri(android.net.Uri.parse(artworkUrl));
+					desc.setIconUri(getCatalogArtwork(artworkUrl));
 				}
 
 				items.add(new MediaBrowserCompat.MediaItem(desc.build(),
@@ -2128,7 +2445,17 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	@Override
 	public void onDestroy()
 	{
-		Log.d(LCAT, "Service destroyed");
+		serviceDestroyed = true;
+		cancelPlaylistResolution();
+		playlistExecutor.shutdownNow();
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "Service destroyed");
+		foregroundActive = false;
+		controlsVisible = false;
+		playbackRequested = false;
+		streamGeneration.incrementAndGet();
+		artworkGeneration.incrementAndGet();
+		unregisterReceiver(noisyReceiver);
+		AudiostreamModule.fireState("stopped");
 		resetRetryLogic();
 		abandonAudioFocus();
 
@@ -2139,6 +2466,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 		}
 
 		if (mediaSession != null) {
+			mediaSession.setCallback(null);
 			mediaSession.setActive(false);
 			mediaSession.release();
 			mediaSession = null;
@@ -2159,7 +2487,7 @@ public class MediaPlaybackService extends MediaBrowserServiceCompat
 	@Override
 	public void onTaskRemoved(Intent rootIntent)
 	{
-		Log.d(LCAT, "App task removed - cleaning up");
+		if (org.appcelerator.kroll.common.TiConfig.LOGD) DiagnosticLog.d(LCAT, "App task removed - cleaning up");
 		hardStop();
 		super.onTaskRemoved(rootIntent);
 	}
