@@ -67,7 +67,7 @@ public class JavaProbe {
  Bitmap readArtwork(String url)throws IOException{reads++;if(failArtwork)throw new IOException("temporary");return new Bitmap(url);} FakeUri publishArtworkUri(Bitmap b){return b==null?null:new FakeUri();} Bitmap getAppIconBitmap(){return new Bitmap("fallback");} void notifyChildrenChanged(String id){treeNotifications++;}int lastNativeState=-1,stateAtPromotion=-1;void updatePlaybackState(int s){lastNativeState=s;}
  java.util.concurrent.atomic.AtomicLong streamGeneration=new java.util.concurrent.atomic.AtomicLong(0); java.util.concurrent.atomic.AtomicLong autoMetadataGeneration=new java.util.concurrent.atomic.AtomicLong(0); java.util.concurrent.atomic.AtomicLong playbackGeneration=new java.util.concurrent.atomic.AtomicLong(0); java.util.concurrent.atomic.AtomicLong artworkGeneration=new java.util.concurrent.atomic.AtomicLong(0);
  int foregroundPromotions; boolean startForegroundWithNotification(){stateAtPromotion=lastNativeState;foregroundPromotions++;return true;} int lastStartId=1,frameworkLatestStartId=1,destroyRequests; void stopSelf(){destroyRequests++;} boolean stopSelfResult(int id){if(id==frameworkLatestStartId){destroyRequests++;return true;}return false;} void removeNotification(){} void abandonAudioFocus(){} void preparePlayback(){prepared++;player.prepare();} boolean requestAudioFocus(){hasAudioFocus=true;return true;}
- 
+
  FailingContext getContext(){return new FailingContext();} static void fireState(String state){} static void fireError(String error){}
  static void out(String key,Object value){System.out.println(key+"="+value);}
 """
