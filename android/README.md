@@ -6,17 +6,17 @@ For the full API reference, see the [main README](../README.md).
 
 ## Build requirements
 
-Use Titanium SDK **13.4.1.GA+** and Android **compileSdk 36+**. The minimum device version is **API 24**. This build uses Media3 1.11.1 and Guava 33.8.0-android. Upgrade older Titanium apps before installing it.
+Use Titanium SDK 13.4.1.GA+ and Android compileSdk 36+. The minimum device version is API 24. This build uses Media3 1.11.1 and Guava 33.8.0-android. Upgrade older Titanium apps before installing it.
 
 ## Android-specific behavior
 
 ### Background playback
 
-Audio runs inside a **Foreground Service** with a persistent media notification. The notification has three views:
+Audio runs inside a Foreground Service with a persistent media notification. The notification has three views:
 
-- **Compact** - lock screen
-- **Expanded** - notification drawer
-- **System media player** - Quick Settings panel
+- Compact - lock screen
+- Expanded - notification drawer
+- System media player - Quick Settings panel
 
 Start playback from a visible activity or a supported system media control. Android can reject a new foreground service started from the background. If a restart after `hardStop()` is rejected, handle the `error` event and let the user start again from the app. [Android foreground service rules](https://developer.android.com/develop/background-work/services/fgs/launch)
 
@@ -40,7 +40,9 @@ If Android temporarily takes audio focus while a source is loading, the module r
 
 ### Auto-retry on stream failure
 
-When a stream connection drops, the engine retries automatically: **5 attempts** with a **3-second delay** between each. Player failures can emit `error` before a retry and then return to `buffering`. Follow `state` to distinguish recovery from a terminal failure.
+For retryable transport failures, the engine retries automatically: 5 attempts with a 3-second delay between each. Player failures can emit `error` before a retry and then return to `buffering`. Follow `state` to distinguish recovery from a terminal failure. Missing resources
+(404), invalid certificates and unsupported content are terminal. Pause, stop
+and station changes cancel obsolete retries.
 
 ### Audio focus handling
 
@@ -55,7 +57,7 @@ Android exposes the focus change via [`audiofocuschange`](../README.md#audiofocu
 
 ### Permissions
 
-All permissions are declared in the module's `timodule.xml` and merged into your build automatically. No manual manifest editing needed:
+The module declares these permissions in `timodule.xml`. Titanium merges them into the app manifest during the build:
 
 - `INTERNET` - stream access
 - `WAKE_LOCK` - prevents CPU sleep during playback
@@ -64,14 +66,17 @@ All permissions are declared in the module's `timodule.xml` and merged into your
 
 ## Android Auto
 
-Android Auto works without any app-level setup. The module already includes:
+The module supplies Android Auto discovery and transport integration:
 
 - `MediaBrowserServiceCompat` implementation with `onGetRoot` / `onLoadChildren`
 - `automotive_app_desc.xml` resource descriptor
 - `meta-data` declaration and `intent-filter` in `timodule.xml`
 - Session token binding via `setSessionToken`
 
-No app-level configuration is required.
+For browsing before playback, register a station catalog with
+`setAutomotiveStations()` and update `setCurrentAutomotiveStation()` on selection.
+The catalog also provides native next/previous when no JavaScript listener is active.
+See the [automotive API](../README.md#setautomotivestationsstations).
 
 ### What appears on the head unit
 
@@ -84,7 +89,7 @@ When connected to an Android Auto head unit, the car display shows:
 
 ### Handling controls from Android Auto
 
-The `remotecontrol` event fires the same way from Android Auto as it does from the lock screen or notification. Play, pause, and stop are handled automatically. You handle `NEXT` and `PREV` to switch stations:
+The `remotecontrol` event fires the same way from Android Auto as it does from the lock screen or notification. Play, pause, and stop are handled automatically. If you register a `remotecontrol` listener, handle `NEXT` and `PREV` there to switch stations:
 
 ```javascript
 const audioStream = require('ti.audiostream')
@@ -129,14 +134,14 @@ loadStation(0)
 | Feature               | Bluetooth (AVRCP)            | Android Auto |
 | :-------------------- | :--------------------------- | :----------- |
 | Title / Artist        | Yes (AVRCP 1.3+)             | Always       |
-| Artwork               | Depends on AVRCP version     | Always       |
+| Artwork               | Depends on AVRCP version     | When provided |
 | App icon on head unit | No                           | Yes          |
 | Playback controls     | Basic (play/pause/next/prev) | Full         |
 | Content browsing      | No                           | Yes          |
 
 ### Artwork notes
 
-- Artwork is scaled to **512x512** for MediaSession metadata to stay within Binder IPC transaction limits.
+- Artwork is scaled to 512x512 for MediaSession metadata to stay within Binder IPC transaction limits.
 - The module limits network artwork to 8 MiB and decodes it near 1024 pixels for the notification. It scales a separate copy to 512 pixels for MediaSession. Catalog and resume entries use local cached URIs with read grants. The FileProvider stays private.
 - If artwork does not show over Bluetooth, the car stereo likely uses AVRCP 1.3 or below, which only transmits title and artist.
 
@@ -148,11 +153,11 @@ Registered catalog stations also support native next/previous and voice search w
 
 Android Auto hides apps that were not installed from Google Play by default. To show your app during development:
 
-1. Open the **Android Auto** app on your phone (or Settings > Apps > Android Auto)
-2. Go to **Settings** > scroll to **About** or **Version**
-3. Tap **Version** 10 times to enable Developer Mode
-4. Tap the three-dot menu (top right) > **Developer settings**
-5. Enable **"Unknown sources"** (in Spanish: "Mostrar las aplicaciones externas")
+1. Open the Android Auto app on your phone (or Settings > Apps > Android Auto)
+2. Go to Settings > scroll to About or Version
+3. Tap Version 10 times to enable Developer Mode
+4. Tap the three-dot menu (top right) > Developer settings
+5. Enable "Unknown sources" (in Spanish: "Mostrar las aplicaciones externas")
 
 Without this, your app will not appear on the car head unit even if the module is correctly configured.
 
@@ -167,7 +172,7 @@ Without this, your app will not appear on the car head unit even if the module i
 
 ### App does not appear in Android Auto
 
-- **Most common cause**: "Unknown sources" is not enabled in Android Auto Developer settings (see Testing section above)
+- Most common cause: "Unknown sources" is not enabled in Android Auto Developer settings (see Testing section above)
 - Verify you are using a module version that includes the MediaBrowserService changes
 - Rebuild your app with the latest module to ensure the manifest entries are merged
 - Check that Android Auto is installed and updated on the phone

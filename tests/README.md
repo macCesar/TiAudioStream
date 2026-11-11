@@ -32,10 +32,12 @@ The run verifies direct playback, repeated start, received metadata with automat
 
 Use Device Hub for the physical iPad and Visor Android for the connected Android. Bluetooth, headset removal, extended suspension, car cold start/search and Patrick's exact URI-reader problem need separate hardware acceptance.
 
-See [VALIDACION.md](VALIDACION.md) for this branch's actual results and remaining limits.
+See [VALIDACION.md](VALIDACION.md) for the first audit results and
+[SEGUNDA_PASADA.md](SEGUNDA_PASADA.md) for the second audit, final-package
+measurements and remaining limits. Both reports retain incomplete runs and
+measurements that exceeded their budget.
 
 `device/second-pass.js` checks silent cold starts, delayed playlists, pause during resolution, rapid switches, finite EOF and restart in the disposable audit app. Use the silent fixture documented in the second-audit evidence; do not run it against the original apps.
-
 
 ## Silent second-pass acceptance
 
@@ -45,6 +47,6 @@ Install the module ZIP in the disposable app before building. Run `second-pass.j
 
 `controller-target.js` and `controller/MainActivity.java` are an independent MediaBrowser/MediaController reader and target. The external controller supports inspect, prepareB/play, playB, pause/play/stop, next/search and transient-focus/manual-pause cases. These check transport, actual published bitmap/URI dimensions, hashes and reader permissions; they do not certify a car's visual rendering. Build/install them only under their disposable audit package IDs.
 
-Current implementation, results and remaining hardware acceptance: [SEGUNDA_PASADA.md](SEGUNDA_PASADA.md).
+Implementation, recorded results and remaining hardware acceptance: [SEGUNDA_PASADA.md](SEGUNDA_PASADA.md).
 
 Build the reader with `python3 tests/device/controller/build.py --output /tmp/tiaudio-controller.apk` and install it. Build the disposable target app with `controller-target.js` and the final module. With the phone unlocked, run `python3 tests/device/controller/run.py --fixture-evidence /tmp/tiaudiostream-silent --output /tmp/tiaudio-controller-results`. The runner needs one authorized ADB device and force-stops only the two disposable packages between cases. Check its results for playback and artwork as well as the MediaBrowser connection.

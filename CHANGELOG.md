@@ -29,6 +29,11 @@ All notable changes to this project will be documented in this file.
 - Media3 artifacts aligned at the current stable 1.11.1; AndroidX Media 1.8.0, Error Prone annotations 2.52.0, Checker Qual 4.4.0 and Guava 33.8.0-android. JSR305 remains 3.0.2.
 - Detailed iOS binary diagnostics are off by default. Android debug and info logs follow the Titanium configuration. Public event payloads and the behavior of soft and hard stop remain unchanged.
 
+### Documentation
+- Clarified loading-state UI, immediate `setStream()` / `start()` calls, retry cancellation and finite-item restart.
+- Corrected automotive event source spelling and Android Auto artwork availability; expanded catalog setup and linked the second audit's measured results and remaining limits.
+- Edited the public README, platform guides and test instructions for plain language while retaining API tables, examples and setup requirements.
+
 ## [1.6.1] - 2026-09-15
 
 ### Changed

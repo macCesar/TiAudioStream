@@ -10,11 +10,11 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 ![iOS Titanium SDK](https://img.shields.io/badge/iOS%20Titanium%20SDK-13.1.1.GA%2B-orange)
 </div>
 
-## Why ti.audiostream?
+## Playback engine
 
 `Ti.Media.AudioPlayer` handles simple playback. For a radio app, you would usually add platform code for lock screen controls, metadata, background playback, and audio focus.
 
-`ti.audiostream` uses Media3 ExoPlayer on Android and AVPlayer on iOS behind a single JavaScript API. The module handles playback and system integration, so ICY/ID3 parsing, artwork updates, and interruption or resume behavior stay consistent across platforms.
+`ti.audiostream` uses Media3 ExoPlayer on Android and AVPlayer on iOS behind a single JavaScript API. The module parses ICY/ID3 metadata, updates artwork and handles interruption and resume requests. The platform guides describe differences in system controls and automotive behavior.
 
 ## Features
 
@@ -35,7 +35,7 @@ Audio streaming module for Titanium SDK. It handles background playback, system 
 | Android      | API 24+ (Nougat) |
 | iOS          | 15.0+            |
 
-Media3 1.11.1 requires Android builds to use **compileSdk 36+**. The module still runs on devices with Android API 24 or later. If your Android app uses an older Titanium SDK, upgrade to 13.4.1.GA or later. The Android module manifest enforces that minimum.
+Media3 1.11.1 requires Android builds to use compileSdk 36+. The module still runs on devices with Android API 24 or later. If your Android app uses an older Titanium SDK, upgrade to 13.4.1.GA or later. The Android module manifest enforces that minimum.
 
 ### Mac Catalyst note
 
@@ -53,7 +53,7 @@ Extract the ZIP for each platform you target at the root of your Titanium app. E
 </modules>
 ```
 
-### 2. iOS: Enable background audio
+### 2. iOS: enable background audio
 
 Add the `audio` background mode to your `tiapp.xml` inside the `<ios><plist><dict>` section:
 
@@ -110,7 +110,7 @@ audioStream.start()
 
 ### Run the example
 
-Install the module in a Titanium Classic app and copy the shared sample into `Resources/app.js`. Both ZIPs include a copy under the module's `example/` directory. On iOS, enable the background audio mode above. Open the app and press **Play** or pick a station. While a stream is loading, the same button lets you pause it. The sample logs playback states and retry errors and keeps its selection in sync with the automotive catalog. Enable the CarPlay entitlement and scene setup if you want to test the car interface. [Sample source](example/app.js) · [CarPlay setup](ios/README.md#carplay)
+Install the module in a Titanium Classic app and copy the shared sample into `Resources/app.js`. Both ZIPs include a copy under the module's `example/` directory. On iOS, enable the background audio mode above. Open the app and press Play or pick a station. While a stream is loading, the same button lets you pause it. The sample logs playback states and retry errors and keeps its selection in sync with the automotive catalog. Enable the CarPlay entitlement and scene setup if you want to test the car interface. [Sample source](example/app.js) · [CarPlay setup](ios/README.md#carplay)
 
 ## API reference
 
@@ -186,12 +186,12 @@ Manually sets lock screen and notification metadata without changing the stream.
 | `artist`  | String        | Artist or description                                 |
 | `artwork` | String / null | Artwork URL, `null` to clear, or omit to keep current |
 
-**Artwork behavior:**
-- Set `artwork` to `null` or `""` → clears the artwork
-- Set `artwork` to a URL → loads and displays the new image
-- Omit `artwork` → keeps whatever artwork is currently showing
+Artwork updates follow these rules:
+- Set `artwork` to `null` or `""`: clears the artwork
+- Set `artwork` to a URL: loads and displays the new image
+- Omit `artwork`: keeps whatever artwork is currently showing
 
-**Android OEM lock screen note:**
+Some Android vendor lock screens need an explicit image replacement:
 - On some vendor lock screens, stale artwork can persist when `largeIcon` is sent as `null`.
 - The module forces a real icon replacement when no artwork is available to ensure previous covers are cleared.
 
@@ -240,7 +240,7 @@ Each rule is an object with:
 | `match`   | String | Regex pattern to match against the field value                 |
 | `replace` | String | Replacement string (supports capture groups: `$1`, `$2`, etc.) |
 
-Rules are applied in array order. `setMetadata()` (manual override) is **not** affected by rules. You can also pass `metadataRules` directly in [`setStream()`](#setstreamoptions).
+Rules are applied in array order. `setMetadata()` (manual override) is not affected by rules. You can also pass `metadataRules` directly in [`setStream()`](#setstreamoptions).
 
 ```javascript
 // Example: Radio sends "Mission, The - Tower Of Strength (1987) - Single"
@@ -315,9 +315,9 @@ Both methods are cross-platform (Android Auto + CarPlay). On builds without car 
 
 #### Transport security note (`allowCrossProtocolRedirects`)
 
-Many radio CDNs redirect an `https://` entry URL to an `http://` edge node (for example radiojar, `https://stream.radiojar.com/…` → `http://nNN.radiojar.com/…?rj-tok=…`). ExoPlayer rejects these cross-protocol redirects by default with `Response code: 302`. The Android module enables them to match iOS/AVPlayer and browser behavior.
+Many radio CDNs redirect an `https://` entry URL to an `http://` edge node (for example radiojar, `https://stream.radiojar.com/…` redirects to `http://nNN.radiojar.com/…?rj-tok=…`). ExoPlayer rejects these cross-protocol redirects by default with `Response code: 302`. The Android module enables them to match iOS/AVPlayer and browser behavior.
 
-The tradeoff: with this enabled (the default), an `https://` URL **may be downgraded to `http://`** by a redirect, so it no longer guarantees encrypted transport. The data here is public radio audio, so the risk is low, but if you only stream from CDNs that keep HTTPS end-to-end and want to forbid downgrades, set it off before the first `setStream()` or `start()`. It is read when the Android player is created; changing it on an existing player takes effect after `hardStop()` recreates the service:
+The tradeoff: with this enabled (the default), an `https://` URL may be downgraded to `http://` by a redirect, so it no longer guarantees encrypted transport. The data here is public radio audio, so the risk is low, but if you only stream from CDNs that keep HTTPS end-to-end and want to forbid downgrades, set it off before the first `setStream()` or `start()`. It is read when the Android player is created; changing it on an existing player takes effect after `hardStop()` recreates the service:
 
 ```javascript
 audioStream.allowCrossProtocolRedirects = false // Android only; iOS/AVPlayer is unaffected
@@ -356,7 +356,7 @@ Fires on playback errors.
 | :-------- | :----- | :---------------- |
 | `message` | String | Error description |
 
-Temporary transport failures are retried up to **5 times** with a **3-second delay**. DNS/connectivity errors, timeouts and temporary HTTP failures such as 429/503 are retryable; missing resources (404), invalid certificates and unsupported content are terminal. Pausing, stopping or changing stations cancels obsolete retries. Both Android and iOS can emit `error` for a player failure that will be retried, before returning to `buffering`. An error event alone does not mean that retries have finished; follow the `state` event to track recovery.
+Temporary transport failures are retried up to 5 times with a 3-second delay. DNS/connectivity errors, timeouts and temporary HTTP failures such as 429/503 are retryable; missing resources (404), invalid certificates and unsupported content are terminal. Pausing, stopping or changing stations cancels obsolete retries. Both Android and iOS can emit `error` for a player failure that will be retried, before returning to `buffering`. An error event alone does not mean that retries have finished; follow the `state` event to track recovery.
 
 #### `remotecontrol`
 
@@ -369,7 +369,7 @@ Fires when the user interacts with system media controls (lock screen, notificat
 
 The engine handles `PLAY`, `PAUSE`, and `STOP` on its own. `NEXT` and `PREV` fire the event so your app can decide what to do. Without a JavaScript listener, the native automotive catalog handles adjacent stations, including when JavaScript is not running.
 
-**Constants:**
+Transport constants:
 
 | Constant                            | Value | Platform |
 | :---------------------------------- | :---- | :------- |
@@ -391,7 +391,7 @@ Fires when the driver selects a station from Android Auto or CarPlay. The module
 | Property  | Type   | Description                                                         |
 | :-------- | :----- | :------------------------------------------------------------------ |
 | `station` | Object | The selected station object (same shape you registered, incl. `id`) |
-| `source`  | String | Which car surface triggered it (e.g. `androidAuto`)                 |
+| `source`  | String | Car surface that triggered it: `androidauto` or `carplay`                 |
 
 Requires registering stations first with [`setAutomotiveStations()`](#setautomotivestationsstations).
 
@@ -432,7 +432,11 @@ audioStream.addEventListener('metadata', (e) => {
 audioStream.start()
 ```
 
-System controls update automatically. Your in-app UI updates through the event.
+### Showing loading state
+
+Call `setStream()` and `start()` consecutively when the user selects a station. No timer is required between them. The `buffering` event covers URL resolution and native loading; `playing` confirms playback. The read-only `playing` property is false during loading, so use state events if your Play/Pause button must also cancel a pending start.
+
+A manual `pause()` or `stop()` cancels pending retries and interruption resume. After either command, playback needs an explicit request. When a finite item ends, the module reports `stopped`; `start()` reopens it.
 
 ### Handling remote controls (playlist rotation)
 
@@ -525,6 +529,11 @@ The `metadata` event always fires regardless of `autoUpdateMetadata`. That flag 
 
 ### Error handling
 
+A catalog URL can stop serving audio independently of the module. Check the HTTP
+status and response body when a station fails. A successful playlist response also
+needs reachable media entries; an HTML error page is not an audio stream.
+
+
 ```javascript
 audioStream.addEventListener('error', (e) => {
   const msg = e.message || 'Stream unavailable'
@@ -550,7 +559,7 @@ Temporary failures can emit `error` before the next retry. A later `buffering` o
 #### Android
 
 - Background playback runs inside a Foreground Service with a persistent media notification
-- The Foreground Service keeps streaming even if Android tears down and relaunches your app's UI (a notification tap, the media output switcher, or an OS task kill spawn a fresh JavaScript runtime). On that new runtime, `playing` reflects the live service state instead of resetting to `false`, so on startup you can check `playing` and re-sync your UI to the station that is still on air. Persist the current station yourself (the module does not carry your metadata across the relaunch) and restore it when `playing` is `true`
+- The Foreground Service keeps streaming even if Android tears down and relaunches your app's UI (a notification tap, the media output switcher, or an OS task kill spawn a fresh JavaScript runtime). On that new runtime, `playing` reflects the live service state instead of resetting to `false`, so on startup you can check `playing` and re-sync your UI to the station that is still on air. Persist the current station yourself (the module does not restore your app UI across the relaunch) and restore it when `playing` is `true`
 - The notification has compact (lock screen), expanded (drawer), and system media player (Quick Settings) views
 - Uses MediaSession for Bluetooth devices and the system output switcher
 - Android Auto support via MediaBrowserService: the module registers as a media source so Android Auto can discover, display, and control the stream (see [Android Auto](#android-auto))
@@ -637,16 +646,14 @@ Keys you don't define keep the English default, so translating a subset is fine.
 
 On Android, Titanium compiles `app/i18n/<lang>/` into `res/values-<lang>/`. The locale named by `<defaultLang>` (which defaults to `en`) becomes the default `res/values/`. A locale absent from the default configuration is dropped from the APK. This was verified in a compiled APK with Titanium SDK 13.3.0.
 
-What that means in practice:
-
 | Your app's i18n                         | Result on Android                                   |
 | :-------------------------------------- | :--------------------------------------------------- |
-| `en/` only                              | ✅ Works (`en` is the default)                        |
+| `en/` only                              | Works (`en` is the default)                        |
 | `en/` + `es/`                           | English by default, Spanish on Spanish devices |
 | `es/` only, no `<defaultLang>`          | Silently ignored. The module shows English.    |
 | `es/` only + `<defaultLang>es</defaultLang>` | Spanish on every device                    |
 
-So if your app ships a single non-English language, add this to `tiapp.xml`:
+If your app ships a single non-English language, add this to `tiapp.xml`:
 
 ```xml
 <defaultLang>es</defaultLang>
@@ -660,12 +667,12 @@ Both platforms parse metadata through multiple layers so they can handle differe
 
 | Format                 | Source                            | Example                          |
 | :--------------------- | :-------------------------------- | :------------------------------- |
-| **ICY headers**        | Shoutcast/Icecast `StreamTitle`   | `StreamTitle='Artist - Song';`   |
-| **ID3 text frames**    | `TIT2` (title), `TPE1` (artist)   | Standard MP3 metadata            |
-| **ID3 comment frames** | `COMM` field with embedded data   | Global Player / Heart Radio      |
-| **Embedded JSON**      | JSON inside ID3 frames            | `{"title":"...","artist":"..."}` |
-| **Stream URL artwork** | ICY URL ending in image extension | `http://...cover.jpg`            |
-| **Embedded artwork**   | Binary image data in metadata     | APIC frames, CommonMetadata      |
+| ICY headers        | Shoutcast/Icecast `StreamTitle`   | `StreamTitle='Artist - Song';`   |
+| ID3 text frames    | `TIT2` (title), `TPE1` (artist)   | Standard MP3 metadata            |
+| ID3 comment frames | `COMM` field with embedded data   | Global Player / Heart Radio      |
+| Embedded JSON      | JSON inside ID3 frames            | `{"title":"...","artist":"..."}` |
+| Stream URL artwork | ICY URL ending in image extension | `http://...cover.jpg`            |
+| Embedded artwork   | Binary image data in metadata     | APIC frames, CommonMetadata      |
 
 When a stream sends `Artist - Title` as a single string, which is common with ICY, the module splits it automatically. The `raw` property in the `metadata` event includes parsed source tags when available.
 
@@ -673,16 +680,18 @@ When a stream sends `Artist - Title` as a single string, which is common with IC
 
 | Feature             | Android                     | iOS                                         |
 | :------------------ | :-------------------------- | :------------------------------------------ |
-| **Engine**          | Media3 ExoPlayer 1.11.1     | AVFoundation (AVPlayer)                     |
-| **Background**      | Foreground Service          | AVAudioSession (Playback)                   |
-| **System controls** | MediaSessionCompat          | MPRemoteCommandCenter + MPNowPlayingSession |
-| **Metadata**        | ID3 / ICY / Deep JSON       | TimedMetadata / CommonMetadata              |
-| **Audio focus**     | AudioManager + MediaSession | AVAudioSession interruption handling        |
-| **Reconnect**       | 5 retries, 3s delay         | 5 retries, 3s delay                         |
+| Engine          | Media3 ExoPlayer 1.11.1     | AVFoundation (AVPlayer)                     |
+| Background      | Foreground Service          | AVAudioSession (Playback)                   |
+| System controls | MediaSessionCompat          | MPRemoteCommandCenter + MPNowPlayingSession |
+| Metadata        | ID3 / ICY / Deep JSON       | TimedMetadata / CommonMetadata              |
+| Audio focus     | AudioManager + MediaSession | AVAudioSession interruption handling        |
+| Reconnect       | 5 retries, 3s delay         | 5 retries, 3s delay                         |
 
 ## Development verification
 
-Durable regression commands and device-test instructions are in [tests/README.md](tests/README.md). Detailed iOS binary diagnostics default to off (`TI_AUDIOSTREAM_DIAGNOSTICS=1` opts in at compile time and redacts URLs); Android debug/info logging follows Titanium's `TiConfig.LOGD`. JavaScript events remain enabled independently.
+Durable regression commands and device-test instructions are in [tests/README.md](tests/README.md). See [second-pass results](tests/SEGUNDA_PASADA.md) for the recorded measurements, including runs that exceeded the latency budget and the remaining stress and hardware checks. These results do not establish a maximum startup time.
+
+Detailed iOS binary diagnostics default to off (`TI_AUDIOSTREAM_DIAGNOSTICS=1` opts in at compile time and redacts URLs); Android debug/info logging follows Titanium's `TiConfig.LOGD`. JavaScript events remain enabled independently.
 
 Native builds are checked with Titanium 13.4.1.GA. Physical vehicle, Bluetooth, long suspension and OEM artwork acceptance require their own checks; automated method tests do not certify these surfaces.
 
